@@ -51,9 +51,7 @@ cd ..
 
 ### 3. Install Required Dependencies
 ```bash
-pip install opencv-python
-pip install open3d
-pip install --upgrade --force-reinstall numpy-quaternion
+pip install opencv-python open3d numpy-quaternion
 ```
 
 ### 4. Linux Users (Additional Setup)
