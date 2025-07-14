@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: cube_stacking
+Version: 0.0.1
+Summary: MuJoCo cube-stacking environment
+Requires-Python: >=3.8
+Requires-Dist: gymnasium>=0.29
+Requires-Dist: mujoco>=3.0.2
+Requires-Dist: numpy>=1.24
+Requires-Dist: pillow>=10.0
+Requires-Dist: imageio[ffmpeg]>=2.34
+Requires-Dist: opencv-python>=4.8
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
