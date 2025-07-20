@@ -43,6 +43,10 @@
         <!-- Materials for the cubes -->
         <material name="red_mat" rgba="0.8 0.2 0.2 1" specular="0.5" shininess="0.5"/>
         <material name="blue_mat" rgba="0.2 0.2 0.8 1" specular="0.5" shininess="0.5"/>
+
+        <!-- tic tac toe cubes -->
+        <mesh name="o2_blue_cube" file="o2-75.stl" scale="0.0025 0.0025 0.0025"/>
+        <mesh name="x2_blue_cube" file="x2-75.stl" scale="0.0025 0.0025 0.0025"/>
     </asset>
     
     <default>
@@ -158,18 +162,35 @@
         </body>
         
         <!-- Red cube -->
-        <body name="red_cube" pos="0.05 -0.4 0.025">
+        <!-- <body name="red_cube" pos="0.05 -0.4 0.025">
             <freejoint name="red_cube_joint"/>
             <geom name="red_cube_geom" type="box" size="0.025 0.025 0.025" material="red_mat" mass="0.1"/>
             <inertial pos="0 0 0" mass="0.1" diaginertia="0.000042 0.000042 0.000042"/>
-        </body>
+        </body> -->
         
         <!-- Blue cube -->
-        <body name="blue_cube" pos="-0.05 -0.4 0.025">
+        <!-- <body name="blue_cube" pos="-0.05 -0.4 0.025">
             <freejoint name="blue_cube_joint"/>
             <geom name="blue_cube_geom" type="box" size="0.025 0.025 0.025" material="blue_mat" mass="0.1"/>
             <inertial pos="0 0 0" mass="0.1" diaginertia="0.000042 0.000042 0.000042"/>
-        </body>
+        </body> -->
+
+
+        <!-- o2 cube -->
+        <geom name="red_cube_geom" type="mesh" mesh="o2_blue_cube" material="red_mat" pos="0.05 -0.4 0.035"/>
+        <!-- <body name="red_cube" pos="0.05 -0.4 0.025"> -->
+            <!-- <freejoint name="red_cube_joint"/> -->
+            <!-- <geom name="red_cube_geom" type="mesh" mesh="o2_blue_cube" material="red_mat" size="0.025"/> -->
+            <!-- <inertial pos="0 0 0" mass="0.1" diaginertia="0.000042 0.000042 0.000042"/> -->
+        <!-- </body> -->
+
+        <!-- x2 cube -->
+        <geom name="blue_cube_geom" type="mesh" mesh="x2_blue_cube" material="blue_mat" pos="-0.05 -0.4 0.03"/>
+        <!-- <body name="blue_cube" pos="-0.05 -0.4 0.025"> -->
+            <!-- <freejoint name="blue_cube_joint"/> -->
+            <!-- <geom name="blue_cube_geom" type="mesh" mesh="x2_blue_cube" material="blue_mat" size="0.025"/> -->
+            <!-- <inertial pos="0 0 0" mass="0.1" diaginertia="0.000042 0.000042 0.000042"/> -->
+        <!-- </body> -->
         
         <!-- Camera definitions -->
         <!-- Top-down camera looking at the workspace -->
@@ -190,6 +211,6 @@
     
     <contact>
         <exclude body1="Base" body2="Rotation_Pitch"/>
-        <exclude body1="red_cube" body2="blue_cube"/>
+        <!-- <exclude body1="red_cube" body2="blue_cube"/> -->
     </contact>
 </mujoco>

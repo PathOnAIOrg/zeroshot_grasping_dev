@@ -78,8 +78,10 @@ class CubeStackingEnv(gym.Env):
         self.wrist_cam_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_CAMERA, "wrist")
         
         # Get body IDs for cubes
-        self.red_cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "red_cube")
-        self.blue_cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "blue_cube")
+        # self.red_cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "red_cube")
+        # self.blue_cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "blue_cube")
+        self.red_cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "red_cube_geom")
+        self.blue_cube_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "blue_cube_geom")
         
         # Define joint limits for the robot (6 joints)
         self.joint_limits = np.array([
