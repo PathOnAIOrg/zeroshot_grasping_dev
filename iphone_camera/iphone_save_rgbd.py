@@ -46,6 +46,8 @@ class DemoApp:
         self.DEVICE_TYPE__LIDAR = 1
         self.rgb_width = 720
         self.rgb_height = 960
+        self.depth_width = 720
+        self.depth_height = 960
 
         self.init_camera_pose = None
         # Create a Visualizer object
@@ -280,6 +282,18 @@ class DemoApp:
 
                     depth= np.ascontiguousarray(depth).astype(np.float32)
                     np.save('pre_depth.npy', depth)
+                    # Also save depth as PNG
+                    depth_png = (depth * 1000).astype(np.uint16)  # Scale depth values
+                    cv2.imwrite('pre_depth.png', depth_png)
+                    # Save camera intrinsics as text
+                    with open('pre_camera_info.txt', 'w') as f:
+                        f.write(f'width: {self.depth_width}\n')
+                        f.write(f'height: {self.depth_height}\n')
+                        f.write(f'fx: {intrinsic_mat[0,0] * self.depth_width / self.rgb_width}\n')
+                        f.write(f'fy: {intrinsic_mat[1,1] * self.depth_height / self.rgb_height}\n')
+                        f.write(f'cx: {intrinsic_mat[0,2] * self.depth_width / self.rgb_width}\n')
+                        f.write(f'cy: {intrinsic_mat[1,2] * self.depth_height / self.rgb_height}\n')
+                        f.write(f'scale: 1000.0\n')
 
 
                 if frame_count ==500:
@@ -295,6 +309,18 @@ class DemoApp:
 
                     depth= np.ascontiguousarray(depth).astype(np.float32)
                     np.save('post_depth.npy', depth)
+                    # Also save depth as PNG
+                    depth_png = (depth * 1000).astype(np.uint16)  # Scale depth values
+                    cv2.imwrite('post_depth.png', depth_png)
+                    # Save camera intrinsics as text
+                    with open('post_camera_info.txt', 'w') as f:
+                        f.write(f'width: {self.depth_width}\n')
+                        f.write(f'height: {self.depth_height}\n')
+                        f.write(f'fx: {intrinsic_mat[0,0] * self.depth_width / self.rgb_width}\n')
+                        f.write(f'fy: {intrinsic_mat[1,1] * self.depth_height / self.rgb_height}\n')
+                        f.write(f'cx: {intrinsic_mat[0,2] * self.depth_width / self.rgb_width}\n')
+                        f.write(f'cy: {intrinsic_mat[1,2] * self.depth_height / self.rgb_height}\n')
+                        f.write(f'scale: 1000.0\n')
 
                     break
 
