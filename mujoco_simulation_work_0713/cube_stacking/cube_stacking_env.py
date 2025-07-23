@@ -63,7 +63,8 @@ class CubeStackingEnv(gym.Env):
         # Load MuJoCo model
         package_root = Path(__file__).parent                    # …/cube_stacking
         if xml_path is None:
-            xml_file = package_root / "trs_so_arm100" / "scene.xml"
+            # xml_file = package_root / "trs_so_arm100" / "scene.xml"      # uncomment it to use so100 model
+            xml_file = package_root / "SO101" / "scene.xml"                # uncomment it to use so101 model
         else:
             xml_path = Path(xml_path)
             xml_file = xml_path if xml_path.is_absolute() else package_root / xml_path
