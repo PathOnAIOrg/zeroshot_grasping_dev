@@ -1,0 +1,9 @@
+LICENSE
+README.md
+setup.py
+ThinkGrasp.egg-info/PKG-INFO
+ThinkGrasp.egg-info/SOURCES.txt
+ThinkGrasp.egg-info/dependency_links.txt
+ThinkGrasp.egg-info/not-zip-safe
+ThinkGrasp.egg-info/requires.txt
+ThinkGrasp.egg-info/top_level.txt

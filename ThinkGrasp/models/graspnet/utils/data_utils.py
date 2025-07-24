@@ -30,7 +30,12 @@ def create_point_cloud_from_depth_image(depth, camera, organized=True):
             cloud: [numpy.ndarray, (H,W,3)/(H*W,3), numpy.float32]
                 generated cloud, (H,W,3) for organized=True, (H*W,3) for organized=False
     """
+    print("depth.shape[0]:",depth.shape[0])
+    print(" camera.height",camera.height)
+    print("depth.shape[1]",depth.shape[1])
+    print(" camera.width",camera.width)
     assert(depth.shape[0] == camera.height and depth.shape[1] == camera.width)
+
     xmap = np.arange(camera.width)
     ymap = np.arange(camera.height)
     xmap, ymap = np.meshgrid(xmap, ymap)
