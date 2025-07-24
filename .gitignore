@@ -1,4 +1,7 @@
 
-*.pyc
 /ThinkGrasp/models/FGC_graspnet/pointnet2/pointnet2.egg-info
 /ThinkGrasp/models/FGC_graspnet/pointnet2/build
+
+.DS_Store
+
+
