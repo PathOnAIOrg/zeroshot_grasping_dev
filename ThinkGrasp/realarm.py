@@ -43,9 +43,9 @@ api_key = os.environ["OPENAI_API_KEY"]
 client = OpenAI(api_key=api_key)
 
 # Initialize Ray and load actors and models
-ray.init(num_gpus=2)  # Add arguments as necessary, e.g., address, num_gpus
+ray.init(num_gpus=1)  # Add arguments as necessary, e.g., address, num_gpus
 use_gpu = torch.cuda.is_available()
-gpu_allocation = 0.8 if use_gpu else 0
+gpu_allocation = 1 if use_gpu else 0
 actor_options = {"num_gpus": gpu_allocation}
 langsam_actor = LangSAM.options(**actor_options).remote(use_gpu=use_gpu)
 # vlp_actor = SegmentAnythingActor.options(**actor_options).remote(

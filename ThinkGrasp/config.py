@@ -4,20 +4,20 @@
 class CameraConfig:
     """Camera configuration parameters"""
     
-    # Camera intrinsic parameters - UPDATE THESE FOR YOUR CAMERA
-    WIDTH = 640
-    HEIGHT = 480
-    FX = 382.8567  # Focal length x
-    FY = 382.4391  # Focal length y
-    CX = 331.3490  # Principal point x
-    CY = 247.1126  # Principal point y
+    # Camera intrinsic parameters - iPhone camera configuration
+    WIDTH = 720
+    HEIGHT = 960
+    FX = 1386.71533203125  # Focal length x
+    FY = 1386.71533203125  # Focal length y
+    CX = 718.263916015625  # Principal point x
+    CY = 954.7833862304688  # Principal point y
     SCALE = 1000.0  # Depth scale factor
     
-    # Image processing region - UPDATE FOR YOUR CAMERA RESOLUTION
+    # Image processing region - iPhone camera resolution
     XMIN = 0
     YMIN = 0
-    XMAX = 480
-    YMAX = 640
+    XMAX = 960
+    YMAX = 720
     
     @classmethod
     def get_camera_info(cls):
