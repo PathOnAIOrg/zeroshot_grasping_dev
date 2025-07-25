@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grasp Pose Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2c3e50;
+            color: white;
+        }
+        
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        #sidebar {
+            width: 350px;
+            background-color: #34495e;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        #viewer {
+            flex: 1;
+            position: relative;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #2c3e50;
+        }
+        
+        .section h3 {
+            margin: 0 0 15px 0;
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .file-input {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #7f8c8d;
+            border-radius: 4px;
+            background-color: #34495e;
+            color: white;
+        }
+        
+        .textarea-input {
+            width: 100%;
+            height: 120px;
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #7f8c8d;
+            border-radius: 4px;
+            background-color: #34495e;
+            color: white;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+        
+        .button {
+            width: 100%;
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .button:hover {
+            background-color: #2980b9;
+        }
+        
+        .button:disabled {
+            background-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+        
+        .button.secondary {
+            background-color: #e74c3c;
+        }
+        
+        .button.secondary:hover {
+            background-color: #c0392b;
+        }
+        
+        .checkbox-group {
+            margin: 10px 0;
+        }
+        
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #2c3e50;
+            border-radius: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #f39c12;
+        }
+        
+        .error {
+            color: #e74c3c;
+            background-color: rgba(231, 76, 60, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        
+        .success {
+            color: #27ae60;
+            background-color: rgba(39, 174, 96, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        
+        .example-json {
+            background-color: #1a252f;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #ecf0f1;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .results {
+            margin-top: 20px;
+        }
+        
+        .coordinate-info {
+            background-color: #2c3e50;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        
+        .coordinate-info ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        
+        .coordinate-info li {
+            margin: 3px 0;
+        }
+        
+        .pose-item {
+            background-color: #1a252f;
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .pose-item h4 {
+            margin: 0 0 5px 0;
+            color: #e74c3c;
+            font-size: 14px;
+        }
+        
+        .pose-data {
+            font-size: 11px;
+            font-family: monospace;
+            color: #bdc3c7;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 8px;
+            background-color: #7f8c8d;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        
+        .tab-button.active {
+            background-color: #3498db;
+        }
+        
+        .tab-button:last-child {
+            margin-right: 0;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <h2>Grasp Pose Visualizer</h2>
+            
+            <div class="section">
+                <h3>Input Methods</h3>
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="switchTab('combined')">Combined Input</button>
+                    <button class="tab-button" onclick="switchTab('ply')">PLY + NPY</button>
+                    <button class="tab-button" onclick="switchTab('sample')">Sample Data</button>
+                </div>
+                
+                <div id="combined-tab" class="tab-content active">
+                    <h4>Step 1: Paste Grasp Poses JSON</h4>
+                    <textarea id="jsonInput" class="textarea-input" placeholder="Paste your grasp poses JSON here..."></textarea>
+                    
+                    <h4>Step 2: Upload RGB-D Images</h4>
+                    <input type="file" id="rgbInput" class="file-input" accept="image/*" />
+                    <label for="rgbInput">RGB Image</label>
+                    
+                    <input type="file" id="depthInput" class="file-input" accept="image/*" />
+                    <label for="depthInput">Depth Image</label>
+                    
+                    <button id="generateCombinedButton" class="button">Generate Combined Visualization</button>
+                    
+                    <div class="example-json">
+                        <strong>Example Grasp Poses Format:</strong><br>
+                        {<br>
+                        &nbsp;&nbsp;"grasp_poses": [<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"dep": 0.02,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"rot": [[1,0,0],[0,1,0],[0,0,1]],<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"xyz": [0.1, 0.2, 0.3]<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;]<br>
+                        }<br>
+                        <strong>Coordinate System:</strong> Camera frame<br>
+                        X: right, Y: down, Z: forward (meters)
+                    </div>
+                </div>
+                
+                <div id="ply-tab" class="tab-content">
+                    <h4>Upload PLY Point Cloud + NPY Grasp Poses</h4>
+                    <p>Upload a PLY point cloud file and NPY grasp poses file directly.</p>
+                    
+                    <div class="file-input-group">
+                        <label for="plyFile">Point Cloud (PLY):</label>
+                        <input type="file" id="plyFile" accept=".ply" class="file-input">
+                    </div>
+                    
+                    <div class="file-input-group">
+                        <label for="npyFile">Grasp Poses (NPY):</label>
+                        <input type="file" id="npyFile" accept=".npy" class="file-input">
+                    </div>
+                    
+                    <button id="loadPlyNpyButton" class="button">Load PLY + NPY</button>
+                </div>
+                
+                <div id="sample-tab" class="tab-content">
+                    <button id="sampleButton" class="button">Load Sample Data</button>
+                    <button id="thinkgraspButton" class="button">Test ThinkGrasp Compatibility</button>
+                    <p style="font-size: 12px; color: #bdc3c7;">
+                        Load sample data or test ThinkGrasp compatibility with your camera parameters.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>Visualization Controls</h3>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="showPointCloud" checked />
+                        Show Point Cloud
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="showGrasps" checked />
+                        Show Grasp Poses
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="showAxes" checked />
+                        Show Coordinate Axes
+                    </label>
+                </div>
+                <button id="clearButton" class="button secondary">Clear All</button>
+            </div>
+            
+            <div id="status"></div>
+            
+            <div class="coordinate-info">
+                <h3>Camera Parameters</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; font-size: 11px;">
+                    <label>Width:</label>
+                    <input type="number" id="camWidth" value="640" min="1" max="2000" style="padding: 2px;">
+                    <label>Height:</label>
+                    <input type="number" id="camHeight" value="480" min="1" max="2000" style="padding: 2px;">
+                    <label>fx:</label>
+                    <input type="number" id="camFx" value="383.9592" step="0.0001" style="padding: 2px;">
+                    <label>fy:</label>
+                    <input type="number" id="camFy" value="383.6245" step="0.0001" style="padding: 2px;">
+                    <label>cx:</label>
+                    <input type="number" id="camCx" value="322.1625" step="0.0001" style="padding: 2px;">
+                    <label>cy:</label>
+                    <input type="number" id="camCy" value="245.3161" step="0.0001" style="padding: 2px;">
+                    <label>Scale:</label>
+                    <input type="number" id="camScale" value="1000" step="1" style="padding: 2px;">
+                </div>
+                <button onclick="updateCameraParams()" style="width: 100%; margin-bottom: 5px;">Update Camera</button>
+                <div style="display: flex; gap: 3px; flex-wrap: wrap;">
+                    <button onclick="loadCameraPreset('realsense')" style="flex: 1; font-size: 9px;">RealSense</button>
+                    <button onclick="loadCameraPreset('kinect')" style="flex: 1; font-size: 9px;">Kinect</button>
+                    <button onclick="loadCameraPreset('custom')" style="flex: 1; font-size: 9px;">Custom HD</button>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <h3>Statistics</h3>
+                <div id="pointCount">Points: 0</div>
+                <div id="graspCount">Grasps: 0</div>
+            </div>
+            
+            <div class="coordinate-info">
+                <h3>3D Scene</h3>
+                <p><strong>🟢 Green Frustum:</strong> Camera view<br>
+                <strong>🔵 Blue Points:</strong> Point cloud data<br>
+                <strong>🔴 Red Cylinders:</strong> Grasp poses<br>
+                <strong>📷 Camera Body:</strong> Original capture position</p>
+                
+                <p><strong>Camera Axes:</strong></p>
+                <ul>
+                    <li>🔴 X: Right</li>
+                    <li>🟠 Y: Down</li>
+                    <li>🟣 Z: Forward</li>
+                </ul>
+            </div>
+            
+            <div id="results" class="results"></div>
+        </div>
+        
+        <div id="viewer">
+            <div id="info">
+                Use mouse to rotate, zoom, and pan the view<br>
+                Paste your grasp poses JSON in the sidebar to visualize
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Three.js scene setup
+        let scene, camera, renderer, controls;
+        let pointCloudGroup, graspGroup, axesGroup, cameraGroup;
+        let virtualCamera; // The camera that "took" the point cloud data
+        
+        // Data storage
+        let currentPointCloud = [];
+        let currentGrasps = [];
+        let currentDataSource = null; // 'sample', 'upload', 'poses_only'
+        let uploadedFiles = { rgb: null, depth: null }; // Store uploaded files
+        let currentCameraParams = {
+            width: 640,
+            height: 480,
+            fx: 383.9592,
+            fy: 383.6245,
+            cx: 322.1625,
+            cy: 245.3161,
+            scale: 1000
+        };
+        
+        // Tab switching
+        function switchTab(tab) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tab + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Initialize Three.js scene
+        function initScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.001,
+                1000
+            );
+            camera.position.set(0, 0, 0.5);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 350, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('viewer').appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0, -0.35);
+            
+            // Groups for different objects
+            pointCloudGroup = new THREE.Group();
+            graspGroup = new THREE.Group();
+            axesGroup = new THREE.Group();
+            cameraGroup = new THREE.Group();
+            
+            scene.add(pointCloudGroup);
+            scene.add(graspGroup);
+            scene.add(axesGroup);
+            scene.add(cameraGroup);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Add coordinate axes
+            addCoordinateAxes();
+            
+            // Add camera visualization
+            addCameraVisualization();
+            
+            // Start render loop
+            animate();
+        }
+        
+        function addCoordinateAxes() {
+            axesGroup.clear();
+            
+            // Three.js coordinate system (main axes)
+            const axesHelper = new THREE.AxesHelper(0.3);
+            axesGroup.add(axesHelper);
+            
+            // Add coordinate system information
+            addCoordinateSystemInfo();
+        }
+        
+        // Create detailed coordinate system visualization
+        function addCoordinateSystemInfo() {
+            // Create coordinate system at origin showing Three.js coordinates
+            const originGroup = createCoordinateSystemAxes([0, 0, 0], 0.2, "Three.js");
+            axesGroup.add(originGroup);
+            
+            // Create camera coordinate system visualization
+            const cameraGroup = createCoordinateSystemAxes([0.4, 0, 0], 0.15, "Camera");
+            // Rotate to show how camera coordinates map to Three.js
+            // Camera: X=right, Y=down, Z=forward
+            // Three.js: X=right, Y=up, Z=toward viewer (negative camera Z)
+            cameraGroup.children.forEach(child => {
+                if (child.userData.axis === 'Y') {
+                    child.material.color.setHex(0xffaa00); // Orange for flipped Y
+                }
+                if (child.userData.axis === 'Z') {
+                    child.material.color.setHex(0xaa00ff); // Purple for flipped Z
+                }
+            });
+            axesGroup.add(cameraGroup);
+            
+            scene.add(axesGroup);
+        }
+
+        function createCoordinateSystemAxes(position, scale, label) {
+            const group = new THREE.Group();
+            
+            // X axis - Red (always same direction)
+            const xGeometry = new THREE.CylinderGeometry(0.003, 0.003, scale);
+            const xMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const xAxis = new THREE.Mesh(xGeometry, xMaterial);
+            xAxis.rotation.z = -Math.PI / 2;
+            xAxis.position.set(scale/2, 0, 0);
+            xAxis.userData.axis = 'X';
+            group.add(xAxis);
+            
+            // X arrow
+            const xArrowGeometry = new THREE.ConeGeometry(0.008, 0.03);
+            const xArrow = new THREE.Mesh(xArrowGeometry, xMaterial);
+            xArrow.rotation.z = -Math.PI / 2;
+            xArrow.position.set(scale, 0, 0);
+            xArrow.userData.axis = 'X';
+            group.add(xArrow);
+            
+            // Y axis - Green 
+            const yGeometry = new THREE.CylinderGeometry(0.003, 0.003, scale);
+            const yMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const yAxis = new THREE.Mesh(yGeometry, yMaterial);
+            yAxis.position.set(0, scale/2, 0);
+            yAxis.userData.axis = 'Y';
+            group.add(yAxis);
+            
+            // Y arrow
+            const yArrowGeometry = new THREE.ConeGeometry(0.008, 0.03);
+            const yArrow = new THREE.Mesh(yArrowGeometry, yMaterial);
+            yArrow.position.set(0, scale, 0);
+            yArrow.userData.axis = 'Y';
+            group.add(yArrow);
+            
+            // Z axis - Blue
+            const zGeometry = new THREE.CylinderGeometry(0.003, 0.003, scale);
+            const zMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const zAxis = new THREE.Mesh(zGeometry, zMaterial);
+            zAxis.rotation.x = Math.PI / 2;
+            zAxis.position.set(0, 0, scale/2);
+            zAxis.userData.axis = 'Z';
+            group.add(zAxis);
+            
+            // Z arrow
+            const zArrowGeometry = new THREE.ConeGeometry(0.008, 0.03);
+            const zArrow = new THREE.Mesh(zArrowGeometry, zMaterial);
+            zArrow.rotation.x = Math.PI / 2;
+            zArrow.position.set(0, 0, scale);
+            zArrow.userData.axis = 'Z';
+            group.add(zArrow);
+            
+            group.position.set(position[0], position[1], position[2]);
+            return group;
+        }
+
+        // Add camera visualization showing the original camera pose
+        function addCameraVisualization() {
+            cameraGroup.clear();
+            
+            // Use current camera parameters
+            const cameraParams = currentCameraParams;
+            
+            // Create virtual camera to represent the original camera position
+            const aspect = cameraParams.width / cameraParams.height;
+            const fov = 2 * Math.atan(cameraParams.height / (2 * cameraParams.fy)) * 180 / Math.PI;
+            
+            virtualCamera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 2.0);
+            
+            // Position camera at origin in camera coordinate system
+            // In Three.js coordinates, this would be at the "camera position"
+            virtualCamera.position.set(0, 0, 0);
+            virtualCamera.lookAt(0, 0, -1); // Camera looks down negative Z in camera coords
+            
+            // Create camera frustum helper
+            const cameraHelper = new THREE.CameraHelper(virtualCamera);
+            cameraHelper.material.color.setHex(0x00ff00); // Green wireframe
+            cameraGroup.add(cameraHelper);
+            
+            // Add camera coordinate system at camera position
+            const cameraAxes = createCameraCoordAxes([0, 0, 0], 0.15);
+            cameraGroup.add(cameraAxes);
+            
+            // Add camera body representation
+            const cameraBody = createCameraBody();
+            cameraGroup.add(cameraBody);
+            
+            // Position the entire camera group
+            // This represents where the camera was when it captured the data
+            cameraGroup.position.set(0, 0, 0.8); // Behind the point cloud
+            
+            scene.add(cameraGroup);
+        }
+
+        // Create camera coordinate axes (different colors to show camera coordinate system)
+        function createCameraCoordAxes(position, scale) {
+            const group = new THREE.Group();
+            
+            // X axis - Red (Right)
+            const xGeometry = new THREE.CylinderGeometry(0.005, 0.005, scale);
+            const xMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const xAxis = new THREE.Mesh(xGeometry, xMaterial);
+            xAxis.rotation.z = -Math.PI / 2;
+            xAxis.position.set(scale/2, 0, 0);
+            group.add(xAxis);
+            
+            // Y axis - Orange (Down in camera coords, but shown as up in Three.js)
+            const yGeometry = new THREE.CylinderGeometry(0.005, 0.005, scale);
+            const yMaterial = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+            const yAxis = new THREE.Mesh(yGeometry, yMaterial);
+            // Flip to show camera Y pointing down
+            yAxis.rotation.x = Math.PI;
+            yAxis.position.set(0, -scale/2, 0);
+            group.add(yAxis);
+            
+            // Z axis - Purple (Forward in camera coords, backward in Three.js)
+            const zGeometry = new THREE.CylinderGeometry(0.005, 0.005, scale);
+            const zMaterial = new THREE.MeshBasicMaterial({ color: 0x8800ff });
+            const zAxis = new THREE.Mesh(zGeometry, zMaterial);
+            zAxis.rotation.x = Math.PI / 2;
+            zAxis.position.set(0, 0, -scale/2);
+            group.add(zAxis);
+            
+            group.position.set(position[0], position[1], position[2]);
+            return group;
+        }
+
+        // Create a simple camera body representation
+        function createCameraBody() {
+            const group = new THREE.Group();
+            
+            // Camera box
+            const bodyGeometry = new THREE.BoxGeometry(0.06, 0.04, 0.03);
+            const bodyMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x333333,
+                transparent: true,
+                opacity: 0.8
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            group.add(body);
+            
+            // Lens
+            const lensGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.02);
+            const lensMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const lens = new THREE.Mesh(lensGeometry, lensMaterial);
+            lens.rotation.x = Math.PI / 2;
+            lens.position.set(0, 0, -0.025);
+            group.add(lens);
+            
+            return group;
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Camera parameter functions
+        async function updateCameraParams() {
+            // Get values from input fields
+            currentCameraParams = {
+                width: parseInt(document.getElementById('camWidth').value),
+                height: parseInt(document.getElementById('camHeight').value),
+                fx: parseFloat(document.getElementById('camFx').value),
+                fy: parseFloat(document.getElementById('camFy').value),
+                cx: parseFloat(document.getElementById('camCx').value),
+                cy: parseFloat(document.getElementById('camCy').value),
+                scale: parseFloat(document.getElementById('camScale').value)
+            };
+            
+            // Update camera visualization
+            addCameraVisualization();
+            
+            // If we have current data, regenerate it with new camera parameters
+            if (currentPointCloud.length > 0 || currentGrasps.length > 0) {
+                showStatus('Updating data with new camera parameters...', 'loading');
+                
+                try {
+                    if (currentDataSource === 'upload' && uploadedFiles.rgb && uploadedFiles.depth) {
+                        // Regenerate from uploaded RGB-D images with new camera parameters
+                        const formData = new FormData();
+                        formData.append('rgb_image', uploadedFiles.rgb);
+                        formData.append('depth_image', uploadedFiles.depth);
+                        
+                        // Add camera parameters to form data
+                        Object.keys(currentCameraParams).forEach(key => {
+                            formData.append(key, currentCameraParams[key]);
+                        });
+                        
+                        const response = await fetch('/api/upload_rgbd', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            currentPointCloud = data.point_cloud;
+                            // Keep existing grasp poses if any
+                            createPointCloud(currentPointCloud);
+                            if (currentGrasps.length > 0) {
+                                createGraspVisualization(currentGrasps);
+                            }
+                            showStatus('Point cloud regenerated with new camera parameters!', 'success');
+                        } else {
+                            showStatus('Failed to regenerate point cloud: ' + (data.error || 'Unknown error'), 'error');
+                        }
+                    } else if (currentDataSource === 'sample') {
+                        // Regenerate sample data with new camera parameters
+                        const params = new URLSearchParams(currentCameraParams);
+                        const response = await fetch(`/api/sample_data?${params}`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            currentPointCloud = data.point_cloud;
+                            currentGrasps = data.grasp_poses;
+                            
+                            createPointCloud(currentPointCloud);
+                            createGraspVisualization(currentGrasps);
+                            
+                            showStatus('Camera parameters and data updated!', 'success');
+                        } else {
+                            showStatus('Camera updated, but failed to regenerate data', 'warning');
+                        }
+                    } else {
+                        // PLY+NPY data or poses only - just update camera visualization
+                        // PLY files don't depend on camera parameters, so no need to regenerate
+                        showStatus('Camera parameters updated! (PLY+NPY data unchanged)', 'success');
+                    }
+                } catch (error) {
+                    console.error('Error regenerating data:', error);
+                    showStatus('Camera updated, but failed to regenerate data', 'warning');
+                }
+            } else {
+                // Show success message
+                showStatus('Camera parameters updated!', 'success');
+            }
+        }
+
+        function loadCameraPreset(preset) {
+            let params;
+            switch(preset) {
+                case 'realsense':
+                    params = {
+                        width: 640, height: 480,
+                        fx: 383.9592, fy: 383.6245,
+                        cx: 322.1625, cy: 245.3161,
+                        scale: 1000
+                    };
+                    break;
+                case 'kinect':
+                    params = {
+                        width: 640, height: 480,
+                        fx: 525.0, fy: 525.0,
+                        cx: 320.0, cy: 240.0,
+                        scale: 1000
+                    };
+                    break;
+                case 'custom':
+                    params = {
+                        width: 720, height: 960,
+                        fx: 1386.71533203125, fy: 1386.71533203125,
+                        cx: 718.263916015625, cy: 954.7833862304688,
+                        scale: 1000
+                    };
+                    break;
+                default:
+                    return;
+            }
+            
+            // Update input fields
+            document.getElementById('camWidth').value = params.width;
+            document.getElementById('camHeight').value = params.height;
+            document.getElementById('camFx').value = params.fx;
+            document.getElementById('camFy').value = params.fy;
+            document.getElementById('camCx').value = params.cx;
+            document.getElementById('camCy').value = params.cy;
+            document.getElementById('camScale').value = params.scale;
+            
+            // Update camera params (this will also regenerate data if needed)
+            updateCameraParams();
+        }
+        
+        function createPointCloud(pointData) {
+            // Clear existing point cloud
+            while (pointCloudGroup.children.length > 0) {
+                pointCloudGroup.remove(pointCloudGroup.children[0]);
+            }
+            
+            if (!pointData || pointData.length === 0) return;
+            
+            // Create geometry
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            
+            for (let point of pointData) {
+                if (point.position && point.color) {
+                    positions.push(...point.position);
+                    colors.push(...point.color);
+                } else if (Array.isArray(point) && point.length >= 3) {
+                    // Fallback for simple array format
+                    positions.push(...point);
+                    colors.push(0.5, 0.5, 0.8);
+                }
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            // Create material
+            const material = new THREE.PointsMaterial({
+                size: 0.003,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            // Create point cloud
+            const pointCloud = new THREE.Points(geometry, material);
+            pointCloudGroup.add(pointCloud);
+            
+            // Update camera to focus on point cloud
+            geometry.computeBoundingBox();
+            const center = new THREE.Vector3();
+            geometry.boundingBox.getCenter(center);
+            
+            // Update controls target
+            controls.target.copy(center);
+            
+            // Position camera appropriately
+            const size = geometry.boundingBox.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const distance = maxDim * 2;
+            
+            camera.position.set(
+                center.x + distance * 0.5,
+                center.y + distance * 0.5,
+                center.z + distance
+            );
+            camera.lookAt(center);
+            
+            // Update statistics
+            document.getElementById('pointCount').textContent = `Points: ${pointData.length}`;
+            console.log('Point cloud center:', center);
+            console.log('Point cloud size:', size);
+        }
+        
+        function createGraspVisualization(grasps) {
+            // Clear existing grasps
+            while (graspGroup.children.length > 0) {
+                graspGroup.remove(graspGroup.children[0]);
+            }
+            
+            if (!grasps || grasps.length === 0) return;
+            
+            console.log('Creating grasp visualization, number of grasps:', grasps.length);
+            
+            for (let i = 0; i < grasps.length; i++) {
+                const grasp = grasps[i];
+                console.log(`Grasp ${i + 1} position:`, grasp.xyz);
+                const graspViz = createGraspPose(grasp, i);
+                graspGroup.add(graspViz);
+            }
+            
+            // Update statistics
+            document.getElementById('graspCount').textContent = `Grasps: ${grasps.length}`;
+        }
+        
+        function createGraspPose(grasp, index) {
+            const group = new THREE.Group();
+            
+            // Backend already transformed everything to Three.js coordinates
+            // Set position
+            group.position.set(grasp.xyz[0], grasp.xyz[1], grasp.xyz[2]);
+            
+            console.log(`Grasp ${index + 1} position:`, grasp.xyz);
+            console.log(`Grasp ${index + 1} score:`, grasp.score);
+            
+            // Apply rotation only (not the full transform)
+            // Method 1: Extract rotation from the rotation matrix
+            const R = grasp.rot;
+            const matrix3 = new THREE.Matrix3();
+            matrix3.set(
+                R[0][0], R[0][1], R[0][2],
+                R[1][0], R[1][1], R[1][2],
+                R[2][0], R[2][1], R[2][2]
+            );
+            
+            // Convert to Matrix4 for rotation extraction
+            const tempMatrix4 = new THREE.Matrix4();
+            tempMatrix4.setFromMatrix3(matrix3);
+            
+            // Extract rotation and apply to group
+            const rotation = new THREE.Euler();
+            rotation.setFromRotationMatrix(tempMatrix4);
+            group.rotation.copy(rotation);
+            
+            // Create realistic gripper visualization
+            const gripperGroup = createGripperGeometry(index, grasp);
+            group.add(gripperGroup);
+            
+            // Add coordinate frame at grasp position
+            const axesHelper = new THREE.AxesHelper(0.08);
+            group.add(axesHelper);
+            
+            // Add a small sphere at grasp position (origin) for debugging
+            const sphereGeometry = new THREE.SphereGeometry(0.01, 16, 16);
+            const sphereMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xffff00,  // Yellow
+                emissive: 0xffff00,
+                emissiveIntensity: 0.5
+            });
+            const positionSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            positionSphere.position.set(0, 0, 0);  // At grasp position
+            group.add(positionSphere);
+            
+            return group;
+        }
+        
+        function createGripperGeometry(index, grasp) {
+            const gripperGroup = new THREE.Group();
+            
+            // Use grasp width if available, otherwise default
+            const graspWidth = grasp.width || 0.08;
+            const graspScore = grasp.score || 0.5;
+            
+            // Color based on score (red=low, green=high)
+            const hue = graspScore * 0.33; // 0=red, 0.33=green
+            const color = new THREE.Color().setHSL(hue, 0.8, 0.5);
+            const material = new THREE.MeshLambertMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const darkMaterial = new THREE.MeshLambertMaterial({
+                color: color.clone().multiplyScalar(0.7),
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            // In GraspNet convention:
+            // X-axis: approach direction (out of palm)
+            // Y-axis: between fingers (perpendicular to finger motion)
+            // Z-axis: finger opening direction
+            
+            // Palm/Base of gripper - oriented along approach direction
+            const palmGeometry = new THREE.BoxGeometry(0.025, 0.05, 0.08);  // X is thin (approach), Z is wide (opening)
+            const palm = new THREE.Mesh(palmGeometry, material);
+            palm.position.set(-0.04, 0, 0);  // Move back so grasp point is between fingers
+            gripperGroup.add(palm);
+            
+            // Adjust finger spacing based on grasp width
+            const fingerSpacing = graspWidth / 2;
+            
+            // Left finger - opens along +Z
+            const fingerGeometry = new THREE.BoxGeometry(0.10, 0.02, 0.015);  // Long along X (approach)
+            const leftFinger = new THREE.Mesh(fingerGeometry, darkMaterial);
+            leftFinger.position.set(0, 0, -fingerSpacing);  // -Z side, centered at grasp point
+            gripperGroup.add(leftFinger);
+            
+            // Right finger - opens along +Z
+            const rightFinger = new THREE.Mesh(fingerGeometry, darkMaterial);
+            rightFinger.position.set(0, 0, fingerSpacing);  // +Z side, centered at grasp point
+            gripperGroup.add(rightFinger);
+            
+            // Left finger tip
+            const fingerTipGeometry = new THREE.BoxGeometry(0.025, 0.015, 0.012);
+            const leftFingerTip = new THREE.Mesh(fingerTipGeometry, darkMaterial);
+            leftFingerTip.position.set(0.05, 0, -fingerSpacing);  // At end of finger
+            gripperGroup.add(leftFingerTip);
+            
+            // Right finger tip
+            const rightFingerTip = new THREE.Mesh(fingerTipGeometry, darkMaterial);
+            rightFingerTip.position.set(0.05, 0, fingerSpacing);  // At end of finger
+            gripperGroup.add(rightFingerTip);
+            
+            // Wrist connection - along approach axis
+            const wristGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.03, 8);
+            const wrist = new THREE.Mesh(wristGeometry, material);
+            wrist.position.set(-0.065, 0, 0);  // Behind palm
+            wrist.rotation.z = Math.PI / 2;  // Rotate to align with X axis
+            gripperGroup.add(wrist);
+            
+            // Add some detail lines on fingers
+            const lineGeometry = new THREE.BoxGeometry(0.06, 0.001, 0.005);
+            const lineMaterial = new THREE.MeshLambertMaterial({
+                color: 0x333333,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            // Left finger detail
+            const leftLine = new THREE.Mesh(lineGeometry, lineMaterial);
+            leftLine.position.set(0.06, 0.008, -fingerSpacing);
+            gripperGroup.add(leftLine);
+            
+            // Right finger detail
+            const rightLine = new THREE.Mesh(lineGeometry, lineMaterial);
+            rightLine.position.set(0.06, 0.008, fingerSpacing);
+            gripperGroup.add(rightLine);
+            
+            return gripperGroup;
+        }
+        
+        function updateVisibility() {
+            pointCloudGroup.visible = document.getElementById('showPointCloud').checked;
+            graspGroup.visible = document.getElementById('showGrasps').checked;
+            axesGroup.visible = document.getElementById('showAxes').checked;
+        }
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h3>Grasp Poses</h3>';
+            
+            if (data.grasp_poses && data.grasp_poses.length > 0) {
+                data.grasp_poses.forEach((pose, index) => {
+                    const poseDiv = document.createElement('div');
+                    poseDiv.className = 'pose-item';
+                    poseDiv.innerHTML = `
+                        <h4>Grasp ${index + 1}</h4>
+                        <div class="pose-data">
+                            Position: [${pose.xyz.map(v => v.toFixed(3)).join(', ')}]<br>
+                            Depth: ${pose.dep.toFixed(3)}
+                        </div>
+                    `;
+                    resultsDiv.appendChild(poseDiv);
+                });
+            } else {
+                resultsDiv.innerHTML += '<p>No grasp poses loaded.</p>';
+            }
+        }
+        
+        function clearAll() {
+            currentPointCloud = [];
+            currentGrasps = [];
+            currentDataSource = null;
+            uploadedFiles = { rgb: null, depth: null };
+            
+            // Clear visualizations
+            while (pointCloudGroup.children.length > 0) {
+                pointCloudGroup.remove(pointCloudGroup.children[0]);
+            }
+            while (graspGroup.children.length > 0) {
+                graspGroup.remove(graspGroup.children[0]);
+            }
+            
+            // Update statistics
+            document.getElementById('pointCount').textContent = 'Points: 0';
+            document.getElementById('graspCount').textContent = 'Grasps: 0';
+            document.getElementById('results').innerHTML = '';
+            
+            showStatus('All data cleared', 'success');
+        }
+        
+        // Event listeners for Combined Input
+        document.getElementById('generateCombinedButton').addEventListener('click', async () => {
+            const jsonText = document.getElementById('jsonInput').value.trim();
+            const rgbFile = document.getElementById('rgbInput').files[0];
+            const depthFile = document.getElementById('depthInput').files[0];
+            
+            // Validate inputs
+            if (!jsonText) {
+                showStatus('Please paste grasp poses JSON', 'error');
+                return;
+            }
+            
+            if (!rgbFile || !depthFile) {
+                showStatus('Please select both RGB and depth images', 'error');
+                return;
+            }
+            
+            try {
+                // First, process the JSON
+                const graspData = JSON.parse(jsonText);
+                
+                showStatus('Processing combined data...', 'loading');
+                
+                // Upload grasp poses
+                const posesResponse = await fetch('/api/upload_poses', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(graspData)
+                });
+                
+                const posesResult = await posesResponse.json();
+                
+                if (!posesResult.success) {
+                    showStatus(posesResult.error || 'Failed to process grasp poses', 'error');
+                    return;
+                }
+                
+                // Use the new reconstruct API that combines point cloud and grasp poses
+                const formData = new FormData();
+                formData.append('rgb_image', rgbFile);
+                formData.append('depth_image', depthFile);
+                formData.append('grasp_poses', JSON.stringify(graspData));
+                
+                // Add camera parameters
+                Object.keys(currentCameraParams).forEach(key => {
+                    formData.append(key, currentCameraParams[key]);
+                });
+                
+                const response = await fetch('/api/reconstruct_and_visualize', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('Reconstructed point cloud with grasp poses successfully!', 'success');
+                    
+                    // Use reconstructed data
+                    currentPointCloud = result.point_cloud;
+                    currentGrasps = result.grasp_poses;
+                    currentDataSource = 'reconstructed';
+                    uploadedFiles.rgb = rgbFile;
+                    uploadedFiles.depth = depthFile;
+                    
+                    createPointCloud(currentPointCloud);
+                    createGraspVisualization(currentGrasps);
+                    displayResults(result);
+                    
+                    // Show statistics
+                    if (result.stats) {
+                        console.log('Reconstruction stats:', result.stats);
+                    }
+                } else {
+                    showStatus(result.error || 'Failed to reconstruct point cloud', 'error');
+                }
+                
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showStatus('Invalid JSON format: ' + error.message, 'error');
+                } else {
+                    showStatus('Error: ' + error.message, 'error');
+                }
+            }
+        });
+        
+        document.getElementById('sampleButton').addEventListener('click', async () => {
+            showStatus('Loading sample data...', 'loading');
+            
+            try {
+                // Build query string with current camera parameters
+                const params = new URLSearchParams(currentCameraParams);
+                const response = await fetch(`/api/sample_data?${params}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    currentPointCloud = data.point_cloud;
+                    currentGrasps = data.grasp_poses;
+                    currentDataSource = 'sample';
+                    
+                    createPointCloud(currentPointCloud);
+                    createGraspVisualization(currentGrasps);
+                    displayResults(data);
+                } else {
+                    showStatus(data.error || 'Failed to load sample data', 'error');
+                }
+            } catch (error) {
+                showStatus('Network error: ' + error.message, 'error');
+            }
+        });
+        
+        document.getElementById('thinkgraspButton').addEventListener('click', async () => {
+            showStatus('Testing ThinkGrasp compatibility...', 'loading');
+            
+            try {
+                const response = await fetch('/api/test_thinkgrasp_compatibility');
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    currentPointCloud = data.point_cloud;
+                    currentGrasps = data.grasp_poses;
+                    
+                    createPointCloud(currentPointCloud);
+                    createGraspVisualization(currentGrasps);
+                    displayResults(data);
+                    
+                    // Show camera parameters
+                    const cameraInfo = data.camera_params;
+                    console.log('Camera Parameters:', cameraInfo);
+                    showStatus(`ThinkGrasp compatible! Camera: ${cameraInfo.width}x${cameraInfo.height}, fx=${cameraInfo.fx.toFixed(1)}`, 'success');
+                } else {
+                    showStatus(data.error || 'ThinkGrasp compatibility test failed', 'error');
+                }
+            } catch (error) {
+                showStatus('Network error: ' + error.message, 'error');
+            }
+        });
+        
+        document.getElementById('clearButton').addEventListener('click', clearAll);
+
+        // PLY + NPY upload handler
+        document.getElementById('loadPlyNpyButton').addEventListener('click', async () => {
+            const plyFile = document.getElementById('plyFile').files[0];
+            const npyFile = document.getElementById('npyFile').files[0];
+            
+            if (!plyFile || !npyFile) {
+                showStatus('Please select both PLY and NPY files', 'error');
+                return;
+            }
+            
+            showStatus('Processing PLY + NPY files...', 'loading');
+            
+            try {
+                const formData = new FormData();
+                formData.append('ply_file', plyFile);
+                formData.append('npy_file', npyFile);
+                
+                const response = await fetch('/api/upload_ply_npy', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    
+                    currentPointCloud = data.point_cloud;
+                    currentGrasps = data.grasp_poses;
+                    currentDataSource = 'ply_npy';
+                    
+                    createPointCloud(currentPointCloud);
+                    createGraspVisualization(currentGrasps);
+                    displayResults(data);
+                } else {
+                    showStatus(data.error || 'Failed to process PLY + NPY files', 'error');
+                }
+            } catch (error) {
+                console.error('Error uploading PLY + NPY files:', error);
+                showStatus('Network error: ' + error.message, 'error');
+            }
+        });
+        
+        // Visibility controls
+        document.getElementById('showPointCloud').addEventListener('change', updateVisibility);
+        document.getElementById('showGrasps').addEventListener('change', updateVisibility);
+        document.getElementById('showAxes').addEventListener('change', updateVisibility);
+        
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth - 350) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 350, window.innerHeight);
+        });
+        
+        // Initialize the scene when page loads
+        initScene();
+    </script>
+</body>
+</html>
