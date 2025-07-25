@@ -119,7 +119,7 @@ def upload_poses():
                 return jsonify({'error': f'Invalid position at index {i}. Must be 3D vector'}), 400
         
         # Transform grasp poses using unified transformer
-        # 这确保grasp poses和点云使用相同的坐标转换
+        # This ensures grasp poses and point cloud use the same coordinate transformation
         transformed_grasp_poses = transformer.transform_grasp_poses_only(grasp_poses)
         
         return jsonify({
@@ -291,16 +291,16 @@ def test_thinkgrasp_compatibility():
 
 @app.route('/api/reconstruct_and_visualize', methods=['POST'])
 def reconstruct_and_visualize():
-    """从深度图、RGB图像和grasp poses重建点云并准备可视化"""
+    """Reconstruct point cloud from depth, RGB images and grasp poses for visualization"""
     try:
-        # 获取上传的文件
+        # Get uploaded files
         depth_file = request.files.get('depth_image')
         rgb_file = request.files.get('rgb_image')
         
         if not depth_file or not rgb_file:
             return jsonify({'error': 'Both depth and RGB images are required'}), 400
         
-        # 获取grasp poses (JSON)
+        # Get grasp poses (JSON)
         grasp_data = request.form.get('grasp_poses')
         if not grasp_data:
             return jsonify({'error': 'Grasp poses are required'}), 400
@@ -312,7 +312,7 @@ def reconstruct_and_visualize():
         except json.JSONDecodeError:
             return jsonify({'error': 'Invalid JSON format for grasp poses'}), 400
         
-        # 获取相机参数（可选）
+        # Get camera parameters (optional)
         camera_params = {}
         for param in ['width', 'height', 'fx', 'fy', 'cx', 'cy', 'depth_scale']:
             if param in request.form:
@@ -321,18 +321,18 @@ def reconstruct_and_visualize():
                 else:
                     camera_params[param] = float(request.form[param])
         
-        # 如果提供了相机参数，更新reconstructor
+        # Update reconstructor if camera parameters are provided
         if camera_params:
             reconstructor.camera_params.update(camera_params)
         
-        # 保存上传的文件
+        # Save uploaded files
         depth_path = UPLOAD_FOLDER / 'temp_depth.png'
         rgb_path = UPLOAD_FOLDER / 'temp_rgb.png'
         
         depth_file.save(depth_path)
         rgb_file.save(rgb_path)
         
-        # 读取图像
+        # Read images
         depth_image = cv2.imread(str(depth_path), cv2.IMREAD_UNCHANGED)
         rgb_image = cv2.imread(str(rgb_path))
         rgb_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
@@ -340,26 +340,26 @@ def reconstruct_and_visualize():
         print(f"Depth shape: {depth_image.shape}, RGB shape: {rgb_image.shape}")
         print(f"Number of grasp poses: {len(grasp_poses)}")
         
-        # 重建点云
+        # Reconstruct point cloud
         pcd = reconstructor.depth_to_pointcloud(depth_image, rgb_image)
         points = np.asarray(pcd.points)
         colors = np.asarray(pcd.colors) if pcd.has_colors() else np.full((len(points), 3), [0.5, 0.7, 0.9])
         
         print(f"Reconstructed {len(points)} points")
         
-        # 应用坐标转换（相机坐标系 -> Three.js坐标系）
+        # Apply coordinate transformation (camera coordinate system -> Three.js coordinate system)
         transform = np.array([
             [1, 0, 0],
             [0, -1, 0],
             [0, 0, -1]
         ])
         
-        # 转换点云
+        # Transform point cloud
         transformed_points = (transform @ points.T).T
         
-        # 创建前端格式的点云数据
+        # Create point cloud data in frontend format
         point_cloud_data = []
-        # 限制点数以提高性能
+        # Limit points to improve performance
         step = max(1, len(transformed_points) // 50000)
         for i in range(0, len(transformed_points), step):
             color = colors[i] if i < len(colors) else [0.5, 0.7, 0.9]
@@ -368,17 +368,17 @@ def reconstruct_and_visualize():
                 'color': color.tolist()
             })
         
-        # 转换grasp poses
+        # Transform grasp poses
         transformed_grasp_poses = transformer.transform_grasp_poses_only(grasp_poses)
         
-        # 保存重建的文件（可选）
+        # Save reconstructed files (optional)
         output_dir = UPLOAD_FOLDER / 'reconstructed'
         output_dir.mkdir(exist_ok=True)
         
-        # 保存PLY文件
+        # Save PLY file
         o3d.io.write_point_cloud(str(output_dir / 'reconstructed.ply'), pcd)
         
-        # 保存grasp array
+        # Save grasp array
         grasp_array = reconstructor.convert_grasps_to_array(grasp_poses)
         np.save(str(output_dir / 'grasps.npy'), grasp_array)
         
