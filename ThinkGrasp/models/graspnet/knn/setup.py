@@ -36,6 +36,7 @@ def get_extensions():
             "-D__CUDA_NO_HALF_OPERATORS__",
             "-D__CUDA_NO_HALF_CONVERSIONS__",
             "-D__CUDA_NO_HALF2_OPERATORS__",
+            "-gencode=arch=compute_90,code=sm_90",
         ]
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
