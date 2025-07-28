@@ -21,3 +21,9 @@
 /ThinkGrasp/ThinkGrasp.egg-info
 /ThinkGrasp/dist
 /ThinkGrasp/models/FGC_graspnet/knn/knn_pytorch.egg-info
+/GraspingDemo/so101_grasp/visualization/__pycache__
+/GraspingDemo/so101_grasp/vision/__pycache__
+/GraspingDemo/so101_grasp/utils/__pycache__
+/GraspingDemo/so101_grasp/simulation/__pycache__
+/GraspingDemo/scripts/tools/__pycache__
+/GraspingDemo/__pycache__
