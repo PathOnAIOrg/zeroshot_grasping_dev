@@ -43,9 +43,9 @@ api_key = os.environ["OPENAI_API_KEY"]
 client = OpenAI(api_key=api_key)
 
 # Initialize Ray and load actors and models
-ray.init(num_gpus=1)  # Add arguments as necessary, e.g., address, num_gpus
+ray.init(num_gpus=2)  # Add arguments as necessary, e.g., address, num_gpus
 use_gpu = torch.cuda.is_available()
-gpu_allocation = 1 if use_gpu else 0
+gpu_allocation = 0.8 if use_gpu else 0
 actor_options = {"num_gpus": gpu_allocation}
 langsam_actor = LangSAM.options(**actor_options).remote(use_gpu=use_gpu)
 # vlp_actor = SegmentAnythingActor.options(**actor_options).remote(
@@ -365,8 +365,21 @@ def get_grasp_pose():
 
 
     except Exception as e:
-        logging.error(f"Error with OpenAI API request: {e}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc(),
+            "function": "OpenAI API request",
+            "request_data": {
+                "image_path": rgb_image_path,
+                "depth_path": depth_image_path,
+                "text_path": text_path,
+                "text_content": text[:100] + "..." if len(text) > 100 else text
+            }
+        }
+        logging.error(f"Error with OpenAI API request: {error_details}")
+        return jsonify({"error": error_details}), 500
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Deformable DETR training and evaluation script', parents=[get_args_parser()])

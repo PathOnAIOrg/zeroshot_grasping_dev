@@ -194,14 +194,53 @@ class grasp_model():
         return end_points, cloud
     
     def get_grasps(self, net, end_points):
-        # Forward pass
-        with torch.no_grad():
-            end_points = net(end_points)
-            grasp_preds = pred_decode(end_points)
-        gg_array = grasp_preds[0].detach().cpu().numpy()
-        gg = GraspGroup(gg_array)
-        
-        return gg_array, gg
+        # Forward pass with robust error handling
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            with torch.no_grad():
+                end_points = net(end_points)
+                grasp_preds = pred_decode(end_points)
+            gg_array = grasp_preds[0].detach().cpu().numpy()
+            gg = GraspGroup(gg_array)
+            return gg_array, gg
+        except RuntimeError as e:
+            error_msg = str(e)
+            print(f"CUDA/cuDNN error encountered: {e}")
+            
+            if "cuDNN" in error_msg or "CUDA" in error_msg:
+                try:
+                    # Try to recover from GPU error
+                    if torch.cuda.is_available():
+                        try:
+                            torch.cuda.synchronize()
+                            torch.cuda.empty_cache()
+                        except:
+                            pass  # GPU state may be too corrupted
+                    
+                    # Move model to CPU as fallback
+                    print("Attempting CPU fallback...")
+                    net_cpu = net.cpu()
+                    end_points_cpu = {}
+                    for key, value in end_points.items():
+                        if hasattr(value, 'cpu'):
+                            end_points_cpu[key] = value.cpu()
+                        else:
+                            end_points_cpu[key] = value
+                    
+                    with torch.no_grad():
+                        end_points_cpu = net_cpu(end_points_cpu)
+                        grasp_preds = pred_decode(end_points_cpu)
+                    
+                    gg_array = grasp_preds[0].detach().numpy()
+                    gg = GraspGroup(gg_array)
+                    return gg_array, gg
+                    
+                except Exception as fallback_e:
+                    print(f"CPU fallback failed: {fallback_e}")
+                    raise RuntimeError(f"GPU corrupted and CPU fallback failed: {e}")
+            else:
+                raise e
 
 
     def collision_detection(self, gg, cloud):

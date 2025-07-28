@@ -100,17 +100,23 @@ class LangSAM():
         self.groundingdino = load_model_hf(ckpt_repo_id, ckpt_filename, ckpt_config_filename)
 
     def predict_dino(self, image_pil, text_prompt, box_threshold, text_threshold):
-        image_trans = transform_image(image_pil)
-        boxes, logits, phrases = predict(model=self.groundingdino,
-                                         image=image_trans,
-                                         caption=text_prompt,
-                                         box_threshold=box_threshold,
-                                         text_threshold=text_threshold,
-                                         device=self.device)
-        W, H = image_pil.size
-        boxes = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
-
-        return boxes, logits, phrases
+        if not text_prompt or text_prompt.strip() == "":
+            return torch.tensor([]), torch.tensor([]), []
+        
+        try:
+            image_trans = transform_image(image_pil)
+            boxes, logits, phrases = predict(model=self.groundingdino,
+                                             image=image_trans,
+                                             caption=text_prompt,
+                                             box_threshold=box_threshold,
+                                             text_threshold=text_threshold,
+                                             device=self.device)
+            W, H = image_pil.size
+            boxes = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
+            return boxes, logits, phrases
+        except Exception as e:
+            print(f"GroundingDINO prediction failed for text '{text_prompt}': {e}")
+            return torch.tensor([]), torch.tensor([]), []
 
     def predict_sam(self, image_pil, boxes):
         image_array = np.asarray(image_pil)
@@ -125,6 +131,9 @@ class LangSAM():
         return masks.cpu()
 
     def predict(self, image_pil, text_prompt, box_threshold=0.3, text_threshold=0.25):
+        if not text_prompt or text_prompt.strip() == "":
+            return torch.tensor([]), torch.tensor([]), [], torch.tensor([])
+        
         boxes, logits, phrases = self.predict_dino(image_pil, text_prompt, box_threshold, text_threshold)
         masks = torch.tensor([])
         if len(boxes) > 0:

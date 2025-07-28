@@ -23,7 +23,7 @@ setup(
             sources=_ext_sources,
             extra_compile_args={
                 "cxx": ["-O2", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
-                "nvcc": ["-O2", "-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
+                "nvcc": ["-O2", "-arch=compute_80","-I{}".format("{}/{}/include".format(ROOT, _ext_src_root))],
             },
         )
     ],

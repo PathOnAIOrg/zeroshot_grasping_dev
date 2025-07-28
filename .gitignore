@@ -5,3 +5,19 @@
 .DS_Store
 
 
+/.idea
+/ThinkGrasp/ThinkGrasp.egg-info
+/ThinkGrasp/models/FGC_graspnet/__pycache__
+/ThinkGrasp/models/FGC_graspnet/knn/build
+/ThinkGrasp/models/FGC_graspnet/knn/knn_pytorch.egg-info
+/ThinkGrasp/models/FGC_graspnet/knn/__pycache__
+/ThinkGrasp/models/FGC_graspnet/knn/knn_pytorch.egg-info
+/ThinkGrasp/models/FGC_graspnet/model/__pycache__
+/ThinkGrasp/models/FGC_graspnet/pointnet2/__pycache__
+/ThinkGrasp/models/FGC_graspnet/utils/__pycache__
+/ThinkGrasp/__pycache__
+/ThinkGrasp/langsam/__pycache__
+/ThinkGrasp/ThinkGrasp.egg-info
+/ThinkGrasp/ThinkGrasp.egg-info
+/ThinkGrasp/dist
+/ThinkGrasp/models/FGC_graspnet/knn/knn_pytorch.egg-info

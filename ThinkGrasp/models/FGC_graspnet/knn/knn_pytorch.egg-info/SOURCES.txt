@@ -1,10 +1,7 @@
 setup.py
-/home/freax/Documents/GitHub/VL-Grasp/GraspNet/knn/src/vision.cpp
-/home/freax/Documents/GitHub/VL-Grasp/GraspNet/knn/src/cpu/knn_cpu.cpp
-/home/freax/Documents/GitHub/VL-Grasp/GraspNet/knn/src/cuda/knn.cu
-/home/freax/Documents/GitHub/vlghard/GraspNet/knn/src/vision.cpp
-/home/freax/Documents/GitHub/vlghard/GraspNet/knn/src/cpu/knn_cpu.cpp
-/home/freax/Documents/GitHub/vlghard/GraspNet/knn/src/cuda/knn.cu
+/home/pathonai/Documents/Github/opensource_dev/ThinkGrasp/models/FGC_graspnet/knn/src/vision.cpp
+/home/pathonai/Documents/Github/opensource_dev/ThinkGrasp/models/FGC_graspnet/knn/src/cpu/knn_cpu.cpp
+/home/pathonai/Documents/Github/opensource_dev/ThinkGrasp/models/FGC_graspnet/knn/src/cuda/knn.cu
 knn_pytorch.egg-info/PKG-INFO
 knn_pytorch.egg-info/SOURCES.txt
 knn_pytorch.egg-info/dependency_links.txt
