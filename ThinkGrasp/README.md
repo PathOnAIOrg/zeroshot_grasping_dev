@@ -85,22 +85,6 @@ Welcome to the official repository for **ThinkGrasp: A Vision-Language System fo
    cd ../../..
    ```
 
-7. **Install CUDA 11.8**:  
-   Download the CUDA installer and run:  
-   ```bash
-   sudo bash cuda_11.8.0_520.61.05_linux.run
-   ```  
-   Add the following lines to your `~/.bashrc` file:  
-   ```bash
-   export CUDA_HOME=/usr/local/cuda-11.8
-   export PATH=$CUDA_HOME/bin:$PATH
-   export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
-   ```  
-   Refresh the shell:  
-   ```bash
-   source ~/.bashrc
-   ```
-
 ---
 
 ### Assets
@@ -274,6 +258,7 @@ If you still encounter errors, install the following dependencies:
    ```bash
    conda install gxx_linux-64
    conda install gcc_linux-64
+   conda install cython==0.29.33
    ```
 
 3. Install Ray and GroundingDINO:  
