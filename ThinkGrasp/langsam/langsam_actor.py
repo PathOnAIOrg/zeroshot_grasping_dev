@@ -1,7 +1,6 @@
 import os
 from random import random
 
-import ray
 from PIL import Image
 from langsam import langsamutils
 
@@ -58,7 +57,6 @@ def transform_image(image) -> torch.Tensor:
     return image_transformed
 
 
-@ray.remote
 class LangSAM():
 
     def __init__(self, sam_type="vit_h", ckpt_path=None,use_gpu=False):
@@ -177,29 +175,21 @@ class LangSAM():
             # langsamutils.save_image(image, filename=f"image_langsam.png")
 
 if __name__ == "__main__":
-    # Initialize Ray, replace with your cluster's address or local setup
-    ray.init(num_gpus=1)  # Add arguments as necessary, e.g., address, num_gpus
-
     # Variable to control GPU usage
     use_gpu = torch.cuda.is_available()
 
-    # Options dictionary for dynamic resource allocation
-    actor_options = {"num_gpus": 1} if use_gpu else {}
+    # Create an instance
+    langsam_actor = LangSAM(use_gpu=use_gpu)
 
-    # Create an actor instance
-    langsam_actor = LangSAM.options(**actor_options).remote(use_gpu=use_gpu)
+    image = "https://static01.nyt.com/images/2020/09/08/well/physed-cycle-walk/physed-cycle-walk-videoSixteenByNineJumbo1600-v2.jpg"
 
-    # image = "https://static01.nyt.com/images/2020/09/08/well/physed-cycle-walk/physed-cycle-walk-videoSixteenByNineJumbo1600-v2.jpg"
-
-    image =""
-    text_prompt = ""    # text_prompt = obj[6]
+    # image =""
+    text_prompt = "human"    # text_prompt = obj[6]
     image_pil = langsamutils.load_image(image)
 
     # Predict masks and scores
-    masks, boxes, phrases, logits = ray.get(langsam_actor.predict.remote(image_pil, text_prompt))
+    masks, boxes, phrases, logits = langsam_actor.predict(image_pil, text_prompt)
     print( masks, boxes, phrases, logits)
-    ray.get(langsam_actor.save.remote(masks, boxes, phrases, logits,image_pil))
+    langsam_actor.save(masks, boxes, phrases, logits,image_pil)
     # print("Scores:", scores)
     # Add your logic here to work with masks and scores
-
-    ray.shutdown()
