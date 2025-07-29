@@ -29,5 +29,5 @@ motion:
   max_acceleration: 2.0
   max_velocity: 1.0
   timestep: 0.02
-port: /dev/tty.usbmodem5A680107891
+port: /dev/ttyACM0
 use_degrees: true

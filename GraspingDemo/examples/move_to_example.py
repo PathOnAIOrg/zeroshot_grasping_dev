@@ -40,7 +40,7 @@ from so101_grasp.simulation.sim import (
 )
 
 REAL_ROBOT = False
-OS = "MAC"  # "MAC" or "LINUX"
+OS = "LINUX"  # "MAC" or "LINUX"
 
 # Define simulation objects
 SIMULATION_OBJECTS = [
