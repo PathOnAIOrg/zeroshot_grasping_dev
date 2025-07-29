@@ -44,7 +44,6 @@ python examples/basic_control.py
 - Python 3.8+
 - SO-101 robotic arm with Feetech servos
 - Intel RealSense depth camera (D435i recommended)
-- General Bionix API key (for grasp prediction)
 
 ### Setup
 
@@ -70,14 +69,21 @@ Configuration files in `config/`:
 - `camera_config.yaml` - Camera settings and filters  
 - `grasp_config.yaml` - Grasp planning parameters
 
-Set your General Bionix API key:
-```bash
-export GENERAL_BIONIX_API_KEY="your-api-key"
-```
 
 ## 📚 Usage Guide
+### 1. Robot Calibration
 
-### 1. System Testing
+Calibrate robot joint positions:
+```bash
+python scripts/calibrate_robot.py --port /dev/ttyACM0
+```
+
+Options:
+- `--port`: Specify robot port
+- `--force`: Force recalibration
+- `--config-path`: Custom calibration file path
+
+### 2. System Testing
 
 Test all hardware connections:
 ```bash
@@ -89,17 +95,7 @@ This will:
 - Test camera connection and capture
 - Verify all systems are ready
 
-### 2. Robot Calibration
 
-Calibrate robot joint positions:
-```bash
-python scripts/calibrate_robot.py --port /dev/ttyACM0
-```
-
-Options:
-- `--port`: Specify robot port
-- `--force`: Force recalibration
-- `--config-path`: Custom calibration file path
 
 ### 3. Basic Examples
 
