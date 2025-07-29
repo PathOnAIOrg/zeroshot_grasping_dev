@@ -395,3 +395,7 @@ sudo ln -s /usr/bin/g++-$MAX_GCC_VERSION /usr/local/cuda/bin/g++
 
 
 ```
+
+
+- pip install ninja
+- pip install numpy==1.24
