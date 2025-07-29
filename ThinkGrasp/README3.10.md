@@ -334,7 +334,35 @@ If you find this work useful, please consider citing:
   primaryClass={cs.RO}
 }
 ```
-Check the maximum supported GCC version for your CUDA version:
+
+
+#Error handle
+- if face https://github.com/IDEA-Research/Grounded-SAM-2/issues/71
+  -  add   "-gencode=arch=compute_120,code=sm_120",
+  - change in the Grounded-SAM-2/grounding_dino/setup.py
+
+- grounding dino checkpoint recourse 
+  - https://huggingface.co/pengxian/grounding-dino/blob/main/groundingdino_swint_ogc.pth
+
+- Install the env for grounded-sam-2
+```
+git clone https://github.com/IDEA-Research/Grounded-SAM-2.git
+cd Grounded-SAM-2/checkpoints/
+bash download_ckpts.sh
+cd ../gdino_checkpoints/
+bash download_ckpts.sh
+cd ../
+pip install -e .
+pip install --no-build-isolation -e grounding_dino
+```
+- if you use 5090 please Upgrade to a PyTorch nightly build with RTX 50xx support
+  - pip install --upgrade --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu124
+
+- thanks for https://github.com/Jianghanxiao/PhysTwin/blob/main/env_install/5090_env_install.sh
+- 5090 need nvcc -V is 12.8 
+
+- https://stackoverflow.com/questions/6622454/cuda-incompatible-with-gcc-version
+```Check the maximum supported GCC version for your CUDA version:
 
 CUDA version	max supported GCC version
 12.8	14
@@ -366,28 +394,4 @@ sudo ln -s /usr/bin/g++-$MAX_GCC_VERSION /usr/local/cuda/bin/g++
 (or substitute /usr/local/cuda with your CUDA installation path, if it's not there)
 
 
-
-#Error handle
-- if face https://github.com/IDEA-Research/Grounded-SAM-2/issues/71
-  -  add   "-gencode=arch=compute_120,code=sm_120",
-  - change in the Grounded-SAM-2/grounding_dino/setup.py
-
-- grounding dino checkpoint recourse 
-  - https://huggingface.co/pengxian/grounding-dino/blob/main/groundingdino_swint_ogc.pth
-
-- Install the env for grounded-sam-2
 ```
-git clone https://github.com/IDEA-Research/Grounded-SAM-2.git
-cd Grounded-SAM-2/checkpoints/
-bash download_ckpts.sh
-cd ../gdino_checkpoints/
-bash download_ckpts.sh
-cd ../
-pip install -e .
-pip install --no-build-isolation -e grounding_dino
-```
-- if you use 5090 please Upgrade to a PyTorch nightly build with RTX 50xx support
-  - pip install --upgrade --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu124
-
-- thanks for https://github.com/Jianghanxiao/PhysTwin/blob/main/env_install/5090_env_install.sh
-- 5090 need nvcc -V is 12.8 
