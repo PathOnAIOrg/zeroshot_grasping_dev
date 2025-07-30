@@ -37,6 +37,22 @@ To double check if the simulator is installed correctly, you can run
 
 ```
 python -m mani_skill.examples.demo_random_action
+
+info {'elapsed_steps': tensor([48], dtype=torch.int32), 'success': tensor([False])}
+reward tensor([0.0788])
+terminated tensor([False])
+truncated tensor([False])
+info {'elapsed_steps': tensor([49], dtype=torch.int32), 'success': tensor([False])}
+reward tensor([0.0788])
+terminated tensor([False])
+truncated tensor([True])
+info {'elapsed_steps': tensor([50], dtype=torch.int32), 'success': tensor([False])}
+Destroyed VkDevice on GPU Apple M3 Pro with 4 Vulkan extensions enabled.
+```
+
+test with hello world
+```
+python -m sapien.example.hello_world
 ```
 
 test with push-T environment
@@ -54,11 +70,12 @@ python -m mani_skill.examples.demo_random_action -e PickCubeSO100-v1 --render-mo
 Then we install lerobot which enable ease of use with all kinds of hardware.
 
 ```bash
-git clone https://github.com/huggingface/lerobot.git
-cd lerobot
+# Download the specific commit directly
+wget https://github.com/huggingface/lerobot/archive/a989c795587d122299275c65a38ffdd0a804b8dc.zip -O lerobot.zip
+unzip lerobot.zip
+cd lerobot-a989c795587d122299275c65a38ffdd0a804b8dc
 # note that the code was based on a slightly older lerobot commit. LeRobot recently changed the location of a few files we import so it broke some imports
 # latest LeRobot can work but some LeRobot import paths need to be updated
-git reset --hard a989c795587d122299275c65a38ffdd0a804b8dc
 pip install -e .
 ```
 
