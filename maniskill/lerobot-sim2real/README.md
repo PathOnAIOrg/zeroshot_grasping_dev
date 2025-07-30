@@ -17,12 +17,16 @@ If you find this project useful, give this repo and [ManiSkill](https://github.c
 }
 ```
 
-## Getting Started
+## 1. Getting Started
+
+### 1.1 install maniskill
 
 Install this repo by running the following
 ```bash
 conda create -n ms3-lerobot "python==3.11" # 3.11 is recommended
+conda activate ms3-lerobot
 git clone https://github.com/StoneT2000/lerobot-sim2real.git
+cd lerobot-sim2real 
 pip install -e .
 pip install torch # install the version of torch that works for you
 ```
@@ -35,6 +39,18 @@ To double check if the simulator is installed correctly, you can run
 python -m mani_skill.examples.demo_random_action
 ```
 
+test with push-T environment
+```
+python -m mani_skill.examples.demo_random_action -e PushT-v1 --render-mode="human"  
+```
+
+test with so100
+```
+python -m mani_skill.examples.demo_random_action -e PickCubeSO100-v1 --render-mode="human"
+```
+
+
+### 1.2 install lerobot
 Then we install lerobot which enable ease of use with all kinds of hardware.
 
 ```bash
