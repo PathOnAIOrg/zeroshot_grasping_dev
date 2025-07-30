@@ -20,7 +20,7 @@ from so101_grasp.visualization.vis_grasps import launch_visualizer
 from so101_grasp.utils.transform import transform_pcd_cam_to_rob, transform_cam_to_rob
 import open3d as o3d
 from so101_grasp.api.grasp_interface import grasp_predictor
-from scripts.tools.image_selector import ImgClick
+from so101_grasp.tools.image_selector import ImgClick
 from so101_grasp.utils.utils import get_3d_point_from_2d_coordinates
 from so101_grasp.simulation.sim import (
     SimGrasp, 
