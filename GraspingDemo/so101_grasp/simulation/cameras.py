@@ -4,25 +4,22 @@ import numpy as np
 import pybullet as p
 
 
-class RealSenseD435:
-    """Default configuration with 3 RealSense RGB-D cameras for simulation.
-    
-    Based on Intel RealSense D435 specifications:
-    https://www.intel.com/content/www/us/en/support/articles/000030385/emerging-technologies/intel-realsense-technology.html
-    """
+
+class RealSenseD415():
+    """Default configuration with 3 RealSense RGB-D cameras."""
 
     image_size = (480, 640)
-    intrinsics = np.array([[462.14, 0, 320], [0, 462.14, 240], [0, 0, 1]])
+    intrinsics = np.array([[462.14, 0, 320], [0, 450, 240], [0, 0, 1]])
     
     # Camera poses relative to the manipulator base
     front_position = (0, 0.1, 0.2)
     front_rotation = (np.pi/4, np.pi*4/4, np.pi / 2)
     front_rotation = p.getQuaternionFromEuler(front_rotation)
-    
+
     left_position = (0, 0.5, 0.75)
     left_rotation = (np.pi / 4.5, np.pi, np.pi / 4)
     left_rotation = p.getQuaternionFromEuler(left_rotation)
-    
+
     right_position = (0, -0.5, 0.75)
     right_rotation = (np.pi / 4.5, np.pi, 3 * np.pi / 4)
     right_rotation = p.getQuaternionFromEuler(right_rotation)

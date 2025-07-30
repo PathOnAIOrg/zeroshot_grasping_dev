@@ -15,7 +15,23 @@ from so101_grasp.utils.transform import transform_cam_to_rob
 from so101_grasp.api.grasp_interface import Grasp
 from so101_grasp.robot.so101_client import SO101Client
 
-EEF_IDX = 9  
+EEF_IDX = 9
+
+class CameraConfig:
+    """Camera configuration parameters"""
+    WIDTH = 640
+    HEIGHT = 480
+    FX = 382.8567  # Focal length x
+    FY = 382.4391  # Focal length y
+    CX = 331.3490  # Principal point x
+    CY = 247.1126  # Principal point y
+    SCALE = 1000.0  # Depth scale factor
+
+    # Image processing region - UPDATE FOR YOUR CAMERA RESOLUTION
+    XMIN = 0
+    YMIN = 0
+    XMAX = 480
+    YMAX = 640  
 
 # Object properties constants
 DUCK_ORIENTATION = [np.pi / 2, 0, 0]
@@ -208,7 +224,7 @@ class SimGrasp(Sim):
         """
         super().__init__(urdf_path, start_pos, start_orientation)
 
-        self.realsensed435_cam = cameras.RealSenseD435.CONFIG
+        self.realsensed415_cam = cameras.RealSenseD415.CONFIG
         self._random = np.random.RandomState(None)
         self.frequency = frequency
         pb.changeDynamics(self.robot_id, 7, lateralFriction=6, spinningFriction=3)
@@ -285,11 +301,11 @@ class SimGrasp(Sim):
         pb.changeDynamics(id, -1, lateralFriction=2, spinningFriction=1)
         return id
 
-    def render_camera(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def render_camera(self, config=None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Renders color, depth, and segmentation images from the simulated RealSense D435 camera.
 
-        Uses the camera configuration defined in `self.realsensed435_cam` to compute
+        Uses the camera configuration defined in `self.realsensed415_cam` to compute
         view and projection matrices, then captures the image using PyBullet's OpenGL renderer.
         Applies optional noise to color and depth images if configured.
 
@@ -300,7 +316,7 @@ class SimGrasp(Sim):
                 - segm (np.ndarray): The segmentation mask (height, width) as a NumPy array.
         """
 
-        config = self.realsensed435_cam[0]
+        config = config if config is not None else self.realsensed415_cam[0]
         # OpenGL camera settings.
         lookdir = np.float32([0, 0, 1]).reshape(3, 1)
         updir = np.float32([0, -1, 0]).reshape(3, 1)
@@ -349,13 +365,13 @@ class SimGrasp(Sim):
         # Get segmentation image.
         segm = np.uint8(segm).reshape(depth_image_size)
 
-        return color, depth, segm
+        return rgb, depth, segm
 
     def create_pointcloud(self, color: np.ndarray, depth: np.ndarray) -> o3d.geometry.PointCloud:
         """
         Creates an Open3D PointCloud object from color and depth images.
 
-        Uses camera intrinsic parameters defined in `self.realsensed435_cam`.
+        Uses camera intrinsic parameters defined in `self.realsensed415_cam`.
         The point cloud is transformed to align with the expected coordinate frame.
 
         Args:
@@ -366,7 +382,7 @@ class SimGrasp(Sim):
             o3d.geometry.PointCloud: The generated Open3D point cloud object.
         """
 
-        camera_config = self.realsensed435_cam[0]
+        camera_config = self.realsensed415_cam[0]
         # Convert numpy arrays to Open3D images
         o3d_color = o3d.geometry.Image(np.ascontiguousarray(color))
         o3d_depth = o3d.geometry.Image(np.ascontiguousarray(depth.astype(np.float32)))

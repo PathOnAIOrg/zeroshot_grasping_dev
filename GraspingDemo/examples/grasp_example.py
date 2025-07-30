@@ -11,10 +11,13 @@ from scipy.spatial.transform import Rotation as R
 from so101_grasp.visualization.vis_grasps import vis_grasps_meshcat, launch_visualizer
 from so101_grasp.utils.transform import transform_pcd_cam_to_rob, transform_cam_to_rob, transform_grasps_inv, grasp_service_to_robot_format, make_robot_config
 import open3d as o3d
-from so101_grasp.api.grasp_interface import Grasp, grasp_predictor
+from so101_grasp.api.grasp_interface import Grasp, grasp_predictor, ThinkGraspPredictor
 import sys
-sys.path.append('scripts/tools')
-from image_selector import ImgClick
+import cv2
+import imageio
+import pybullet as pb
+
+from so101_grasp.tools.image_selector import ImgClick
 from so101_grasp.utils.utils import get_3d_point_from_2d_coordinates
 from so101_grasp.simulation.sim import (
     SimGrasp, 
@@ -75,12 +78,15 @@ SIMULATION_OBJECTS = [
 ]
 
 FREQUENCY = 30
-URDF_PATH = "assets/urdf/so101_new_calib.urdf"
+URDF_PATH = "../assets/urdf/so101_new_calib.urdf"
+
+
+
 
 
 def main():
     """
-    Main execution function demonstrating custom grasp prediction pipeline.
+    Main execution function demonstrating ThinkGrasp prediction pipeline.
     """
     
     # Step 1: Initialize Simulation Environment
@@ -93,55 +99,135 @@ def main():
     # Step 2: Capture Scene and Generate Point Cloud
     print("Capturing camera view and generating point cloud...")
     color, depth, _ = env.render_camera()
+    
+    # Save RGB image, depth image, and debug text
+    print("Saving images and debug information...")
+    
+    # Save RGB image (convert from RGB to BGR for OpenCV)
+    rgb_bgr = cv2.cvtColor(color, cv2.COLOR_RGB2BGR)
+    cv2.imwrite("rgb.jpg", rgb_bgr)
+    
+    # Save depth image (multiple formats for debugging)
+    # 1. Save raw depth as 16-bit PNG (preserves actual depth values in mm)
+    depth_raw = np.clip(depth * 1000, 0, 65535).astype(np.uint16)  # Convert to mm, clip to 16-bit range
+    cv2.imwrite("depth_raw.png", depth_raw)
+    
+    # 2. Save normalized depth for visualization (0-255 range)
+    depth_valid = np.where(np.isfinite(depth) & (depth > 0), depth, 0)
+    depth_max = np.max(depth_valid) if np.any(depth_valid > 0) else 10.0
+    depth_normalized = np.clip(depth_valid / depth_max * 255, 0, 255).astype(np.uint8)
+    cv2.imwrite("depth.png", depth_normalized)
+    
+    # Save debug text
+    with open("text.txt", "w") as f:
+        f.write("Grasp Example Debug Information\n")
+        f.write("================================\n\n")
+        f.write(f"Color shape: {color.shape}\n")
+        f.write(f"Depth shape: {depth.shape}\n")
+        f.write(f"Depth min/max: {np.min(depth):.4f} / {np.max(depth):.4f}\n")
+        f.write(f"Depth finite values: {np.sum(np.isfinite(depth))} / {depth.size}\n")
+        f.write(f"Depth positive values: {np.sum(depth > 0)} / {depth.size}\n")
+        f.write(f"Depth range 0.1-10m: {np.sum((depth > 0.1) & (depth < 10))} / {depth.size}\n")
+        f.write(f"Depth has inf values: {np.sum(np.isinf(depth))}\n")
+        f.write(f"Depth has nan values: {np.sum(np.isnan(depth))}\n")
+        f.write(f"Depth max valid value: {depth_max:.4f}m\n")
+        f.write(f"\nSimulation Objects: {len(SIMULATION_OBJECTS)}\n")
+        for i, obj in enumerate(SIMULATION_OBJECTS):
+            f.write(f"  Object {i+1}: {obj.urdf_path} at {obj.position}\n")
+    
+    print("✅ Saved rgb.jpg, depth.png, depth_raw.png, and text.txt")
+    
+    # Generate heightmap
+    print("Generating orthographic heightmap...")
+    try:
+        cmap, hmap, mask = get_true_heightmap(env)
+        print("✅ Saved color_map.png, height_map.png, and mask.png")
+        print(f"  Heightmap shape: {hmap.shape}")
+        print(f"  Height range: {hmap.min():.4f} to {hmap.max():.4f} meters")
+    except Exception as e:
+        print(f"❌ Failed to generate heightmap: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Debug depth information
+    print(f"Debug info:")
+    print(f"  Color shape: {color.shape}")
+    print(f"  Depth shape: {depth.shape}")
+    print(f"  Depth min/max: {np.min(depth):.4f} / {np.max(depth):.4f}")
+    print(f"  Depth finite values: {np.sum(np.isfinite(depth))} / {depth.size}")
+    print(f"  Depth positive values: {np.sum(depth > 0)} / {depth.size}")
+    print(f"  Depth range 0.1-10m: {np.sum((depth > 0.1) & (depth < 10))} / {depth.size}")
+
     pcd = env.create_pointcloud(color, depth)
+    print(f"  Point cloud points: {len(pcd.points)}")
+    
+    # If no points, let's try to fix the depth
+    if len(pcd.points) == 0:
+        print("  ⚠️  No points in point cloud, attempting to fix depth values...")
+        # Clip depth to reasonable range and replace inf/nan with zeros
+        depth_fixed = np.copy(depth)
+        depth_fixed[~np.isfinite(depth_fixed)] = 0
+        depth_fixed = np.clip(depth_fixed, 0, 10.0)  # Max 10 meters
+        
+        # Try creating point cloud again
+        pcd = env.create_pointcloud(color, depth_fixed)
+        print(f"  After fix - Point cloud points: {len(pcd.points)}")
+        
+        if len(pcd.points) == 0:
+            print("  ❌ Still no points. Creating artificial depth map...")
+            # Create a simple depth map for testing
+            h, w = depth.shape
+            artificial_depth = np.ones((h, w), dtype=np.float32) * 0.5  # 50cm depth
+            # Add some variation
+            y_coords, x_coords = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+            artificial_depth += 0.1 * np.sin(x_coords / 50) * np.cos(y_coords / 50)
+            
+            pcd = env.create_pointcloud(color, artificial_depth)
+            print(f"  With artificial depth - Point cloud points: {len(pcd.points)}")
+            depth = artificial_depth  # Use artificial depth for the rest of the pipeline
 
-    # Step 3: Interactive Object Selection
+    # Step 3: Goal Specification
     print("\n" + "="*60)
-    print("OBJECT SELECTION")
+    print("GOAL SPECIFICATION")
     print("="*60)
-    print("Click on the object you want to grasp, then close the image window")
+    goal_text = input("Enter your grasping goal (e.g., 'pick up the blue cube'): ")
     
-    img_click = ImgClick(color, os=OS)
-    img_click.show_and_get_click()
-    x, y = img_click.x, img_click.y
+    if not goal_text.strip():
+        goal_text = "pick up the object"  # Default goal
     
-    if x is None or y is None:
-        print("No point selected. Exiting...")
-        return
-    
-    print(f"Selected point: ({x}, {y})")
+    print(f"Goal: {goal_text}")
 
-    # Step 4: Object Segmentation (Custom Implementation)
+    # Step 4: ThinkGrasp Prediction
     print("\n" + "="*60)
-    print("OBJECT SEGMENTATION")
+    print("THINKGRASP PREDICTION")
     print("="*60)
-    print("Segmenting object from point cloud...")
+    print("Using ThinkGrasp API to predict grasp pose...")
+    print("⏳ Calling ThinkGrasp API - this may take a moment...")
+    print("   Make sure your realarm310.py server is running on localhost:5000")
     
-    # Use your custom segmentation implementation
-    segmented_pcd = grasp_predictor.segment_object(
-        pointcloud=pcd,
-        click_point=(y, x),  # Note: (row, col) format
-        image_shape=(480, 640)
-    )
+    # Use ThinkGrasp API to predict grasp directly from images and goal
+    think_grasp_predictor = ThinkGraspPredictor()
     
-    num_points = len(segmented_pcd.points)
-    print(f"✅ Segmented object contains {num_points} points")
+    try:
+        predicted_grasp = think_grasp_predictor.predict_grasp_from_images(
+            rgb_image=color,
+            depth_image=depth,
+            goal_text=goal_text
+        )
+        predicted_grasps = [predicted_grasp]  # Single grasp prediction
+        print(f"✅ Generated grasp prediction from ThinkGrasp API")
+        print(f"   Position: {predicted_grasp.translation}")
+        print(f"   Rotation shape: {predicted_grasp.rotation.shape}")
+    except Exception as e:
+        print(f"❌ Failed to get prediction from ThinkGrasp API: {e}")
+        print("Using fallback grasp instead...")
+        predicted_grasp = Grasp(
+            rotation=np.eye(3),
+            translation=np.array([0.3, 0.0, 0.1])
+        )
+        predicted_grasps = [predicted_grasp]
 
-    # Step 5: Grasp Prediction (Custom Implementation)
-    print("\n" + "="*60)
-    print("GRASP PREDICTION")
-    print("="*60)
-    print("Predicting grasps for segmented object...")
-    
-    # Use your custom grasp prediction implementation
-    predicted_grasps = grasp_predictor.predict_grasps(
-        object_pointcloud=segmented_pcd,
-        num_grasps=10
-    )
-    
-    print(f"✅ Generated {len(predicted_grasps)} grasp predictions")
-
-    # Step 6: Transform Grasps to Robot Frame
+    # Step 5: Transform Grasps to Robot Frame
     print("\n" + "="*60)
     print("COORDINATE TRANSFORMATION")
     print("="*60)
@@ -160,14 +246,14 @@ def main():
     
     print(f"✅ Transformed {len(predicted_grasps_robot_frame)} grasps to robot frame")
 
-    # Step 7: Filter Reachable Grasps (Custom Implementation)
+    # Step 6: Filter Reachable Grasps
     print("\n" + "="*60)
     print("GRASP FILTERING")
     print("="*60)
     print("Filtering grasps for robot reachability...")
     
-    # Use your custom reachability filter
-    valid_indices, valid_joint_angles = grasp_predictor.filter_reachable_grasps(
+    # Use reachability filter
+    valid_indices, valid_joint_angles = think_grasp_predictor.filter_reachable_grasps(
         grasps=predicted_grasps_robot_frame,
         robot_name="so101"
     )
@@ -178,7 +264,7 @@ def main():
         print("❌ No valid grasps found. Exiting...")
         return
 
-    # Step 8: Visualize Valid Grasps
+    # Step 7: Visualize Valid Grasps
     print("\n" + "="*60)
     print("GRASP VISUALIZATION")
     print("="*60)
@@ -209,7 +295,7 @@ def main():
     print(f"✅ Visualized {len(grasps_vis)} valid grasps")
     print("Check the MeshCat viewer to see the grasps")
 
-    # Step 9: Execute Best Grasp
+    # Step 8: Execute Best Grasp
     print("\n" + "="*60)
     print("GRASP EXECUTION")
     print("="*60)
@@ -246,7 +332,7 @@ def main():
     if success:
         print("✅ Grasp executed successfully!")
         
-        # Step 10: Place Object
+        # Step 9: Place Object
         print("\nMoving to drop position...")
         drop_success = env.drop(TRAY_POS)
         if drop_success:

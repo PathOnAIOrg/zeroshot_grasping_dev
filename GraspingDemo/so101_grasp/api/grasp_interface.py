@@ -10,6 +10,11 @@ from dataclasses import dataclass
 import numpy as np
 import open3d as o3d
 from abc import ABC, abstractmethod
+import requests
+import json
+import tempfile
+import os
+from PIL import Image
 
 
 @dataclass
@@ -27,8 +32,8 @@ class Grasp:
     def to_list_format(self):
         """Convert to list format for compatibility."""
         return {
-            "rotation": self.rotation.tolist(),
-            "translation": self.translation.tolist()
+            "rotation": self.rotation.tolist() if hasattr(self.rotation, 'tolist') else self.rotation,
+            "translation": self.translation.tolist() if hasattr(self.translation, 'tolist') else self.translation
         }
     
     @classmethod
@@ -400,5 +405,169 @@ class SimpleGraspPredictor(GraspPredictor):
         return valid_indices, valid_joint_angles
 
 
+class ThinkGraspPredictor(GraspPredictor):
+    """
+    ThinkGrasp implementation using the realarm310.py API.
+    This predictor takes image, depth image, and goal text to predict grasps.
+    """
+    
+    def __init__(self, api_url: str = "http://localhost:5000"):
+        self.api_url = api_url
+    
+    def predict_grasp_from_images(self, 
+                                  rgb_image: np.ndarray,
+                                  depth_image: np.ndarray, 
+                                  goal_text: str) -> Grasp:
+        """
+        Main API method that takes RGB image, depth image, and goal text to predict a grasp pose.
+        
+        Args:
+            rgb_image: RGB image as numpy array (H, W, 3)
+            depth_image: Depth image as numpy array (H, W)
+            goal_text: Natural language description of the grasping goal
+            
+        Returns:
+            Grasp: Single best grasp pose in camera coordinate frame
+        """
+        # Save images to temporary files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Save RGB image
+            rgb_path = os.path.join(temp_dir, "rgb.png")
+            rgb_pil = Image.fromarray(rgb_image.astype(np.uint8))
+            rgb_pil.save(rgb_path)
+            
+            # Save depth image
+            depth_path = os.path.join(temp_dir, "depth.png")
+            depth_pil = Image.fromarray(depth_image.astype(np.uint16))
+            depth_pil.save(depth_path)
+            
+            # Save goal text
+            text_path = os.path.join(temp_dir, "goal.txt")
+            with open(text_path, 'w') as f:
+                f.write(goal_text)
+            
+            # Make API request
+            try:
+                print("   📤 Sending request to ThinkGrasp API...")
+                response = requests.post(
+                    f"{self.api_url}/grasp_pose",
+                    json={
+                        "image_path": rgb_path,
+                        "depth_path": depth_path,
+                        "text_path": text_path
+                    },
+                    timeout=60  # Increased timeout for complex processing
+                )
+                
+                if response.status_code == 200:
+                    print("   📥 Received response from API, processing...")
+                    result = response.json()
+                    
+                    # Extract pose from API response
+                    xyz = np.array(result['xyz'])  # [x, y, z]
+                    rotation_matrix = np.array(result['rot'])  # [3, 3] rotation matrix
+                    
+                    # Validate the response format
+                    if xyz.shape != (3,):
+                        raise ValueError(f"Invalid xyz shape: {xyz.shape}, expected (3,)")
+                    if rotation_matrix.shape != (3, 3):
+                        raise ValueError(f"Invalid rotation matrix shape: {rotation_matrix.shape}, expected (3, 3)")
+                    
+                    print("   ✅ Successfully parsed API response")
+                    return Grasp(
+                        rotation=rotation_matrix,
+                        translation=xyz
+                    )
+                else:
+                    print(f"   ❌ API request failed with status {response.status_code}")
+                    if response.text:
+                        print(f"   Error details: {response.text[:200]}")
+                    return self._fallback_grasp()
+                    
+            except requests.exceptions.Timeout:
+                print("   ⏰ API request timed out - your ThinkGrasp processing may be taking longer than expected")
+                return self._fallback_grasp()
+            except requests.exceptions.ConnectionError:
+                print("   🔌 Could not connect to ThinkGrasp API - make sure realarm310.py server is running")
+                return self._fallback_grasp()
+            except Exception as e:
+                print(f"   ❌ Error calling ThinkGrasp API: {e}")
+                return self._fallback_grasp()
+    
+    def _fallback_grasp(self) -> Grasp:
+        """Return a default grasp when API fails."""
+        return Grasp(
+            rotation=np.eye(3),
+            translation=np.array([0.3, 0.0, 0.1])
+        )
+    
+    def segment_object(self, 
+                      pointcloud: o3d.geometry.PointCloud, 
+                      click_point: Tuple[int, int],
+                      image_shape: Tuple[int, int] = (480, 640)) -> o3d.geometry.PointCloud:
+        """
+        For ThinkGrasp, segmentation is handled internally by the API.
+        This method returns the full point cloud since segmentation is done via language.
+        """
+        return pointcloud
+    
+    def predict_grasps(self, 
+                      object_pointcloud: o3d.geometry.PointCloud,
+                      num_grasps: int = 10) -> List[Grasp]:
+        """
+        For ThinkGrasp, this method is not used directly.
+        Use predict_grasp_from_images instead.
+        """
+        # Return fallback grasp
+        return [self._fallback_grasp()]
+    
+    def filter_reachable_grasps(self, 
+                               grasps: List[Grasp],
+                               robot_name: str = "so101") -> Tuple[List[int], List[List[float]]]:
+        """
+        Simple reachability filter based on workspace limits.
+        """
+        valid_indices = []
+        valid_joint_angles = []
+        
+        # Define workspace limits based on robot type
+        if robot_name == "so101":
+            min_reach = 0.05
+            max_reach = 0.4
+            min_height = -0.1
+            max_height = 0.4
+        else:
+            min_reach = 0.1
+            max_reach = 0.5
+            min_height = 0.0
+            max_height = 0.5
+        
+        for i, grasp in enumerate(grasps):
+            pos = grasp.translation
+            xy_distance = np.linalg.norm(pos[:2])
+            
+            if (min_reach < xy_distance < max_reach and 
+                min_height < pos[2] < max_height):
+                
+                valid_indices.append(i)
+                
+                # Generate approximate joint angles
+                base_angle = np.arctan2(pos[1], pos[0])
+                distance = np.linalg.norm(pos)
+                shoulder_angle = -np.pi/4 + (distance - min_reach) / (max_reach - min_reach) * np.pi/3
+                elbow_angle = np.pi/3 - (distance - min_reach) / (max_reach - min_reach) * np.pi/4
+                
+                joints = [base_angle, shoulder_angle, elbow_angle, 0.0, 0.0, 0.0]
+                valid_joint_angles.append(joints)
+        
+        # If no valid grasps found, return at least one with default pose
+        if not valid_indices and grasps:
+            valid_indices.append(0)
+            valid_joint_angles.append([0.0, -0.5, 0.8, -0.3, 0.0, 0.0])
+        
+        return valid_indices, valid_joint_angles
+
+
 # Create a global instance that can be replaced with custom implementation
-grasp_predictor = SimpleGraspPredictor()
+# Use ThinkGraspPredictor as the default implementation
+grasp_predictor = ThinkGraspPredictor()

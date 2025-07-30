@@ -8,8 +8,8 @@ from so101_grasp.simulation import cameras
 from dataclasses import dataclass
 import os
 
-ROTATION = cameras.RealSenseD435.CONFIG[0]["rotation"]  # quaternian
-TRANSLATION = cameras.RealSenseD435.CONFIG[0]["position"]
+ROTATION = cameras.RealSenseD415.CONFIG[0]["rotation"]  # quaternian
+TRANSLATION = cameras.RealSenseD415.CONFIG[0]["position"]
 
 SO101_X_GRASP_SHIFT = 0
 SO101_Y_GRASP_SHIFT = 0.025
