@@ -75,6 +75,13 @@ Configuration files in `config/`:
 
 Calibrate robot joint positions:
 ```bash
+sudo chmod a+rw /dev/ttyACM0
+python -m lerobot.calibrate \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM0 
+    
+    
+    
 python scripts/calibrate_robot.py --port /dev/ttyACM0
 ```
 

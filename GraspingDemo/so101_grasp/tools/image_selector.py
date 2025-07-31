@@ -39,11 +39,37 @@ class ImgClick:
         Displays the image and allows the user to click on the image to get the x,y coordinates.
         Runs callback to save x,y coordinates.
         """
-        img = self.img.reshape(int(480), int(640), 3)
-        img = img * 255
-        img = img.astype(np.uint8)
+        # Handle different image formats
+        if len(self.img.shape) == 3:
+            # Image is already in HxWxC format
+            img = self.img
+        else:
+            # Try to reshape - detect dimensions automatically
+            total_pixels = self.img.size
+            if total_pixels == 480 * 640 * 3:
+                img = self.img.reshape(480, 640, 3)
+            elif total_pixels == 720 * 1280 * 3:
+                img = self.img.reshape(720, 1280, 3)
+            else:
+                # Fallback: assume it's the total size divided by 3 channels
+                height_width = int(np.sqrt(total_pixels // 3))
+                if height_width * height_width * 3 == total_pixels:
+                    img = self.img.reshape(height_width, height_width, 3)
+                else:
+                    raise ValueError(f"Cannot determine image dimensions from size {total_pixels}")
+        
+        # Ensure image is in correct format for display
+        if img.dtype != np.uint8:
+            if img.max() <= 1.0:
+                # Normalized image (0-1 range)
+                img = (img * 255).astype(np.uint8)
+            else:
+                # Already in 0-255 range
+                img = img.astype(np.uint8)
+        
         fig, ax = plt.subplots()
         ax.imshow(img)
+        ax.set_title("Click on the marker center, then close the window")
         fig.canvas.mpl_connect(
             "button_press_event",
             lambda event: self.on_click(

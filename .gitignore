@@ -32,3 +32,6 @@
 /GraspingDemo/so101_grasp.egg-info
 /GraspingDemo/so101_grasp/robot/__pycache__
 /GraspingDemo/so101_grasp/__pycache__
+/GraspingDemo/captures
+/GraspingDemo/scripts/config
+/GraspingDemo/so101_grasp/robot/__pycache__
