@@ -85,8 +85,7 @@ class RobotCalibrator:
     def _disable_all_torque(self):
         """Disable torque on all motors for manual positioning."""
         try:
-            for motor_name in self.client.robot.bus.motors.keys():
-                self.client.robot.bus.set_motor_operating_mode(motor_name, operating_mode="torque_disabled")
+            self.client.robot.bus.disable_torque()
             print("   ✅ All motor torque disabled - robot can be moved manually")
         except Exception as e:
             print(f"   ⚠️ Warning: Could not disable torque: {e}")
@@ -94,8 +93,7 @@ class RobotCalibrator:
     def _enable_all_torque(self):
         """Re-enable torque on all motors."""
         try:
-            for motor_name in self.client.robot.bus.motors.keys():
-                self.client.robot.bus.set_motor_operating_mode(motor_name, operating_mode="position")
+            self.client.robot.bus.enable_torque()
             time.sleep(1)  # Allow motors to stabilize
             print("   ✅ Motor torque re-enabled")
         except Exception as e:

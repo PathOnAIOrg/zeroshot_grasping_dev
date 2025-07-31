@@ -76,15 +76,66 @@ def upsample_pcd(pcd_ds: o3d.geometry.PointCloud, pcd_full: o3d.geometry.PointCl
     return pcd_us
 
 
-def get_3d_point_from_2d_coordinates(pcd: o3d.geometry.PointCloud, x: int, y: int) -> Tuple[float, float, float]:
+def get_3d_point_from_2d_coordinates(click_coords: Tuple[int, int], 
+                                   depth_image: np.ndarray, 
+                                   intrinsics: object) -> Tuple[float, float, float]:
     """
-    Get the 3D point from a 2D click on the point cloud's image.
+    Convert 2D click coordinates to 3D point using depth image and camera intrinsics.
+    
     Args:
-        pcd: o3d.geometry.PointCloud: Point cloud.
-        x: int: X coordinate of the click.
-        y: int: Y coordinate of the click.
+        click_coords: (x, y) pixel coordinates
+        depth_image: Depth image array
+        intrinsics: Camera intrinsics object
+        
     Returns:
-        Tuple[float, float, float]: 3D point.
+        Tuple[float, float, float]: 3D point [x, y, z] or None if invalid
     """
-    points = np.asarray(pcd.points)
-    return points[y * 640 + x]
+    x, y = click_coords
+    
+    print(f"Debug: Click coordinates: ({x}, {y})")
+    print(f"Debug: Depth image shape: {depth_image.shape}")
+    print(f"Debug: Depth image dtype: {depth_image.dtype}")
+    
+    # Check bounds
+    if x < 0 or x >= depth_image.shape[1] or y < 0 or y >= depth_image.shape[0]:
+        print(f"Debug: Coordinates out of bounds")
+        return None
+    
+    depth = depth_image[y, x]
+    print(f"Debug: Raw depth value at ({x}, {y}): {depth}")
+    
+    if depth == 0:
+        print(f"Debug: Zero depth at clicked point, trying nearby pixels")
+        # Try a small neighborhood around the clicked point
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                ny, nx = y + dy, x + dx
+                if (0 <= ny < depth_image.shape[0] and 
+                    0 <= nx < depth_image.shape[1]):
+                    neighbor_depth = depth_image[ny, nx]
+                    if neighbor_depth > 0:
+                        depth = neighbor_depth
+                        print(f"Debug: Using nearby depth at ({nx}, {ny}): {depth}")
+                        break
+            if depth > 0:
+                break
+        
+        if depth == 0:
+            print(f"Debug: No valid depth found in neighborhood")
+            return None
+    
+    # Convert to 3D using camera intrinsics
+    depth_m = depth / 1000.0  # Convert mm to m
+    fx, fy = intrinsics.fx, intrinsics.fy
+    cx, cy = intrinsics.ppx, intrinsics.ppy
+    
+    print(f"Debug: Intrinsics fx={fx}, fy={fy}, cx={cx}, cy={cy}")
+    print(f"Debug: Depth in meters: {depth_m}")
+    
+    x_3d = (x - cx) * depth_m / fx
+    y_3d = (y - cy) * depth_m / fy
+    z_3d = depth_m
+    
+    print(f"Debug: 3D point: ({x_3d:.4f}, {y_3d:.4f}, {z_3d:.4f})")
+    
+    return (x_3d, y_3d, z_3d)
