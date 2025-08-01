@@ -7,7 +7,6 @@ Intelligent grasping system for SO-101 robotic arm with computer vision, grasp p
 
 brew install librealsense
 
-```bash
 # 1. Test system connections
 python scripts/test_connection.py
 
@@ -60,7 +59,74 @@ pip install feetech-servo-sdk dynamixel-sdk meshcat
 # LeRobot framework
 cd lerobot && pip install -e . --no-deps
 pip install draccus==0.10.0 pyserial huggingface-hub termcolor
+
+
+# Optional: ROS integration (see ROS Setup Guide below)
+sudo apt install python3-rosdep  # if using ROS
 ```
+
+## 🤖 ROS Setup (Optional)
+
+Some advanced features may require ROS. Follow these steps if you encounter ROS-related issues:
+
+### 1. Check if ROS is installed
+```bash
+echo $ROS_DISTRO
+```
+If it prints nothing, ROS is likely not sourced.
+
+### 2. Install ROS 2 Jazzy (Ubuntu 24.04)
+For Ubuntu 24.04, first add the ROS 2 repository:
+```bash
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+sudo apt update
+```
+
+Then install ROS 2 Jazzy:
+```bash
+sudo apt install ros-jazzy-desktop
+```
+
+### 3. Install rosdep
+For Ubuntu (assuming ROS is installed via apt):
+```bash
+sudo apt update
+sudo apt install python3-rosdep
+```
+For other systems, or if using pip:
+```bash
+pip3 install rosdep
+```
+
+### 4. Initialize rosdep (only once)
+After installing:
+```bash
+sudo rosdep init
+rosdep update
+```
+
+### 5. Ensure your shell sources ROS setup
+Add the following to your shell configuration:
+```bash
+# For bash (~/.bashrc)
+source /opt/ros/<your_ros_distro>/setup.bash
+
+# For zsh (~/.zshrc)  
+source /opt/ros/<your_ros_distro>/setup.zsh
+```
+Replace `<your_ros_distro>` with `noetic`, `foxy`, `humble`, etc. Then reload:
+```bash
+source ~/.bashrc  # or ~/.zshrc
+```
+
+### 6. Verify installation
+```bash
+which rosdep
+rosdep --version
+```
+
+📖 **For complete ROS setup guide, see [README_ROS_SETUP.md](README_ROS_SETUP.md)**
 
 ## 🔧 Configuration
 
@@ -155,24 +221,6 @@ processor = PointCloudProcessor()
 points, colors = processor.rgbd_to_pointcloud(color, depth, intrinsics)
 ```
 
-### Grasp Prediction API
-
-```python
-from so101_grasp.planning import GeneralBionixClient
-import open3d as o3d
-
-# Initialize client
-client = GeneralBionixClient(api_key="your-api-key")
-
-# Crop point cloud around selected object
-cropped_pcd = client.crop_point_cloud(pcd, x=320, y=240)
-
-# Get grasp predictions
-grasps = client.predict_grasps(cropped_pcd)
-
-# Filter reachable grasps
-valid_grasps = client.filter_grasps(grasps.grasps)
-```
 
 ### Configuration Management
 
