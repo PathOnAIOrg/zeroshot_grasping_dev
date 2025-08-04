@@ -14,6 +14,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+import pybullet as p
 from typing import List
 from scipy.spatial.transform import Rotation as R
 from so101_grasp.visualization.vis_grasps import launch_visualizer
