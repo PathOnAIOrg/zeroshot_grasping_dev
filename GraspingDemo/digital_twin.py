@@ -52,12 +52,13 @@ SIMULATION_OBJECTS = [
 ]
 
 class DigitalTwinTester:
-    def __init__(self, robot_port: Optional[str] = None):
+    def __init__(self, robot_port: Optional[str] = None, simulation_only: bool = False):
         """Initialize digital twin test system"""
         self.camera = None
         self.sim_grasp = None
         self.real_robot = None
         self.robot_port = robot_port
+        self.simulation_only = simulation_only
         self.transform_matrix = None
         self.scaling_factor = None
         self.kinematics = None
@@ -613,7 +614,7 @@ class DigitalTwinTester:
     
     def initialize_camera(self) -> bool:
         """Initialize camera"""
-        self.camera = CameraController()
+        self.camera = CameraController(width=640, height=480, fps=30)
         if self.camera.connect():
             print("✅ Camera connected successfully")
             return True
@@ -624,6 +625,10 @@ class DigitalTwinTester:
     def initialize_simulation(self) -> bool:
         """Initialize simulation environment"""
         try:
+            # Set environment variable to force headless mode
+            import os
+            os.environ['DISPLAY'] = ''  # Prevent X11 display access
+            
             # Try the simplest initialization first
             self.sim_grasp = SimGrasp(
                 objects=SIMULATION_OBJECTS,

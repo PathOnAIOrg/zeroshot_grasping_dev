@@ -54,7 +54,7 @@ def test_camera_connection():
     print("\n📷 Testing RealSense Camera Connection")
     print("=" * 50)
     
-    camera = CameraController()
+    camera = CameraController(width=640, height=480, fps=30)
     
     if camera.connect():
         print("✅ Camera connected successfully")

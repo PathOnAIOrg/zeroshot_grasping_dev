@@ -35,3 +35,12 @@
 /GraspingDemo/captures
 /GraspingDemo/scripts/config
 /GraspingDemo/so101_grasp/robot/__pycache__
+/ROS2/FoundationPose2/build/Eigen3/.cmake
+/ROS2/FoundationPose2/build
+/ROS2/FoundationPose2/install
+/ROS2/FoundationPose2/log
+ThinkGrasp/outputs/graspnet/cloud.ply
+ThinkGrasp/outputs/graspnet/gg.npy
+ThinkGrasp/outputs/graspnet/cloud.ply
+ThinkGrasp/outputs/graspnet/gg.npy
+ROS2/FoundationPose2/sam2.1_b.pt
