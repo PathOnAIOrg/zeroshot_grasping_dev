@@ -32,17 +32,18 @@ from typing import List, Tuple
 from so101_grasp.robot.so101_client import SO101Client
 from so101_grasp.utils.utils import get_3d_point_from_2d_coordinates
 from so101_grasp.vision.camera import CameraController
-sys.path.append('scripts/tools')
-from image_selector import ImgClick
-from so101_grasp.robot import calibrate
+
+from so101_grasp.tools.image_selector import ImgClick
+from so101_grasp.robot.calibration import RobotCalibrator
+from scipy.optimize import least_squares
 
 # User TODO: Fill in the default port for your SO-101 robot.
 # Found ports: /dev/tty.usbmodem5A680107891 (update this to match your robot)
-DEFAULT_PORT = "/dev/tty.usbmodem5A680107891"
+DEFAULT_PORT = "/dev/ttyACM0"
 REAL_ROBOT_ROBOT_POSES_PATH = "config/robot_poses_so101.npy"
-URDF_PATH = "SO101/so101_new_calib.urdf"  # Note: You may need to create a SO-101 specific URDF
+URDF_PATH = "../assets/urdf/so101_new_calib.urdf"  # Note: You may need to create a SO-101 specific URDF
 FREQUENCY = 100
-DEFAULT_OS = "MAC"
+DEFAULT_OS = "LINUX"
 NUM_POINTS_USE = 12
 
 
@@ -112,11 +113,26 @@ def get_joint_info(robot_id: int) -> List[Tuple[int, str]]:
     num_joints = pb.getNumJoints(robot_id)
     joint_info = []
     
+    print(f"\nRobot has {num_joints} joints:")
     for i in range(num_joints):
         info = pb.getJointInfo(robot_id, i)
         joint_name = info[1].decode('utf-8')
+        link_name = info[12].decode('utf-8')
         joint_info.append((i, joint_name))
-        print(f"Joint {i}: {joint_name}")
+        print(f"Joint {i}: {joint_name} -> Link: {link_name}")
+    
+    # Test end effector pose detection
+    print(f"\nTesting end effector links:")
+    for i in range(num_joints):
+        try:
+            link_state = pb.getLinkState(robot_id, i)
+            if link_state is not None:
+                pos = link_state[0]
+                print(f"Link {i}: Valid pose at {pos}")
+            else:
+                print(f"Link {i}: getLinkState returned None")
+        except Exception as e:
+            print(f"Link {i}: Error - {e}")
     
     return joint_info
 
@@ -136,21 +152,51 @@ def set_joint_positions(robot_id: int, joint_positions: List[float]) -> None:
         pb.resetJointState(robot_id, i, joint_positions[i])
 
 
-def get_end_effector_pose(robot_id: int, end_effector_link_index: int = 6) -> Tuple[List[float], List[float]]:
+def get_end_effector_pose(robot_id: int, end_effector_link_index: int = None) -> Tuple[List[float], List[float]]:
     """
     Gets the current pose of the end effector.
 
     Args:
         robot_id (int): The PyBullet body ID of the robot.
-        end_effector_link_index (int): The link index of the end effector.
+        end_effector_link_index (int): The link index of the end effector. If None, uses the last link.
 
     Returns:
         Tuple[List[float], List[float]]: Position and orientation of the end effector.
     """
-    link_state = pb.getLinkState(robot_id, end_effector_link_index)
-    position = list(link_state[0])
-    orientation = list(link_state[1])
-    return position, orientation
+    # If no link index specified, use the last link (gripper/jaw)
+    if end_effector_link_index is None:
+        num_joints = pb.getNumJoints(robot_id)
+        # Try different end effector indices, starting from the last one
+        for link_idx in range(num_joints - 1, -1, -1):
+            try:
+                link_state = pb.getLinkState(robot_id, link_idx)
+                if link_state is not None:
+                    end_effector_link_index = link_idx
+                    break
+            except:
+                continue
+        
+        if end_effector_link_index is None:
+            raise ValueError(f"Could not find valid end effector link for robot {robot_id}")
+    
+    try:
+        link_state = pb.getLinkState(robot_id, end_effector_link_index)
+        if link_state is None:
+            raise ValueError(f"getLinkState returned None for robot {robot_id}, link {end_effector_link_index}")
+        
+        position = list(link_state[0])
+        orientation = list(link_state[1])
+        return position, orientation
+        
+    except Exception as e:
+        print(f"Error getting end effector pose for link {end_effector_link_index}: {e}")
+        # Fallback: try using the base link position if available
+        try:
+            base_pos, base_orn = pb.getBasePositionAndOrientation(robot_id)
+            print(f"Using base position as fallback: {base_pos}")
+            return list(base_pos), list(base_orn)
+        except Exception as e2:
+            raise RuntimeError(f"Failed to get end effector pose and base pose: {e}, {e2}")
 
 
 def record_robot_poses(robot_client: SO101Client, num_points: int = 12) -> np.ndarray:
@@ -166,16 +212,49 @@ def record_robot_poses(robot_client: SO101Client, num_points: int = 12) -> np.nd
     """
     poses = []
     print(f"\nRecording {num_points} robot poses...")
-    print("Move the robot's jaw tip to the center of each marker and press Enter.")
+    print("Disabling motor torque for manual positioning...")
+    
+    # Disable torque on all motors for manual movement
+    try:
+        robot_client.robot.bus.disable_torque()
+        print("✅ Motor torque disabled - you can now move the robot manually")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not disable torque: {e}")
+        print("You may need to manually disable torque or use the robot's physical button")
+    
+    print("\nMove the robot's jaw tip to the center of each marker and press Enter.")
     print("Make sure to follow the same order for both robot poses and image clicks!")
     
     for i in range(num_points):
         input(f"Position the robot at marker {i+1}/{num_points} and press Enter...")
         
-        # Read current joint positions
-        joint_positions = robot_client.read_joints()
-        poses.append(joint_positions)
-        print(f"Recorded pose {i+1}: {joint_positions}")
+        # Temporarily enable torque to read position
+        try:
+            robot_client.robot.bus.enable_torque()
+            time.sleep(0.5)  # Allow motors to stabilize
+            
+            # Read current joint positions
+            joint_positions = robot_client.read_joints()
+            poses.append(joint_positions)
+            print(f"Recorded pose {i+1}: {[f'{p:.3f}' for p in joint_positions]}")
+            
+            # Disable torque again for next positioning (except for last point)
+            if i < num_points - 1:
+                robot_client.robot.bus.disable_torque()
+                    
+        except Exception as e:
+            print(f"⚠️ Error reading position: {e}")
+            # Try to read anyway
+            joint_positions = robot_client.read_joints()
+            poses.append(joint_positions)
+    
+    # Re-enable torque after all poses are recorded
+    try:
+        robot_client.robot.bus.enable_torque()
+        time.sleep(1.0)  # Allow motors to stabilize
+        print("✅ Motor torque re-enabled")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not re-enable torque: {e}")
     
     poses_array = np.array(poses)
     np.save(REAL_ROBOT_ROBOT_POSES_PATH, poses_array)
@@ -210,6 +289,74 @@ def simulate_robot_poses(robot_id: int, poses: np.ndarray) -> List[List[float]]:
     return end_effector_positions
 
 
+def compute_camera_robot_transform(robot_points: np.ndarray, camera_points: np.ndarray) -> tuple:
+    """
+    Compute the transformation matrix from camera to robot coordinate system.
+    
+    Args:
+        robot_points: Nx3 array of 3D points in robot coordinate system
+        camera_points: Nx3 array of corresponding 3D points in camera coordinate system
+        
+    Returns:
+        tuple: (4x4 transformation matrix, scaling factor)
+    """
+    def residual_function(params, robot_pts, camera_pts):
+        """Residual function for optimization."""
+        # Extract parameters: 3 rotation angles + 3 translation + 1 scale
+        rx, ry, rz, tx, ty, tz, scale = params
+        
+        # Create rotation matrix from Euler angles
+        from scipy.spatial.transform import Rotation as R
+        rotation_matrix = R.from_euler('xyz', [rx, ry, rz]).as_matrix()
+        
+        # Create homogeneous transformation matrix
+        transform = np.eye(4)
+        transform[:3, :3] = rotation_matrix
+        transform[:3, 3] = [tx, ty, tz]
+        
+        # Apply transformation to camera points
+        camera_homogeneous = np.hstack([camera_pts * scale, np.ones((camera_pts.shape[0], 1))])
+        transformed_points = (transform @ camera_homogeneous.T).T[:, :3]
+        
+        # Calculate residuals
+        residuals = (transformed_points - robot_pts).flatten()
+        return residuals
+    
+    # Initial guess: no rotation, no translation, scale = 1
+    initial_params = [0, 0, 0, 0, 0, 0, 1.0]
+    
+    # Perform optimization
+    result = least_squares(
+        residual_function, 
+        initial_params, 
+        args=(robot_points, camera_points),
+        method='lm'
+    )
+    
+    if not result.success:
+        raise ValueError(f"Calibration optimization failed: {result.message}")
+    
+    # Extract optimized parameters
+    rx, ry, rz, tx, ty, tz, scale = result.x
+    
+    # Create final transformation matrix
+    from scipy.spatial.transform import Rotation as R
+    rotation_matrix = R.from_euler('xyz', [rx, ry, rz]).as_matrix()
+    
+    transform_matrix = np.eye(4)
+    transform_matrix[:3, :3] = rotation_matrix
+    transform_matrix[:3, 3] = [tx, ty, tz]
+    
+    # Calculate RMS error
+    final_residuals = residual_function(result.x, robot_points, camera_points)
+    rms_error = np.sqrt(np.mean(final_residuals**2))
+    
+    print(f"Calibration RMS error: {rms_error:.4f} meters")
+    print(f"Scaling factor: {scale:.4f}")
+    
+    return transform_matrix, scale
+
+
 def capture_and_process_images(num_points: int = 12) -> List[List[float]]:
     """
     Captures images and processes user clicks to get 2D coordinates.
@@ -228,14 +375,28 @@ def capture_and_process_images(num_points: int = 12) -> List[List[float]]:
     for i in range(num_points):
         print(f"\nProcessing point {i+1}/{num_points}")
         
+        # Create and connect camera controller with lower resolution for calibration
+        camera_controller = CameraController(width=640, height=480, fps=30)
+        if not camera_controller.connect():
+            print(f"❌ Failed to connect camera for point {i+1}")
+            continue
+        
         # Capture point cloud
-        depth_image, color_image, intrinsics = capture_pointcloud()
+        color_image, depth_image, intrinsics = camera_controller.capture_pointcloud()
         
-        # Get user click
-        img_click = ImgClick(color_image)
-        coordinates_2d = img_click.get_coordinates()
+        if color_image is None or depth_image is None:
+            print(f"❌ Failed to capture image for point {i+1}")
+            camera_controller.disconnect()
+            continue
         
-        if coordinates_2d is None:
+        # Get user click with correct OS setting
+        img_click = ImgClick(color_image, os=DEFAULT_OS)
+        coordinates_2d = img_click.run()  # Use run() method instead of get_coordinates()
+        
+        # Disconnect camera after use
+        camera_controller.disconnect()
+        
+        if coordinates_2d is None or coordinates_2d[0] is None:
             print(f"No click detected for point {i+1}. Skipping...")
             continue
             
@@ -316,7 +477,7 @@ def main():
     
     # Perform calibration
     try:
-        transform_matrix, scaling_factor = calibrate(
+        transform_matrix, scaling_factor = compute_camera_robot_transform(
             np.array(end_effector_positions[:min_points]),
             np.array(coordinates_3d[:min_points])
         )

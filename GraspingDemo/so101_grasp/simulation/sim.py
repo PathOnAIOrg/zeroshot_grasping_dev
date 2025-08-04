@@ -63,7 +63,7 @@ class ObjectInfo:
     """Object information for simulation."""
     urdf_path: str
     position: List[float]
-    orientation: List[float] = field(default_factory=lambda: [0, 0, 0])
+    orientation: List[float] = field(default_factory=lambda: [0, 0, 0])  # Euler angles [roll, pitch, yaw]
     scaling: float = 1.0
     color: Optional[List[float]] = None  # RGBA color, e.g. [1, 0, 0, 1]
     mass: Optional[float] = None  # Mass in kg
@@ -87,40 +87,45 @@ class Sim:
         self.physicsClient = self.setup_simulation()
         self.start_pos = start_pos
         self.start_orientation = start_orientation
-
-        # Convert Euler angles to quaternion for PyBullet
-        quaternion_orientation = pb.getQuaternionFromEuler(self.start_orientation)
-
-        # Load the URDF
-        self.robot_id = pb.loadURDF(
-            urdf_path,
-            basePosition=self.start_pos,
-            baseOrientation=quaternion_orientation,
-            useFixedBase=True,
-        )
-        self.num_joints = pb.getNumJoints(self.robot_id)
+        self.robot_id = None
+        self.num_joints = 0
         self.lower_limits = []
         self.upper_limits = []
         self.joint_ranges = []
-        self.rest_poses = [0.0] * self.num_joints  # Initialize with zeros
+        self.rest_poses = []
 
-        for joint_index in range(self.num_joints):
-            joint_info = pb.getJointInfo(self.robot_id, joint_index)
-            joint_type = joint_info[2]
+        # Only load robot if URDF path is provided
+        if urdf_path is not None:
+            # Convert Euler angles to quaternion for PyBullet
+            quaternion_orientation = pb.getQuaternionFromEuler(self.start_orientation)
 
-            # Get joint limits
-            if joint_type == pb.JOINT_REVOLUTE:
-                lower_limit = joint_info[8]
-                upper_limit = joint_info[9]
-                self.lower_limits.append(lower_limit)
-                self.upper_limits.append(upper_limit)
-                self.joint_ranges.append(upper_limit - lower_limit)
-            else:
-                lower_limit = joint_info[8]
-                upper_limit = joint_info[9]
-                self.lower_limits.append(lower_limit)
-                self.upper_limits.append(upper_limit)
-                self.joint_ranges.append(upper_limit - lower_limit)
+            # Load the URDF
+            self.robot_id = pb.loadURDF(
+                urdf_path,
+                basePosition=self.start_pos,
+                baseOrientation=quaternion_orientation,
+                useFixedBase=True,
+            )
+            self.num_joints = pb.getNumJoints(self.robot_id)
+            self.rest_poses = [0.0] * self.num_joints  # Initialize with zeros
+
+            for joint_index in range(self.num_joints):
+                joint_info = pb.getJointInfo(self.robot_id, joint_index)
+                joint_type = joint_info[2]
+
+                # Get joint limits
+                if joint_type == pb.JOINT_REVOLUTE:
+                    lower_limit = joint_info[8]
+                    upper_limit = joint_info[9]
+                    self.lower_limits.append(lower_limit)
+                    self.upper_limits.append(upper_limit)
+                    self.joint_ranges.append(upper_limit - lower_limit)
+                else:
+                    lower_limit = joint_info[8]
+                    upper_limit = joint_info[9]
+                    self.lower_limits.append(lower_limit)
+                    self.upper_limits.append(upper_limit)
+                    self.joint_ranges.append(upper_limit - lower_limit)
 
 
     def __del__(self):
@@ -135,7 +140,7 @@ class Sim:
         """
         Sets up the PyBullet physics simulation environment.
 
-        Connects to the physics server (GUI), sets gravity, loads the ground plane,
+        Connects to the physics server, sets gravity, loads the ground plane,
         and configures the simulation environment.
 
         Returns:
@@ -144,7 +149,15 @@ class Sim:
         Raises:
             ConnectionError: If connection to the PyBullet simulation fails.
         """
-        physicsClient = pb.connect(pb.GUI)
+        # Try GUI first, fallback to DIRECT if GUI connection fails
+        try:
+            physicsClient = pb.connect(pb.GUI)
+            if physicsClient < 0:
+                print("GUI connection failed, trying DIRECT mode...")
+                physicsClient = pb.connect(pb.DIRECT)
+        except:
+            print("GUI connection failed, using DIRECT mode...")
+            physicsClient = pb.connect(pb.DIRECT)
 
         if physicsClient < 0:
             raise ConnectionError("Failed to connect to PyBullet simulation.")
@@ -227,8 +240,11 @@ class SimGrasp(Sim):
         self.realsensed415_cam = cameras.RealSenseD415.CONFIG
         self._random = np.random.RandomState(None)
         self.frequency = frequency
-        pb.changeDynamics(self.robot_id, 7, lateralFriction=6, spinningFriction=3)
-        pb.changeDynamics(self.robot_id, 8, lateralFriction=6, spinningFriction=3)
+        
+        # Only set robot dynamics if robot is loaded
+        if self.robot_id is not None:
+            pb.changeDynamics(self.robot_id, 7, lateralFriction=6, spinningFriction=3)
+            pb.changeDynamics(self.robot_id, 8, lateralFriction=6, spinningFriction=3)
         
         # Dictionary to store object IDs
         self.object_ids = {}
@@ -701,6 +717,11 @@ class SimGrasp(Sim):
         Returns:
             bool: True if movement successful, False otherwise
         """
+        # Check if robot is loaded
+        if self.robot_id is None:
+            print("❌ No robot loaded - cannot move to position")
+            return False
+            
         gripper_link_idx = 5  # Gripper link for SO-101
         
         # If no orientation specified, use current orientation

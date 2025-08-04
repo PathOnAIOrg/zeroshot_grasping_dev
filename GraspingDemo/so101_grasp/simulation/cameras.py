@@ -8,8 +8,9 @@ import pybullet as p
 class RealSenseD415():
     """Default configuration with 3 RealSense RGB-D cameras."""
 
-    image_size = (480, 640)
-    intrinsics = np.array([[462.14, 0, 320], [0, 450, 240], [0, 0, 1]])
+    # Updated to match actual camera: 1280x720
+    image_size = (720, 1280)
+    intrinsics = np.array([[909.67, 0, 630.30], [0, 908.68, 365.60], [0, 0, 1]])
     
     # Camera poses relative to the manipulator base
     front_position = (0, 0.1, 0.2)
