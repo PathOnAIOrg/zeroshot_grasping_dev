@@ -44,3 +44,11 @@ ThinkGrasp/outputs/graspnet/gg.npy
 ThinkGrasp/outputs/graspnet/cloud.ply
 ThinkGrasp/outputs/graspnet/gg.npy
 ROS2/FoundationPose2/sam2.1_b.pt
+/Graspnet_ros/scripts/venv_graspnet312
+/Graspnet_ros/scripts/log
+/Graspnet_ros/scripts/install
+/Graspnet_ros/scripts/build
+/Graspnet_ros/log
+/Graspnet_ros/install
+/Graspnet_ros/graspnet_ros.egg-info
+/Graspnet_ros/build
