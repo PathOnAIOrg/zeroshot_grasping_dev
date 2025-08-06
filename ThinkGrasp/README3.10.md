@@ -393,6 +393,11 @@ sudo ln -s /usr/bin/gcc-$MAX_GCC_VERSION /usr/local/cuda/bin/gcc
 sudo ln -s /usr/bin/g++-$MAX_GCC_VERSION /usr/local/cuda/bin/g++
 (or substitute /usr/local/cuda with your CUDA installation path, if it's not there)
 
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 50
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 40
+
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 50
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 40
 
 ```
 
