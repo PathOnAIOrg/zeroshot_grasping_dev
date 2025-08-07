@@ -1,0 +1,12 @@
+# ninja log v5
+3	13372	1754523698874176871	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/interpolate_gpu.o	f5060e94f350a456
+1	13763	1754523699267185784	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/ball_query_gpu.o	633c9cdbce3d9d26
+4	14085	1754523699589193086	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/sampling_gpu.o	76261455c05d2bc7
+2	14686	1754523700187206647	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/cylinder_query_gpu.o	4e11ab3a0724d9e1
+3	14865	1754523700367210729	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/group_points_gpu.o	b30e4db0d66ed68
+3	16713	1754523702210252518	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/group_points.o	c142043c46a6ba16
+3	16722	1754523702222252790	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/interpolate.o	7dace4cdc18655a3
+4	16749	1754523702252253470	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/sampling.o	c9c0ae581cd84d7d
+2	16839	1754523702339255443	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/cylinder_query.o	72c052d9c7ec7d99
+1	16939	1754523702443257801	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/bindings.o	c3df3b525bfea54b
+0	17189	1754523702688263355	/home/pathonai/ros2_ws/src/graspnet_ros/scripts/graspnet-baseline/pointnet2/build/temp.linux-x86_64-cpython-312/_ext_src/src/ball_query.o	4e2bfd9b654fe809
