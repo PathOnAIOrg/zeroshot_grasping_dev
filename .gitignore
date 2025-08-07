@@ -52,3 +52,6 @@ ROS2/FoundationPose2/sam2.1_b.pt
 /Graspnet_ros/install
 /Graspnet_ros/graspnet_ros.egg-info
 /Graspnet_ros/build
+/ros2_RobotSimulation/build
+/ros2_RobotSimulation/install
+/ros2_RobotSimulation/log
