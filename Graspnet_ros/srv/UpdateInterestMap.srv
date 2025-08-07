@@ -1,0 +1,23 @@
+# UpdateInterestMap.srv
+#
+# Service used by the NBV pipeline to update the internal interest
+# (saliency) map with a list of candidate grasps produced by GraspNet
+# together with their grasp quality scores.
+#
+# Request -------------------------------------------------------------
+#  geometry_msgs/Pose[] grasps   : 6-DOF candidate grasp poses in the
+#                                  map frame ordered by descending
+#                                  quality.
+#  float32[] scores              : Quality/confidence score associated
+#                                  with each pose (same length as
+#                                  `grasps`).
+# --------------------------------------------------------------------
+# Response ------------------------------------------------------------
+#  bool success                  : True if the map was updated
+#                                  successfully, False otherwise.
+# --------------------------------------------------------------------
+
+geometry_msgs/Pose[] grasps
+float32[] scores
+---
+bool success

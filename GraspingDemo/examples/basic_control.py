@@ -19,7 +19,6 @@ def main():
     """Basic control demonstration."""
     print("SO-101 Basic Control Example")
     print("=" * 40)
-    
     # Load configuration
     config_manager = ConfigManager()
     robot_config = config_manager.get_robot_config()
