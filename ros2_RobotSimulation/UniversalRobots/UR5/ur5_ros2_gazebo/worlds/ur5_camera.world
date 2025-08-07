@@ -1,0 +1,191 @@
+<?xml version="1.0" ?>
+
+<!-- 
+
+# ===================================== COPYRIGHT ===================================== #
+#                                                                                       #
+#  IFRA (Intelligent Flexible Robotics and Assembly) Group, CRANFIELD UNIVERSITY        #
+#  Created on behalf of the IFRA Group at Cranfield University, United Kingdom          #
+#  E-mail: IFRA@cranfield.ac.uk                                                         #
+#                                                                                       #
+#  Licensed under the Apache-2.0 License.                                               #
+#  You may not use this file except in compliance with the License.                     #
+#  You may obtain a copy of the License at: http://www.apache.org/licenses/LICENSE-2.0  #
+#                                                                                       #
+#  Unless required by applicable law or agreed to in writing, software distributed      #
+#  under the License is distributed on an "as-is" basis, without warranties or          #
+#  conditions of any kind, either express or implied. See the License for the specific  #
+#  language governing permissions and limitations under the License.                    #
+#                                                                                       #
+#  IFRA Group - Cranfield University                                                    #
+#  AUTHORS: Mikel Bueno Viso - Mikel.Bueno-Viso@cranfield.ac.uk                         #
+#           Seemal Asif      - s.asif@cranfield.ac.uk                                   #
+#           Phil Webb        - p.f.webb@cranfield.ac.uk                                 #
+#                                                                                       #
+#  Date: July, 2022.                                                                    #
+#                                                                                       #
+# ===================================== COPYRIGHT ===================================== #
+
+# ======= CITE OUR WORK ======= #
+# You can cite our work with the following statement:
+# IFRA (2022) ROS2.0 ROBOT SIMULATION. URL: https://github.com/IFRA-Cranfield/ros2_RobotSimulation.
+
+-->
+
+<sdf version="1.4">
+
+  <world name="default">
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <scene>
+      <shadows>0</shadows>
+    </scene>
+
+    <!-- GAZEBO PLUGINS: -->
+    <!-- The following plugins must be activated for the ros2_grasping to effectively work: -->
+
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <ros>
+        <namespace>/ros2_grasp</namespace>
+        <argument>model_states:=model_states</argument>
+        <argument>link_states:=link_states</argument>
+      </ros>
+      <update_rate>1.0</update_rate>
+    </plugin>
+
+    <plugin name="gazebo_ros_properties" filename="libgazebo_ros_properties.so">
+      <ros>
+        <namespace>/ros2_grasp</namespace>
+      </ros>
+    </plugin>
+
+
+    <!-- Top-Down Camera for UR5 Observation -->
+    <model name="topdown_camera">
+        <static>true</static>
+        <!-- Position camera above the robot workspace -->
+        <pose>0.5 0 1.5 -3 1.5 -3</pose>  <!-- x y z roll pitch yaw - better height -->
+        <link name="camera_link">
+            <!-- Removed collision geometry to prevent interference with robot -->
+            <visual name="visual">
+            <geometry>
+                <box>
+                <size>0.1 0.1 0.1</size>
+                </box>
+            </geometry>
+            <material>
+                <ambient>0.8 0.8 0.8 1</ambient>
+                <diffuse>0.8 0.8 0.8 1</diffuse>
+                <specular>0.2 0.2 0.2 1</specular>
+                <emissive>0.1 0.1 0.1 1</emissive>
+                <shader type='pixel'/>
+            </material>
+            </visual>
+            <!-- Removed inertial element to prevent joint command topics -->
+            <sensor type="camera" name="topdown_camera">
+                <update_rate>30.0</update_rate>
+                <camera name="head">
+                    <horizontal_fov>1.5708</horizontal_fov>  <!-- 90 degrees -->
+                    <image>
+                    <width>1280</width>
+                    <height>720</height>
+                    <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                    <near>0.1</near>
+                    <far>100.0</far>
+                    </clip>
+                    <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.007</stddev>
+                    </noise>
+                </camera>
+                <plugin name="topdown_camera_controller" filename="libgazebo_ros_camera.so">
+                    <alwaysOn>true</alwaysOn>
+                    <updateRate>30.0</updateRate>
+                    <cameraName>topdown_camera</cameraName>
+                    <imageTopicName>image_raw</imageTopicName>
+                    <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+                    <frameName>topdown_camera_link</frameName>
+                    <!-- <minDepth>0.1</minDepth>
+                    <maxDepth>100.0</maxDepth> -->
+                </plugin>
+            </sensor>
+        </link>
+        
+        <!-- Disable self-collision for camera -->
+        <gazebo reference="camera_link">
+            <selfCollide>false</selfCollide>
+            <static>true</static>
+        </gazebo>
+    </model>
+
+    <!-- Side-View Camera for UR5 Observation -->
+    <model name="sideview_camera">
+        <static>true</static>
+        <!-- Position camera to the side of the robot workspace -->
+        <pose>0.4 0.8 0.1 0 0 -1.5</pose> <!-- x y z roll pitch yaw - side view -->
+        <!-- <pose>0 0 0.8 -0.65 1.5 2.23</pose>  -->
+        <link name="camera_link">
+            <!-- Removed collision geometry to prevent interference with robot -->
+            <visual name="visual">
+            <geometry>
+                <box>
+                <size>0.1 0.1 0.1</size>
+                </box>
+            </geometry>
+            <material>
+                <ambient>0.8 0.8 0.8 1</ambient>
+                <diffuse>0.8 0.8 0.8 1</diffuse>
+                <specular>0.2 0.2 0.2 1</specular>
+                <emissive>0.1 0.1 0.1 1</emissive>
+                <shader type='pixel'/>
+            </material>
+            </visual>
+            <!-- Removed inertial element to prevent joint command topics -->
+            <sensor type="camera" name="sideview_camera">
+                <update_rate>30.0</update_rate>
+                <camera name="head">
+                    <horizontal_fov>1.5708</horizontal_fov>  <!-- 90 degrees -->
+                    <image>
+                    <width>1280</width>
+                    <height>720</height>
+                    <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                    <near>0.1</near>
+                    <far>100.0</far>
+                    </clip>
+                    <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.007</stddev>
+                    </noise>
+                </camera>
+                <plugin name="sideview_camera_controller" filename="libgazebo_ros_camera.so">
+                    <alwaysOn>true</alwaysOn>
+                    <updateRate>30.0</updateRate>
+                    <cameraName>sideview_camera</cameraName>
+                    <imageTopicName>image_raw</imageTopicName>
+                    <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+                    <frameName>sideview_camera_link</frameName>
+                </plugin>
+            </sensor>
+        </link>
+        
+        <!-- Disable self-collision for camera -->
+        <gazebo reference="camera_link">
+            <selfCollide>false</selfCollide>
+            <static>false</static>
+        </gazebo>
+    </model>
+
+  </world>
+</sdf>
