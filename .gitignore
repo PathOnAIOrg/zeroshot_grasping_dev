@@ -55,3 +55,6 @@ ROS2/FoundationPose2/sam2.1_b.pt
 /ros2_RobotSimulation/build
 /ros2_RobotSimulation/install
 /ros2_RobotSimulation/log
+/ROS2/lerobot_ws/install
+/ROS2/lerobot_ws/log
+/ROS2/lerobot_ws/build
