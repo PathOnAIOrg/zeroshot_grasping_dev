@@ -1,0 +1,25 @@
+# params/camera_bridge.yaml
+- ros_topic_name: "topdown_camera/image_raw"
+  gz_topic_name: "/world/default/model/topdown_camera/link/camera_link/sensor/topdown_camera/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "topdown_camera/camera_info"
+  gz_topic_name: "/world/default/model/topdown_camera/link/camera_link/sensor/topdown_camera/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+
+- ros_topic_name: "sideview_camera/image_raw"
+  gz_topic_name: "/world/default/model/sideview_camera/link/camera_link/sensor/sideview_camera/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "sideview_camera/camera_info"
+  gz_topic_name: "/world/default/model/sideview_camera/link/camera_link/sensor/sideview_camera/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
