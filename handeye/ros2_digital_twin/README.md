@@ -2,38 +2,6 @@
 
 Complete digital twin system for SO-101 robot with RealSense camera integration, supporting both eye-in-hand and eye-to-hand configurations.
 
-## 📁 Project Structure
-
-```
-ros2_digital_twin/
-├── README.md                     # This file
-├── start_digital_twin.py         # 🚀 Main launcher (USE THIS!)
-├── sync_real_robot.py            # Real robot synchronization
-├── real_robot_sync.py            # Alternative sync implementation
-├── connect_camera_to_robot.py    # Eye-in-hand camera connection
-├── connect_camera_to_robot_stationary.py  # Eye-to-hand camera connection
-│
-├── config/                       # Configuration files
-│   ├── so101_digital_twin.rviz  # RViz2 configuration
-│   └── simple_robot.rviz        # Simple RViz config
-│
-├── scripts/                      # Shell scripts
-│   ├── launch_colored_pointcloud.sh  # RealSense launcher
-│   ├── launch_digital_twin.sh        # Alternative launcher
-│   ├── test_digital_twin.sh          # System test
-│   └── fix_tf_tree.sh               # TF tree fixer
-│
-├── launch/                       # ROS2 launch files
-│   ├── launch_complete.py       # Complete launch script
-│   └── launch_so101_real.launch.py  # ROS2 launch file
-│
-└── utils/                        # Utility scripts
-    ├── test_robot_description.py # Test robot_description publishing
-    ├── check_robot_setup.py      # Check TF tree
-    ├── test_pointcloud.py        # Test point cloud
-    └── fix_pointcloud_color_and_transform.py  # Fix point cloud issues
-```
-
 ## 🚀 Quick Start (RECOMMENDED)
 
 ### The Simplest Way That Works
@@ -49,29 +17,26 @@ python3 start_digital_twin.py --simulate
 ```
 
 This will:
-1. ✅ Publish robot_description (fixes the error!)
+1. ✅ Publish robot_description (fixes the "robot_description parameter must not be empty" error!)
 2. ✅ Start robot_state_publisher
 3. ✅ Launch RViz2
 4. ✅ Sync with real robot (if connected)
 
-## ❌ Why You Got The Error
+## ❌ Common Error and Solution
 
-The error:
+**Error:**
 ```
 [FATAL] robot_description parameter must not be empty
 ```
 
-Happens because `robot_state_publisher` needs the `/robot_description` topic to be published FIRST with the URDF content. The correct order is:
+**Why it happens:** `robot_state_publisher` needs `/robot_description` to be published FIRST with proper QoS settings.
 
-1. **First**: Publish URDF to `/robot_description` topic
-2. **Then**: Start `robot_state_publisher`
-3. **Finally**: Launch RViz2
+**Solution:** Use `start_digital_twin.py` which handles the correct startup sequence automatically.
 
 ## 📋 Prerequisites
 
 1. **ROS2 Workspace with SO-101 URDF**
    ```bash
-   # Check if URDF exists:
    ls ~/Documents/Github/opensource_dev/ROS2/lerobot_ws/src/lerobot_description/urdf/so101.urdf.xacro
    ```
 
@@ -80,35 +45,180 @@ Happens because `robot_state_publisher` needs the `/robot_description` topic to 
    pip install pyrealsense2 numpy scipy
    ```
 
-3. **Hand-Eye Calibration** (for camera integration)
-   - Eye-in-hand: `../output/handeye_realsense.npz`
-   - Eye-to-hand: `../output/handeye_realsense_stationary.npz`
+3. **Hand-Eye Calibration Files**
+   - For stationary camera: `../output/handeye_realsense_stationary.npz`
+   - For mounted camera: `../output/handeye_realsense.npz`
 
-## 🎯 Complete Setup Instructions
+## 📁 Project Structure
 
-### Step 1: Test Your Setup
-
-```bash
-# Run the test script
-./scripts/test_digital_twin.sh
+```
+ros2_digital_twin/
+├── start_digital_twin.py         # 🚀 Main launcher (USE THIS!)
+├── sync_real_robot.py            # Real robot synchronization
+├── connect_camera_to_robot.py    # Eye-in-hand camera connection
+├── connect_camera_to_robot_stationary.py  # Eye-to-hand camera connection
+│
+├── config/                       # Configuration files
+│   └── so101_digital_twin.rviz  # RViz2 configuration
+│
+├── scripts/                      # Shell scripts
+│   ├── launch_colored_pointcloud.sh  # RealSense with color
+│   └── test_digital_twin.sh          # System test
+│
+├── launch/                       # ROS2 launch files
+│   └── launch_complete.py       # Complete launch script
+│
+└── utils/                        # Utility scripts
+    └── test_robot_description.py # Test URDF publishing
 ```
 
-### Step 2: Test Robot Description Publishing
+## 🔧 Key Components
 
-```bash
-# Terminal 1: Publish robot_description
-python3 utils/test_robot_description.py
+### 1. **start_digital_twin.py** (Main Entry Point)
+- Handles correct startup sequence
+- Publishes robot_description BEFORE robot_state_publisher
+- Launches all components in order
+- Works with real robot or simulation
 
-# Terminal 2: After seeing "Published robot_description"
-ros2 run robot_state_publisher robot_state_publisher
+### 2. **sync_real_robot.py**
+- Connects to physical SO-101 robot
+- Reads joint positions at 30 Hz
+- Publishes `/joint_states` and `/robot_description`
+- Includes proper QoS settings for robot_state_publisher
 
-# Terminal 3: Launch RViz2
-rviz2
+### 3. **connect_camera_to_robot_stationary.py**
+- For stationary camera setup (eye-to-hand)
+- Publishes transform from camera to robot base
+- Uses hand-eye calibration results
+
+## 📊 Visualization in RViz2
+
+### Manual Setup
+
+1. **Add Robot Model:**
+   - Add Display → RobotModel
+   - Topic: `/robot_description`
+
+2. **Add Point Cloud:**
+   - Add Display → PointCloud2
+   - Topic: `/camera/depth/color/points`
+
+3. **Add TF:**
+   - Add Display → TF
+   - Show all frames
+
+4. **Add Camera Image:**
+   - Add Display → Image
+   - Topic: `/camera/color/image_raw`
+
+### Custom RViz Config
+
+The provided config file (`config/so101_digital_twin.rviz`) includes:
+- Robot model visualization
+- Point cloud from RealSense
+- TF tree showing all transforms
+- Camera image feed
+- Axes for reference frames
+- Proper view settings
+
+## 🎯 Coordinate Frames
+
+```
+base_link (Robot Base)
+    ├── shoulder_pan_link
+    │   └── shoulder_lift_link
+    │       └── elbow_flex_link
+    │           └── wrist_flex_link
+    │               └── wrist_roll_link (End-Effector)
+    │                   ├── gripper_link
+    │                   └── camera_link (From Hand-Eye Calibration)
+    │                       └── camera_color_optical_frame
 ```
 
-### Step 3: Run Complete Digital Twin
+## 💻 Using the Transform in Code
 
-#### Option A: All-in-One (Recommended)
+```python
+import rclpy
+from tf2_ros import Buffer, TransformListener
+from geometry_msgs.msg import PointStamped
+
+# Initialize ROS2
+rclpy.init()
+node = rclpy.create_node('transform_example')
+
+# TF listener
+tf_buffer = Buffer()
+tf_listener = TransformListener(tf_buffer, node)
+
+# Transform point from camera to robot base
+def transform_point(point_in_camera):
+    # Create point in camera frame
+    point_stamped = PointStamped()
+    point_stamped.header.frame_id = 'camera_color_optical_frame'
+    point_stamped.header.stamp = node.get_clock().now().to_msg()
+    point_stamped.point.x = point_in_camera[0]
+    point_stamped.point.y = point_in_camera[1]
+    point_stamped.point.z = point_in_camera[2]
+    
+    try:
+        # Transform to base frame
+        point_in_base = tf_buffer.transform(
+            point_stamped, 
+            'base_link',
+            timeout=rclpy.duration.Duration(seconds=1.0)
+        )
+        
+        return [
+            point_in_base.point.x,
+            point_in_base.point.y,
+            point_in_base.point.z
+        ]
+    except Exception as e:
+        print(f"Transform failed: {e}")
+        return None
+
+# Example: transform detected object position
+camera_point = [0.1, 0.05, 0.3]  # 30cm in front of camera
+base_point = transform_point(camera_point)
+print(f"Point in base frame: {base_point}")
+```
+
+## 🔍 Troubleshooting
+
+### Problem: "robot_description parameter must not be empty"
+**Solution:** Use `start_digital_twin.py` which publishes robot_description BEFORE starting robot_state_publisher.
+
+### Problem: Robot model not showing in RViz2
+```bash
+# Check robot description is published
+ros2 topic echo /robot_description
+
+# Check joint states
+ros2 topic echo /joint_states
+```
+**In RViz2:** Set Fixed Frame to `world` or `base`, add RobotModel display
+
+### Problem: Camera/Point cloud not showing
+```bash
+# Check if RealSense is publishing
+ros2 topic list | grep camera
+
+# Launch colored point cloud
+./scripts/launch_colored_pointcloud.sh
+```
+
+### Problem: Transform not found
+```bash
+# Check TF tree
+ros2 run tf2_tools view_frames
+
+# For stationary camera, connect it:
+python3 connect_camera_to_robot_stationary.py
+```
+
+## 📋 Launch Parameters
+
+### start_digital_twin.py (Main Launcher)
 ```bash
 # With real robot
 python3 start_digital_twin.py /dev/ttyACM0
@@ -117,213 +227,135 @@ python3 start_digital_twin.py /dev/ttyACM0
 python3 start_digital_twin.py --simulate
 ```
 
-#### Option B: Manual Launch (for debugging)
+### sync_real_robot.py
 ```bash
-# Terminal 1: Main node (publishes robot_description and joint_states)
+python3 sync_real_robot.py --port /dev/ttyACM0 --simulate
+```
+
+### connect_camera_to_robot_stationary.py
+```bash
+python3 connect_camera_to_robot_stationary.py --ros-args \
+    -p calibration_file:=../output/handeye_realsense_stationary.npz \
+    -p base_frame:=base \
+    -p camera_frame:=camera_link
+```
+
+## 🎬 Complete Workflow
+
+### Option A: Automatic (Recommended)
+```bash
+# All-in-one launcher
+cd ~/Documents/Github/opensource_dev/handeye/ros2_digital_twin
+python3 start_digital_twin.py /dev/ttyACM0  # or --simulate
+```
+
+### Option B: Manual (for debugging)
+```bash
+# Terminal 1: Main node (publishes robot_description first!)
 python3 launch/launch_complete.py --port /dev/ttyACM0
 
-# Terminal 2: Wait 3 seconds, then start robot_state_publisher
+# Terminal 2: Wait 3 seconds, then robot_state_publisher
 ros2 run robot_state_publisher robot_state_publisher
 
-# Terminal 3: RViz2
+# Terminal 3: Camera connection (for stationary camera)
+python3 connect_camera_to_robot_stationary.py
+
+# Terminal 4: RealSense with color
+./scripts/launch_colored_pointcloud.sh
+
+# Terminal 5: RViz2
 rviz2 -d config/so101_digital_twin.rviz
 ```
 
 ## 📷 Camera Integration
 
 ### For Stationary Camera (Eye-to-Hand)
-
-1. **Calibrate** (if not done):
-   ```bash
-   cd ../handeye_calibration
-   python3 handeye_manual_realsense_stationary.py --port /dev/ttyACM0
-   ```
-
-2. **Connect Camera to Robot Base**:
-   ```bash
-   python3 connect_camera_to_robot_stationary.py
-   ```
-
-3. **Launch Colored Point Cloud**:
-   ```bash
-   ./scripts/launch_colored_pointcloud.sh
-   ```
-
-### For Camera on Robot (Eye-in-Hand)
-
-1. **Calibrate** (if not done):
-   ```bash
-   cd ../handeye_calibration
-   python3 handeye_manual_realsense.py --port /dev/ttyACM0
-   ```
-
-2. **Connect Camera to Gripper**:
-   ```bash
-   python3 connect_camera_to_robot.py --ros-args -p gripper_frame:=gripper
-   ```
-
-## 🔧 Troubleshooting
-
-### Problem: "robot_description parameter must not be empty"
-
-**Solution**: Use `start_digital_twin.py` which publishes robot_description BEFORE starting robot_state_publisher.
-
-### Problem: Robot not moving in RViz2
-
-**Check**:
 ```bash
-# Is robot connected?
-ls /dev/ttyACM*
+# 1. Calibrate (if not done)
+cd ../handeye_calibration
+python3 handeye_manual_realsense_stationary.py --port /dev/ttyACM0
 
-# Are joint states being published?
-ros2 topic echo /joint_states
-
-# Is TF tree complete?
-ros2 run tf2_tools view_frames
-```
-
-### Problem: No robot model in RViz2
-
-**In RViz2**:
-1. Set Fixed Frame to `world` or `base`
-2. Add Display → RobotModel
-3. Set Robot Description Topic to `/robot_description`
-
-### Problem: Point cloud not colored
-
-**Solution**:
-```bash
-# Use the optimized launch script
-./scripts/launch_colored_pointcloud.sh
-```
-
-**In RViz2 PointCloud2 settings**:
-- Color Transformer: `RGB8` (not Intensity!)
-- Style: `Boxes` or `Spheres`
-
-### Problem: Camera not connected to robot
-
-**For stationary camera**:
-```bash
-python3 connect_camera_to_robot_stationary.py --ros-args -p base_frame:=base
-```
-
-**Check connection**:
-```bash
-ros2 run tf2_ros tf2_echo base camera_link
-```
-
-## 📊 System Architecture
-
-### Data Flow
-```
-Real Robot (/dev/ttyACM0)
-    ↓
-sync_real_robot.py (reads joints)
-    ↓
-/joint_states topic
-    ↓
-robot_state_publisher (needs /robot_description first!)
-    ↓
-TF tree
-    ↓
-RViz2 (visualizes robot model)
-    ↑
-RealSense Camera (point cloud)
-```
-
-### TF Tree Structure
-
-**Eye-to-Hand (Stationary Camera)**:
-```
-world
-└── base (robot base)
-    ├── link1 → link2 → ... → gripper
-    └── camera_link (stationary, calibrated to base)
-        └── camera_color_optical_frame
-```
-
-**Eye-in-Hand (Camera on Robot)**:
-```
-world
-└── base
-    └── link1 → link2 → ... → gripper
-        └── camera_link (moves with gripper)
-            └── camera_color_optical_frame
-```
-
-## 🎮 Usage Examples
-
-### Basic Digital Twin
-```bash
-# Just visualize robot movement
-python3 start_digital_twin.py --simulate
-```
-
-### Real Robot with Camera
-```bash
-# Terminal 1: Digital twin
-python3 start_digital_twin.py /dev/ttyACM0
-
-# Terminal 2: Camera connection
+# 2. Connect camera to robot base
+cd ../ros2_digital_twin
 python3 connect_camera_to_robot_stationary.py
 
-# Terminal 3: RealSense
+# 3. Launch colored point cloud
 ./scripts/launch_colored_pointcloud.sh
 ```
 
-### Full System Test
+### For Camera on Robot (Eye-in-Hand)
 ```bash
-# Run complete setup test
-./scripts/test_digital_twin.sh
+# 1. Calibrate (if not done)
+cd ../handeye_calibration
+python3 handeye_manual_realsense.py --port /dev/ttyACM0
 
-# If all tests pass, launch:
-./scripts/launch_digital_twin.sh /dev/ttyACM0
+# 2. Connect camera to gripper
+cd ../ros2_digital_twin
+python3 connect_camera_to_robot.py --ros-args -p gripper_frame:=gripper
 ```
 
-## 📝 Key Scripts Explained
+## 🚧 Advanced Features
 
-| Script | Purpose | When to Use |
-|--------|---------|-------------|
-| `start_digital_twin.py` | Main launcher, handles timing correctly | **Always use this first!** |
-| `sync_real_robot.py` | Reads robot joints, publishes to ROS2 | Included in start_digital_twin.py |
-| `connect_camera_to_robot_stationary.py` | Connects stationary camera | After calibration |
-| `utils/test_robot_description.py` | Tests URDF publishing | For debugging |
+### Record and Playback
+```bash
+# Record bag file
+ros2 bag record -a -o so101_demo
 
-## 🔄 Updates & Fixes
+# Playback
+ros2 bag play so101_demo
+```
 
-### Recent Fixes
-- ✅ Fixed robot_state_publisher timing issue
-- ✅ Added proper QoS settings for robot_description
-- ✅ Created organized folder structure
-- ✅ Fixed stationary camera calibration
-- ✅ Added colored point cloud support
+### Add Object Detection
+Integrate your object detection to visualize detected objects:
+```python
+# Publish detected objects as markers
+from visualization_msgs.msg import MarkerArray, Marker
 
-### Known Issues
-- SO101Client may need to be installed separately
-- RealSense SDK required for camera features
+marker_pub = node.create_publisher(MarkerArray, '/detected_objects', 10)
+```
 
-## 📚 Additional Resources
+### Grasp Planning Visualization
+Visualize planned grasps in RViz:
+```python
+# Publish grasp poses
+from geometry_msgs.msg import PoseArray
 
-- [Hand-Eye Calibration Guide](../handeye_calibration/README.md)
-- [Camera Calibration](../camera_calibration/README.md)
-- [SO-101 Robot Control](../../GraspingDemo/README.md)
+grasp_pub = node.create_publisher(PoseArray, '/grasp_poses', 10)
+```
 
-## 💡 Tips
+## 🎯 Quick Reference
 
-1. **Always run `start_digital_twin.py` first** - it handles the correct startup sequence
-2. **For debugging**, use manual launch to see each component's output
-3. **Check TF tree** with `ros2 run tf2_tools view_frames` if things don't appear
-4. **Source your workspace** if xacro processing fails
+### Eye-in-Hand vs Eye-to-Hand
 
-## 🆘 Need Help?
+| Aspect | Eye-in-Hand | Eye-to-Hand |
+|--------|-------------|-------------|
+| Camera Position | Mounted on gripper | Fixed in workspace |
+| Camera Movement | Moves with robot | Stationary |
+| Calibration Script | `handeye_manual_realsense.py` | `handeye_manual_realsense_stationary.py` |
+| Connection Script | `connect_camera_to_robot.py` | `connect_camera_to_robot_stationary.py` |
+| Transform | Camera → Gripper | Camera → Base |
+| Output File | `handeye_realsense.npz` | `handeye_realsense_stationary.npz` |
 
-If the digital twin doesn't work:
+### Essential Commands
 
-1. Run the test script: `./scripts/test_digital_twin.sh`
-2. Check robot connection: `ls /dev/ttyACM*`
-3. Verify URDF exists: `ls ~/Documents/Github/opensource_dev/ROS2/lerobot_ws/src/lerobot_description/urdf/`
-4. Test in simulation mode first: `python3 start_digital_twin.py --simulate`
+```bash
+# Test setup
+./scripts/test_digital_twin.sh
 
----
-*This digital twin system provides real-time synchronization between your physical SO-101 robot and its RViz2 visualization, with full RealSense integration for both mounted and stationary camera configurations.*
+# Launch digital twin
+python3 start_digital_twin.py /dev/ttyACM0  # Real robot
+python3 start_digital_twin.py --simulate     # Simulation
+
+# Camera only
+./scripts/launch_colored_pointcloud.sh
+
+# Connect stationary camera
+python3 connect_camera_to_robot_stationary.py
+```
+
+## 📚 References
+
+- [ROS2 TF2 Documentation](https://docs.ros.org/en/humble/Tutorials/Intermediate/Tf2/Introduction-To-Tf2.html)
+- [RealSense ROS2 Wrapper](https://github.com/IntelRealSense/realsense-ros)
+- [RViz2 User Guide](https://docs.ros.org/en/humble/Tutorials/Intermediate/RViz/RViz-User-Guide/RViz-User-Guide.html)
+- [Parent README](../README.md) - Complete calibration guide

@@ -16,7 +16,8 @@ handeye/
 ├── handeye_calibration/      # Robot-camera calibration
 │   ├── handeye_calibration_so101.py      # Automatic calibration
 │   ├── handeye_manual_calibration.py     # Manual mode for webcam
-│   └── handeye_manual_realsense.py       # Manual mode for RealSense
+│   ├── handeye_manual_realsense.py       # Manual mode for RealSense (eye-in-hand)
+│   └── handeye_manual_realsense_stationary.py  # For stationary camera (eye-to-hand)
 │
 ├── utils/                    # Utility scripts
 │   └── test_checkerboard_detection.py    # Test pattern detection
@@ -24,8 +25,15 @@ handeye/
 ├── calibration_images/       # Captured calibration images
 ├── output/                   # Calibration results
 │   ├── calibration_data.npz             # Camera intrinsics
-│   ├── handeye_realsense.npz           # Hand-eye transformation
+│   ├── handeye_realsense.npz           # Hand-eye transformation (eye-in-hand)
+│   ├── handeye_realsense_stationary.npz # Hand-eye transformation (eye-to-hand)
 │   └── handeye_realsense.json          # Human-readable results
+│
+├── ros2_digital_twin/        # ROS2 digital twin visualization
+│   ├── start_digital_twin.py            # Main launcher
+│   ├── sync_real_robot.py               # Real robot sync
+│   ├── connect_camera_to_robot.py       # Eye-in-hand connection
+│   └── connect_camera_to_robot_stationary.py  # Eye-to-hand connection
 │
 └── config/                   # Configuration files
     └── robot_config.yaml     # Robot settings
@@ -100,6 +108,20 @@ python -m lerobot.calibrate \
 
 Now perform the hand-eye calibration to find the transformation between camera and robot.
 
+#### Choose Your Camera Setup:
+
+**Eye-in-Hand** (Camera mounted on robot gripper):
+```bash
+cd handeye/handeye_calibration
+python handeye_manual_realsense.py --port /dev/ttyACM0 --pattern 9x6
+```
+
+**Eye-to-Hand** (Camera stationary, watching robot):
+```bash
+cd handeye/handeye_calibration
+python handeye_manual_realsense_stationary.py --port /dev/ttyACM0 --pattern 9x6
+```
+
 #### Option A: Manual Mode (Recommended)
 
 You control the robot movement:
@@ -107,8 +129,11 @@ You control the robot movement:
 ```bash
 cd handeye/handeye_calibration
 
-# For RealSense camera
+# For RealSense camera (eye-in-hand)
 python handeye_manual_realsense.py --port /dev/ttyACM0
+
+# For stationary camera (eye-to-hand)
+python handeye_manual_realsense_stationary.py --port /dev/ttyACM0
 
 # With specific pattern (if auto-detect fails)
 python handeye_manual_realsense.py --port /dev/ttyACM0 --pattern 9x6
@@ -324,7 +349,8 @@ Common checkerboard patterns (internal corners):
 |------|-------------|
 | `handeye_calibration_so101.py` | Automatic calibration (program moves robot) |
 | `handeye_manual_calibration.py` | Manual calibration for webcam |
-| `handeye_manual_realsense.py` | Manual calibration for RealSense |
+| `handeye_manual_realsense.py` | Manual calibration for RealSense (eye-in-hand) |
+| `handeye_manual_realsense_stationary.py` | Manual calibration for stationary camera (eye-to-hand) |
 
 ### Utility Scripts:
 | File | Description |
@@ -354,6 +380,27 @@ camera_matrix:  # Camera intrinsic matrix used
 dist_coeffs:    # Distortion coefficients used
 ```
 
+## 🤖 Step 5: Digital Twin Visualization (Optional)
+
+After calibration, visualize your robot and camera in RViz2:
+
+```bash
+cd handeye/ros2_digital_twin
+
+# With real robot
+python3 start_digital_twin.py /dev/ttyACM0
+
+# Without robot (simulation)
+python3 start_digital_twin.py --simulate
+```
+
+This creates a real-time digital twin showing:
+- Robot model synchronized with physical robot
+- RealSense point cloud in correct position
+- Complete TF tree with calibration applied
+
+See [ros2_digital_twin/README.md](ros2_digital_twin/README.md) for details.
+
 ## 🎬 Complete Workflow Example
 
 ```bash
@@ -377,13 +424,18 @@ python -m lerobot.calibrate \
 
 # 5. Perform hand-eye calibration
 cd ../handeye_calibration
-python handeye_manual_realsense.py \
+# For stationary camera:
+python handeye_manual_realsense_stationary.py \
     --port /dev/ttyACM0 \
     --pattern 9x6
 
 # 6. Check results
 cd ../output
 ls -la  # View generated files
+
+# 7. Visualize digital twin (optional)
+cd ../ros2_digital_twin
+python3 start_digital_twin.py /dev/ttyACM0
 ```
 
 ## 📧 Support
