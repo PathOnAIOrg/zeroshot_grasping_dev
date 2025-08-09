@@ -78,10 +78,10 @@ def generate_launch_description():
         'ur5.world')
     # DECLARE Gazebo LAUNCH file:
     gazebo = IncludeLaunchDescription(
-                PythonLaunchDescriptionSource([os.path.join(
-                    get_package_share_directory('gazebo_ros'), 'launch'), '/gazebo.launch.py']),
-                launch_arguments={'world': ur5_ros2_gazebo}.items(),
-             )
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]),
+        launch_arguments={'world': ur5_ros2_gazebo}.items(),
+    )
 
     # ========== COMMAND LINE ARGUMENTS ========== #
     print("")
@@ -157,10 +157,18 @@ def generate_launch_description():
     robot_description = {'robot_description': robot_description_config}
 
     # SPAWN ROBOT TO GAZEBO:
-    spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
-                        arguments=['-topic', 'robot_description',
-                                   '-entity', 'ur5'],
-                        output='screen')
+
+
+    spawn_entity = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-name', 'ur5',
+            '-topic', 'robot_description',
+            '-z', '0.0'  # Optional: spawn height
+        ],
+        output='screen'
+    )
 
     # ***** STATIC TRANSFORM ***** #
     # NODE -> Static TF:
