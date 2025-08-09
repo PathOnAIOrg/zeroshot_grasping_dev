@@ -58,3 +58,6 @@ ROS2/FoundationPose2/sam2.1_b.pt
 /ROS2/lerobot_ws/install
 /ROS2/lerobot_ws/log
 /ROS2/lerobot_ws/build
+/ROS2/lerobot_ws/src/build
+/ROS2/lerobot_ws/src/install
+/ROS2/lerobot_ws/src/log
