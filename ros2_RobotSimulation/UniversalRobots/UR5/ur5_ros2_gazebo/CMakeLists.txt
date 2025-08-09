@@ -39,6 +39,8 @@ install(
     urdf 
     worlds
     meshes
+    params
+    models
   DESTINATION 
     share/${PROJECT_NAME}
 )

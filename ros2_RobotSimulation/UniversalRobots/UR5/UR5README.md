@@ -121,11 +121,17 @@ This setup includes two main launch files:
 # Navigate to workspace
 cd ~/ros2_ws
 
+# colcol build
+colcon build --packages-select ur5_ros2_gazebo
+
 # Source the workspace
 source install/setup.bash
 
 # Launch the camera simulation
 ros2 launch ur5_ros2_gazebo ur5_camera_simulation.launch.py
+
+ros2 launch ur5_ros2_gazebo ur5_jazzy_camera_sim.launch.py   # use this line if you are using ROS 2 Jazzy
+
 ```
 
 When prompted:
