@@ -64,13 +64,15 @@
   <xacro:macro name="ur5_ros2control" params="prefix EE_no" >
 
     <!-- ROS2_CONTROL tag name: -->
-    <xacro:property name="name" value="GazeboSystem"/>
+    <xacro:property name="name" value="GazeboSimSystem"/>
 
     <!-- ===== Gazebo ROS2_CONTROL plugin ===== -->
     <!-- No End-Effector: -->
     <xacro:if value="${EE_no}">
       <gazebo>
-        <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+        <plugin
+              filename="libgz_ros2_control-system"
+              name="gz_ros2_control::GazeboSimROS2ControlPlugin">
           <robot_sim_type>gazebo_ros2_control/GazeboSystem</robot_sim_type>
           <parameters>$(find ur5_ros2_gazebo)/config/ur5_controller.yaml</parameters>
         </plugin>
@@ -82,7 +84,7 @@
     <ros2_control name="${name}" type="system">
 
       <hardware>
-        <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
       </hardware>
 
       <joint name="${prefix}shoulder_pan_joint">
