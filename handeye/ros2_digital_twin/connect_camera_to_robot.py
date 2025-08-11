@@ -25,6 +25,14 @@ class ConnectCameraToRobot(Node):
         self.declare_parameter('camera_frame', 'camera_link')
         self.declare_parameter('calibration_file', 'output/handeye_realsense.npz')
         
+        # Rotation corrections
+        self.declare_parameter('flip_x', True)  # Flip around X axis
+        self.declare_parameter('flip_y', True)  # Flip around Y axis (fixes upside-down point cloud)
+        self.declare_parameter('flip_z', True)  # Flip around Z axis
+        self.declare_parameter('rotate_x_deg', 0.0)  # Additional rotation around X
+        self.declare_parameter('rotate_y_deg', 180.0)  # Additional rotation around Y
+        self.declare_parameter('rotate_z_deg', 270.0)  # Additional rotation around Z
+        
         self.gripper_frame = self.get_parameter('gripper_frame').value
         self.camera_frame = self.get_parameter('camera_frame').value
         calibration_file = self.get_parameter('calibration_file').value
@@ -69,7 +77,39 @@ class ConnectCameraToRobot(Node):
                     self.get_logger().info(f'   Converted translation from mm to m')
                 
                 # Extract rotation as quaternion
-                r = Rotation.from_matrix(T[:3, :3])
+                R = T[:3, :3]
+                
+                # Apply rotation corrections
+                flip_x = self.get_parameter('flip_x').value
+                flip_y = self.get_parameter('flip_y').value
+                flip_z = self.get_parameter('flip_z').value
+                rotate_x = self.get_parameter('rotate_x_deg').value
+                rotate_y = self.get_parameter('rotate_y_deg').value
+                rotate_z = self.get_parameter('rotate_z_deg').value
+                
+                # Apply flips (180 degree rotations)
+                if flip_x:
+                    R = R @ Rotation.from_euler('x', 180, degrees=True).as_matrix()
+                    self.get_logger().info('   Applied X-axis flip (180°)')
+                if flip_y:
+                    R = R @ Rotation.from_euler('y', 180, degrees=True).as_matrix()
+                    self.get_logger().info('   Applied Y-axis flip (180°) - fixes upside-down')
+                if flip_z:
+                    R = R @ Rotation.from_euler('z', 180, degrees=True).as_matrix()
+                    self.get_logger().info('   Applied Z-axis flip (180°)')
+                
+                # Apply additional rotations
+                if rotate_x != 0:
+                    R = R @ Rotation.from_euler('x', rotate_x, degrees=True).as_matrix()
+                    self.get_logger().info(f'   Applied X rotation: {rotate_x}°')
+                if rotate_y != 0:
+                    R = R @ Rotation.from_euler('y', rotate_y, degrees=True).as_matrix()
+                    self.get_logger().info(f'   Applied Y rotation: {rotate_y}°')
+                if rotate_z != 0:
+                    R = R @ Rotation.from_euler('z', rotate_z, degrees=True).as_matrix()
+                    self.get_logger().info(f'   Applied Z rotation: {rotate_z}°')
+                
+                r = Rotation.from_matrix(R)
                 quaternion = r.as_quat()  # [x, y, z, w]
                 
                 return {
