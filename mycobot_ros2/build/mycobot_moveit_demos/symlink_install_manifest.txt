@@ -1,0 +1,17 @@
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/lib/mycobot_moveit_demos/hello_moveit
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/lib/mycobot_moveit_demos/plan_around_objects
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/ament_index/resource_index/package_run_dependencies/mycobot_moveit_demos
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/ament_index/resource_index/parent_prefix_path/mycobot_moveit_demos
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/environment/ament_prefix_path.sh
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/environment/ament_prefix_path.dsv
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/environment/path.sh
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/environment/path.dsv
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/local_setup.bash
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/local_setup.sh
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/local_setup.zsh
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/local_setup.dsv
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/package.dsv
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/ament_index/resource_index/packages/mycobot_moveit_demos
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/cmake/mycobot_moveit_demosConfig.cmake
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/cmake/mycobot_moveit_demosConfig-version.cmake
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_demos/share/mycobot_moveit_demos/package.xml

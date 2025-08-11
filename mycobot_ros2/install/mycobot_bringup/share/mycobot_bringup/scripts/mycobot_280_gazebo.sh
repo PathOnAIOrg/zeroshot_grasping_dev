@@ -1,0 +1,1 @@
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/mycobot_bringup/scripts/mycobot_280_gazebo.sh
