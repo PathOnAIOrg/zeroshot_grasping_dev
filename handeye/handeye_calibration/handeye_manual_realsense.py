@@ -418,7 +418,7 @@ class RealSenseCalibrator:
         
         return T_cam2gripper
     
-    def save_calibration(self, T_cam2gripper, filename='handeye_realsense.npz'):
+    def save_calibration(self, T_cam2gripper, filename='output/handeye_realsense.npz'):
         """Save hand-eye calibration results."""
         # Save joint positions for reference
         joint_positions = {
