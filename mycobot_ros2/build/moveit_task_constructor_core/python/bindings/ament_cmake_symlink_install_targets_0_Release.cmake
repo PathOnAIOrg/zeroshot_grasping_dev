@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/moveit_task_constructor_core/python/bindings/pymoveit_mtc.cpython-312-x86_64-linux-gnu.so" "TARGETS" "pymoveit_mtc" "LIBRARY_DESTINATION" "lib/python3.12/site-packages")

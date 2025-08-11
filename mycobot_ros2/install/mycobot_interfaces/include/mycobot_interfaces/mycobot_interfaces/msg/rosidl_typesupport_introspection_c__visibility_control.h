@@ -1,0 +1,1 @@
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_interfaces/rosidl_typesupport_introspection_c/mycobot_interfaces/msg/rosidl_typesupport_introspection_c__visibility_control.h
