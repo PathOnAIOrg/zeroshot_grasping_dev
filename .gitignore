@@ -6,13 +6,15 @@ build/
 install/
 log/
 
-
 /ThinkGrasp/models/FGC_graspnet/pointnet2/pointnet2.egg-info
 /ThinkGrasp/models/FGC_graspnet/pointnet2/build
 
 .DS_Store
 
-
+# project specific ROS2 build artifacts
+/mycobot_ros2/build
+/mycobot_ros2/install
+/mycobot_ros2/log
 /.idea
 /ThinkGrasp/ThinkGrasp.egg-info
 /ThinkGrasp/models/FGC_graspnet/__pycache__
