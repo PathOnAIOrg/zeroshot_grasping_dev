@@ -68,9 +68,29 @@ Then choose:
 - Non-ROS2: `demo_trajectory_*.json`
 - ROS2: `ros2_trajectory_*.json`
 
+## Web UI Control
+
+### Start Web Interface
+```bash
+cd web_control
+./run_web_ui.sh
+```
+Open browser at: http://localhost:5000
+
+**Features:**
+- 🔌 Connect/disconnect robot
+- 🎮 Enable/disable motors
+- 🤏 Gripper control (open/close/middle)
+- 📹 Record trajectories with manual movement
+- 🔄 Replay saved trajectories
+- 📊 Real-time joint position display
+
+---
+
 ## Notes
 
 - Both versions use same coordinate system
 - Trajectory files are compatible between versions
 - Gripper is joint 5 (6th joint)
 - All scripts work with conda `sim` environment
+- Web UI provides easiest control interface
