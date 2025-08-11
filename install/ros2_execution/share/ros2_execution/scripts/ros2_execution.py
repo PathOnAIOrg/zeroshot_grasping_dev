@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/ros2_RobotSimulation/ros2_execution/scripts/ros2_execution.py

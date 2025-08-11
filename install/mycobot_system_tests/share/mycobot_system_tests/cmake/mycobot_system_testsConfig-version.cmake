@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests/ament_cmake_core/mycobot_system_testsConfig-version.cmake

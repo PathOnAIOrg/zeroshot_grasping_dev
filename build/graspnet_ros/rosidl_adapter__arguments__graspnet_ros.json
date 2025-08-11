@@ -1,6 +1,0 @@
-{
-  "package_name": "graspnet_ros",
-  "non_idl_tuples": [
-    "/home/pathonai/ros2_ws/src/opensource_dev/Graspnet_ros:srv/UpdateInterestMap.srv"
-  ]
-}

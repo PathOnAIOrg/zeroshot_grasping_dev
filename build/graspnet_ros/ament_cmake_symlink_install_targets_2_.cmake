@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pathonai/ros2_ws/src/opensource_dev/build/graspnet_ros/rosidl_generator_py/graspnet_ros/graspnet_ros_s__rosidl_typesupport_c.so" "TARGETS" "graspnet_ros_s__rosidl_typesupport_c" "DESTINATION" "lib/python3.12/site-packages/graspnet_ros")

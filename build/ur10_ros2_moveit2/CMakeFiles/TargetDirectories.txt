@@ -1,9 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/uninstall.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/ur10_ros2_moveit2_uninstall.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/test.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/edit_cache.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/rebuild_cache.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/list_install_components.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/install.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/install/local.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur10_ros2_moveit2/CMakeFiles/install/strip.dir

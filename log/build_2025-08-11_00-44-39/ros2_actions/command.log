@@ -1,1 +1,0 @@
-Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_actions': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/pathonai/ros2_ws/src/opensource_dev/ros2_RobotSimulation/ros2_actions -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/pathonai/ros2_ws/src/opensource_dev/install/ros2_actions

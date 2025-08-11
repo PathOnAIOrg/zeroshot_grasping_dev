@@ -1,6 +1,0 @@
-source;share/lerobot_description/hook/cmake_prefix_path.dsv
-source;share/lerobot_description/hook/cmake_prefix_path.sh
-source;share/lerobot_description/local_setup.bash
-source;share/lerobot_description/local_setup.dsv
-source;share/lerobot_description/local_setup.sh
-source;share/lerobot_description/local_setup.zsh

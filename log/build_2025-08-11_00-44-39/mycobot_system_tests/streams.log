@@ -1,4 +1,0 @@
-[0.028s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests -- -j16 -l16
-[0.445s] [100%] Built target arm_gripper_loop_controller
-[0.484s] Invoked command in '/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests -- -j16 -l16
-[0.485s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests

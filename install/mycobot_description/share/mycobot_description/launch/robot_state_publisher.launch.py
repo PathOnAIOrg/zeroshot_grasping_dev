@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/mycobot_description/launch/robot_state_publisher.launch.py
