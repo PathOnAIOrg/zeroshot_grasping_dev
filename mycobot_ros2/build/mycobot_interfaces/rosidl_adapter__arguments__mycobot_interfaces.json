@@ -1,0 +1,6 @@
+{
+  "package_name": "mycobot_interfaces",
+  "non_idl_tuples": [
+    "/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/mycobot_interfaces:srv/GetPlanningScene.srv"
+  ]
+}

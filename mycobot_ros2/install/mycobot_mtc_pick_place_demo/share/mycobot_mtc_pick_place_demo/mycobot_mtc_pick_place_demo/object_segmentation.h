@@ -1,0 +1,1 @@
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/mycobot_mtc_pick_place_demo/include/mycobot_mtc_pick_place_demo/object_segmentation.h

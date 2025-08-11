@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/moveit_task_constructor_demo/modular" "TARGETS" "moveit_task_constructor_demo_modular" "ARCHIVE_DESTINATION" "lib" "LIBRARY_DESTINATION" "lib" "RUNTIME_DESTINATION" "lib/moveit_task_constructor_demo")

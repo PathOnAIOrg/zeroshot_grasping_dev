@@ -1,0 +1,18 @@
+[0mCMake Error: The current CMakeCache.txt directory /home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_ros2/CMakeCache.txt is different than the directory /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_ros2 where CMakeCache.txt was created. This may result in binaries being created in the wrong place. If you are not sure, reedit the CMakeCache.txt[0m
+-- Install configuration: ""
+-- Execute custom install script
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/ament_index/resource_index/package_run_dependencies/mycobot_ros2
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/ament_index/resource_index/parent_prefix_path/mycobot_ros2
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/environment/ament_prefix_path.sh
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/environment/ament_prefix_path.dsv
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/environment/path.sh
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/environment/path.dsv
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/local_setup.bash
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/local_setup.sh
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/local_setup.zsh
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/local_setup.dsv
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/package.dsv
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/ament_index/resource_index/packages/mycobot_ros2
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/cmake/mycobot_ros2Config.cmake
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/cmake/mycobot_ros2Config-version.cmake
+-- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_ros2/share/mycobot_ros2/package.xml

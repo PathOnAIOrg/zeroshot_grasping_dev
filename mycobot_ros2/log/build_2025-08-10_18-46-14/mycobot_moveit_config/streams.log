@@ -1,0 +1,37 @@
+[0.024s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config -- -j16 -l16
+[0.040s] [0mCMake Error: The current CMakeCache.txt directory /home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config/CMakeCache.txt is different than the directory /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config where CMakeCache.txt was created. This may result in binaries being created in the wrong place. If you are not sure, reedit the CMakeCache.txt[0m
+[0.080s] Invoked command in '/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config -- -j16 -l16
+[0.089s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config
+[0.100s] -- Install configuration: ""
+[0.101s] -- Execute custom install script
+[0.101s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/initial_positions.yaml
+[0.101s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/joint_limits.yaml
+[0.101s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/kinematics.yaml
+[0.101s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/moveit_controllers.yaml
+[0.102s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/mycobot_280.srdf
+[0.103s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/pilz_cartesian_limits.yaml
+[0.103s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/ros2_controllers.yaml
+[0.104s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/ros2_controllers_template.yaml
+[0.104s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/ompl_planning.yaml
+[0.104s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/pilz_industrial_motion_planner_planning.yaml
+[0.104s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/config/stomp_planning.yaml
+[0.106s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/launch/load_ros2_controllers.launch.py
+[0.108s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/launch/move_group.launch.py
+[0.108s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/rviz/move_group.rviz
+[0.109s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/.setup_assistant
+[0.109s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/ament_index/resource_index/package_run_dependencies/mycobot_moveit_config
+[0.109s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/ament_index/resource_index/parent_prefix_path/mycobot_moveit_config
+[0.110s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/ament_prefix_path.sh
+[0.110s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/ament_prefix_path.dsv
+[0.113s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/path.sh
+[0.114s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/path.dsv
+[0.120s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.bash
+[0.120s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.sh
+[0.121s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.zsh
+[0.121s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.dsv
+[0.121s] -- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/package.dsv
+[0.146s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/ament_index/resource_index/packages/mycobot_moveit_config
+[0.147s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/cmake/mycobot_moveit_configConfig.cmake
+[0.147s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/cmake/mycobot_moveit_configConfig-version.cmake
+[0.147s] -- Up-to-date symlink: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_moveit_config/share/mycobot_moveit_config/package.xml
+[0.232s] Invoked command in '/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/build/mycobot_moveit_config

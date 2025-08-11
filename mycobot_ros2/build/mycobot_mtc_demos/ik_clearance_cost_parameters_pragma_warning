@@ -1,0 +1,1 @@
+#pragma message("#include \"ik_clearance_cost_parameters.hpp\" is deprecated. Use #include <mycobot_mtc_demos/ik_clearance_cost_parameters.hpp> instead.")
