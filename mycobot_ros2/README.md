@@ -52,6 +52,18 @@ colcon build
 
 ```
 
+## Run Demos
+```bash
+
+# remember to source your terminal before running
+source /opt/ros/jazzy/setup.bash
+source ~/ros2_ws/install/setup.bash
+
+cd opensource_dev/mycobot_ros2
+bash ./mycobot_mtc_pick_place_demo/scripts/robot.sh
+bash ./mycobot_mtc_pick_place_demo/scripts/pointcloud.sh
+```
+
 ## Getting Started
 For a complete step-by-step walkthrough on how to build this repository from scratch, start with this tutorial:
 [Create and Visualize a Robotic Arm with URDF](https://automaticaddison.com/create-and-visualize-a-robotic-arm-with-urdf-ros-2-jazzy/)
