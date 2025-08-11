@@ -1,0 +1,64 @@
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 2.5.4 (/home/pathonai/ros2_jazzy/install/ament_cmake/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter 
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found moveit_common: 2.12.3 (/opt/ros/jazzy/share/moveit_common/cmake)
+[0mrviz_marker_tools: You did not request a specific build type: Choosing 'Release' for maximum performance[0m
+-- Found eigen3_cmake_module: 0.3.0 (/home/pathonai/ros2_jazzy/install/eigen3_cmake_module/share/eigen3_cmake_module/cmake)
+-- Found Eigen3: TRUE (found version "3.4.0") 
+-- Found geometry_msgs: 5.3.6 (/home/pathonai/ros2_jazzy/install/geometry_msgs/share/geometry_msgs/cmake)
+-- Found rosidl_generator_c: 4.6.6 (/home/pathonai/ros2_jazzy/install/rosidl_generator_c/share/rosidl_generator_c/cmake)
+-- Found rosidl_generator_cpp: 4.6.6 (/home/pathonai/ros2_jazzy/install/rosidl_generator_cpp/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rclcpp: 28.1.11 (/home/pathonai/ros2_jazzy/install/rclcpp/share/rclcpp/cmake)
+-- Found rmw_implementation_cmake: 7.3.2 (/home/pathonai/ros2_jazzy/install/rmw_implementation_cmake/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 8.4.2 (/home/pathonai/ros2_jazzy/install/rmw_fastrtps_cpp/share/rmw_fastrtps_cpp/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  
+-- Found FastRTPS: /home/pathonai/ros2_jazzy/install/fastrtps/include (Required is at least version "2.13") 
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found tf2_eigen: 0.36.14 (/home/pathonai/ros2_jazzy/install/tf2_eigen/share/tf2_eigen/cmake)
+-- Found visualization_msgs: 5.3.6 (/home/pathonai/ros2_jazzy/install/visualization_msgs/share/visualization_msgs/cmake)
+-- Configuring done (3.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/rviz_marker_tools
+[ 50%] [32mBuilding CXX object CMakeFiles/rviz_marker_tools.dir/src/marker_creation.cpp.o[0m
+[100%] [32m[1mLinking CXX shared library librviz_marker_tools.so[0m
+[100%] Built target rviz_marker_tools
+-- Install configuration: "Release"
+-- Execute custom install script
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/include/rviz_marker_tools/marker_creation.h
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/environment/library_path.sh
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/environment/library_path.dsv
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/ament_index/resource_index/package_run_dependencies/rviz_marker_tools
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/ament_index/resource_index/parent_prefix_path/rviz_marker_tools
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/environment/ament_prefix_path.sh
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/environment/ament_prefix_path.dsv
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/environment/path.sh
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/environment/path.dsv
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.bash
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.sh
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.zsh
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.dsv
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/package.dsv
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/ament_index/resource_index/packages/rviz_marker_tools
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/ament_cmake_export_targets-extras.cmake
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsConfig.cmake
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsConfig-version.cmake
+-- Symlinking: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/package.xml
+-- Installing: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/lib/librviz_marker_tools.so
+-- Set non-toolchain portion of runtime path of "/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/lib/librviz_marker_tools.so" to ""
+-- Installing: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsTargetsExport.cmake
+-- Installing: /home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsTargetsExport-release.cmake

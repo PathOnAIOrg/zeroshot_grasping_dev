@@ -1,0 +1,5 @@
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/moveit_task_constructor_visualization/lib/libmoveit_task_visualization_tools.so.0.1.3
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/moveit_task_constructor_visualization/lib/libmoveit_task_visualization_tools.so
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/moveit_task_constructor_visualization/lib/libmotion_planning_tasks_properties.so
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/moveit_task_constructor_visualization/lib/libmotion_planning_tasks_rviz_plugin.so.0.1.3
+/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/moveit_task_constructor_visualization/lib/libmotion_planning_tasks_rviz_plugin.so
