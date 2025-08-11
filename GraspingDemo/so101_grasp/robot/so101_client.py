@@ -29,6 +29,7 @@ class SO101Client:
             print("Using SO-101 follower config")
             self.cfg = SO101FollowerConfig(port=port)
             self.cfg.use_degrees = True
+            self.cfg.disable_torque_on_disconnect = False  # Keep torque enabled on disconnect
             self.robot = make_robot_from_config(self.cfg)
         else:
             print("Using SO-101 leader config")
@@ -144,7 +145,7 @@ class SO101Client:
             pass  # Ignore errors during cleanup
     
 if __name__ == "__main__":
-    client = SO101Client(port="/dev/tty.usbmodem5A680107891")
+    client = SO101Client(port="/dev/ttyACM0")
     action = {
             "shoulder_pan.pos": 0,
             "shoulder_lift.pos": 0,
