@@ -52,37 +52,46 @@ class SO101ClientRawSimple:
         except Exception as e:
             raise ConnectionError(f"Failed to connect to robot: {e}")
     
-    def read_servo_position(self, servo_id):
-        """Read position from STS3215 servo (matching joint_state_reader.py)"""
-        try:
-            # STS3215 position read command
-            length = 4
-            instruction = 0x02  # Read
-            address = 0x38      # PRESENT_POSITION_L
-            read_length = 0x02  # 2 bytes
-            
-            # Calculate checksum
-            checksum = (~(servo_id + length + instruction + address + read_length)) & 0xFF
-            
-            # Build command
-            cmd = bytes([0xFF, 0xFF, servo_id, length, instruction, address, read_length, checksum])
-            
-            # Send and receive
-            self.serial_port.reset_input_buffer()
-            self.serial_port.write(cmd)
-            time.sleep(0.002)
-            response = self.serial_port.read(8)
-            
-            if len(response) >= 7:
-                # Validate response
-                if response[0] == 0xFF and response[1] == 0xFF and response[2] == servo_id:
-                    # Extract position (little endian)
-                    pos = struct.unpack('<H', response[5:7])[0]
-                    if 0 <= pos <= 4095:
-                        return pos
-            return None
-        except:
-            return None
+    def read_servo_position(self, servo_id, retries=3):
+        """Read position from STS3215 servo with retry logic"""
+        for attempt in range(retries):
+            try:
+                # STS3215 position read command
+                length = 4
+                instruction = 0x02  # Read
+                address = 0x38      # PRESENT_POSITION_L
+                read_length = 0x02  # 2 bytes
+                
+                # Calculate checksum
+                checksum = (~(servo_id + length + instruction + address + read_length)) & 0xFF
+                
+                # Build command
+                cmd = bytes([0xFF, 0xFF, servo_id, length, instruction, address, read_length, checksum])
+                
+                # Send and receive
+                self.serial_port.reset_input_buffer()
+                self.serial_port.write(cmd)
+                time.sleep(0.005)  # Slightly longer delay for reliability
+                response = self.serial_port.read(8)
+                
+                if len(response) >= 7:
+                    # Validate response
+                    if response[0] == 0xFF and response[1] == 0xFF and response[2] == servo_id:
+                        # Extract position (little endian)
+                        pos = struct.unpack('<H', response[5:7])[0]
+                        if 0 <= pos <= 4095:
+                            return pos
+                
+                # If we didn't get a valid response, wait a bit before retry
+                if attempt < retries - 1:
+                    time.sleep(0.01)
+                    
+            except:
+                if attempt < retries - 1:
+                    time.sleep(0.01)
+                    
+        print(f"Warning: Failed to read servo {servo_id} after {retries} attempts")
+        return None
     
     def enable_torque(self, servo_id, enable=True):
         """Enable or disable servo torque"""
@@ -178,18 +187,32 @@ class SO101ClientRawSimple:
         ticks = normalized * 2048.0 + 2048
         return int(max(0, min(4095, ticks)))
     
-    def read_joints(self) -> List[float]:
+    def read_joints(self, validate=True) -> List[float]:
         """
-        Read all joint positions in radians.
+        Read all joint positions in radians with validation.
         Matches joint_state_reader.py coordinate system exactly.
         """
         positions = []
+        failed_reads = []
+        
         for i in range(len(self.joint_names)):
             servo_id = i + 1
             ticks = self.read_servo_position(servo_id)
-            radians = self.ticks_to_radians(ticks)
+            
+            if ticks is None:
+                failed_reads.append(servo_id)
+                # Use a default safe position if read fails
+                radians = 0.0
+            else:
+                radians = self.ticks_to_radians(ticks)
+                
             positions.append(radians)
             time.sleep(0.01)  # Same delay as joint_state_reader
+        
+        # If validation is enabled and we had failed reads, raise an exception
+        if validate and failed_reads:
+            raise ValueError(f"Failed to read servos: {failed_reads}. Position data may be unreliable.")
+            
         return positions
     
     def write_joints(self, joints: List[float]):

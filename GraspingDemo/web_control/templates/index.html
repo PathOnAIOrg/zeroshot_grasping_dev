@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SO-101 Robot Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #5e72e4;
+            --success: #2dce89;
+            --danger: #f5365c;
+            --warning: #fb6340;
+            --info: #11cdef;
+            --dark: #32325d;
+            --light: #f7fafc;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo h1 {
+            color: var(--dark);
+            font-size: 24px;
+        }
+        
+        /* Status */
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--light);
+            border-radius: 20px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+        
+        .status-dot.connected {
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Tutorial Button */
+        .tutorial-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--info);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+        
+        .tutorial-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Emergency Stop Button */
+        .emergency-stop {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            border: 4px solid white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transition: all 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .emergency-stop:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+        
+        .emergency-stop:active {
+            transform: scale(0.95);
+        }
+        
+        .emergency-stop-icon {
+            font-size: 40px;
+        }
+        
+        /* Motion Indicator */
+        .motion-indicator {
+            display: none;
+            background: var(--warning);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            animation: pulse 1s infinite;
+        }
+        
+        .motion-indicator.active {
+            display: inline-block;
+        }
+        
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-info { background: var(--info); color: white; }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            margin-bottom: 5px;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+        
+        /* Speed Control */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .speed-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+        
+        .speed-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        /* Joint Display */
+        .joints-display {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .joint-item {
+            padding: 12px;
+            background: var(--light);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .joint-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .joint-value {
+            font-weight: bold;
+            font-family: monospace;
+            color: var(--dark);
+        }
+        
+        /* Recording Panel */
+        .recording-panel {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .recording-panel.active {
+            display: block;
+        }
+        
+        .recording-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: red;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        /* Trajectory List */
+        .trajectory-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .trajectory-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: var(--light);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .trajectory-item:hover {
+            background: #e0e0e0;
+            transform: translateX(5px);
+        }
+        
+        .trajectory-item.selected {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* Message */
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            display: none;
+            animation: slideIn 0.3s;
+            z-index: 2000;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .message.success { background: var(--success); }
+        .message.error { background: var(--danger); }
+        .message.warning { background: var(--warning); }
+        
+        /* Motor Warning Banner */
+        .motor-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--danger);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+            z-index: 1500;
+            animation: pulse 1s infinite;
+        }
+        
+        .motor-warning.active {
+            display: block;
+        }
+        
+        /* Tutorial Overlay */
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            z-index: 3000;
+        }
+        
+        .tutorial-overlay.active {
+            display: block;
+        }
+        
+        .tutorial-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .tutorial-header {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--dark);
+        }
+        
+        .tutorial-step {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 8px;
+        }
+        
+        .tutorial-step h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .tutorial-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        /* Home Position Panel */
+        .home-panel {
+            background: #e3f2fd;
+            border-left: 4px solid var(--info);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .home-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .home-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+        
+        .home-indicator.set {
+            background: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <!-- Motor Warning Banner -->
+    <div class="motor-warning" id="motor-warning">
+        ⚠️ MOTORS RELEASED - Robot has no power! Support it with your hands! ⚠️
+    </div>
+    
+    <!-- Header -->
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <span style="font-size: 32px;">🤖</span>
+                <h1>SO-101 Robot Control Panel</h1>
+            </div>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span id="status-text">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    <span>Gripper:</span>
+                    <strong id="gripper-status">-</strong>
+                </div>
+                <div class="status-item" id="recording-status" style="display: none;">
+                    <span class="recording-indicator"></span>
+                    <span>Recording</span>
+                    <span id="keyframe-count">(0)</span>
+                </div>
+                <div class="status-item motion-indicator" id="motion-indicator">
+                    🔄 MOVING
+                </div>
+                <div class="status-item" id="read-quality-indicator" style="display: none;">
+                    <span id="read-quality-icon">📡</span>
+                    <span id="read-quality-text">Read Quality</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Connection & Control -->
+            <div class="card">
+                <div class="card-header">
+                    <span>🔌</span>
+                    <h2 class="card-title">Connection & Basic Control</h2>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-success tooltip" data-tooltip="Connect to robot on /dev/ttyACM0" onclick="connectRobot()">
+                        ⚡ Connect
+                    </button>
+                    <button class="btn btn-danger tooltip" data-tooltip="Disconnect from robot" onclick="disconnectRobot()">
+                        🔌 Disconnect
+                    </button>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-success tooltip" data-tooltip="Enable all 6 servo motors for programmed control" onclick="enableTorque()">
+                        🔒 Lock Motors
+                    </button>
+                    <button class="btn btn-warning tooltip" data-tooltip="Release all motors - robot will fall! Support it first!" onclick="confirmDisableTorque()">
+                        ⚠️ Release Motors
+                    </button>
+                </div>
+                
+                <!-- Speed Control -->
+                <div class="speed-control">
+                    <span>Speed:</span>
+                    <input type="range" class="speed-slider" id="speed-slider" min="10" max="200" value="100">
+                    <span class="speed-value" id="speed-value">100%</span>
+                </div>
+                
+                <!-- Home Position -->
+                <div class="home-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong>Home Position</strong>
+                        <div class="home-status">
+                            <span class="home-indicator" id="home-indicator"></span>
+                            <span id="home-status">Not Set</span>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-info tooltip" data-tooltip="Save current position as home (including gripper)" onclick="setHomePosition()">
+                            📍 Set Home
+                        </button>
+                        <button class="btn btn-primary tooltip" data-tooltip="Move to saved home position (including gripper)" onclick="goHome()">
+                            🏠 Go Home
+                        </button>
+                    </div>
+                    <div id="home-position-display" style="margin-top: 10px; font-size: 12px; color: #666; display: none;">
+                        <div>Saved Position:</div>
+                        <div style="font-family: monospace; font-size: 11px;">
+                            J1-5: <span id="home-joints">-</span><br>
+                            Gripper: <span id="home-gripper">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gripper Control -->
+            <div class="card">
+                <div class="card-header">
+                    <span>🤏</span>
+                    <h2 class="card-title">Gripper Control (Joint 6)</h2>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-success tooltip" data-tooltip="Open gripper fully (1.5 rad)" onclick="gripperControl('open')">
+                        👐 Open
+                    </button>
+                    <button class="btn btn-warning tooltip" data-tooltip="Set gripper to middle position (0.0 rad)" onclick="gripperControl('middle')">
+                        🤏 Middle
+                    </button>
+                    <button class="btn btn-danger tooltip" data-tooltip="Close gripper fully (-1.5 rad)" onclick="gripperControl('close')">
+                        ✊ Close
+                    </button>
+                </div>
+                
+                <div style="text-align: center; padding: 20px; background: var(--light); border-radius: 10px; margin-top: 15px;">
+                    <span style="font-size: 64px;" id="gripper-icon">🤏</span>
+                    <div style="margin-top: 10px; color: #666;">
+                        Position: <strong id="gripper-value">0.000</strong> rad
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cartesian Control (DISABLED - Under Development) -->
+            <div class="card" style="opacity: 0.5; pointer-events: none; position: relative;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 10px; font-weight: bold; color: #666; z-index: 10;">
+                    🚧 Under Development
+                </div>
+                <div class="card-header">
+                    <span>📍</span>
+                    <h2 class="card-title">Cartesian Position Control (World Frame)</h2>
+                </div>
+                
+                <!-- Info Note -->
+                <div style="padding: 8px; background: #e3f2fd; border-radius: 5px; margin-bottom: 10px; font-size: 12px; color: #1976d2;">
+                    ℹ️ Movements are in world coordinates relative to base. Motors auto-enable for movement.
+                </div>
+                
+                <!-- Current Position Display -->
+                <div style="padding: 12px; background: var(--light); border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 8px;">Gripper Position in World Frame (cm):</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div>X (Forward): <span id="pos-x" style="font-weight: bold;">--</span></div>
+                        <div>Y (Left): <span id="pos-y" style="font-weight: bold;">--</span></div>
+                        <div>Z (Up): <span id="pos-z" style="font-weight: bold;">--</span></div>
+                    </div>
+                </div>
+                
+                <!-- Directional Movement -->
+                <div style="margin-bottom: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Move Gripper:</div>
+                    
+                    <!-- Distance selector -->
+                    <div style="margin-bottom: 10px;">
+                        <label>Distance: </label>
+                        <select id="move-distance" style="padding: 5px; border-radius: 5px;">
+                            <option value="1">1 cm</option>
+                            <option value="2">2 cm</option>
+                            <option value="5">5 cm</option>
+                            <option value="10">10 cm</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Direction buttons in cross layout -->
+                    <div style="display: grid; grid-template-areas: '. up .' 'left middle right' '. down .'; grid-template-columns: 1fr 1fr 1fr; gap: 5px; max-width: 200px; margin: 0 auto;">
+                        <button class="btn btn-primary" style="grid-area: up;" onclick="cartesianMove('forward')" title="Move Forward in World Frame (+X away from base)">
+                            ↑
+                        </button>
+                        <button class="btn btn-primary" style="grid-area: left;" onclick="cartesianMove('left')" title="Move Left in World Frame (+Y)">
+                            ←
+                        </button>
+                        <button class="btn btn-info" style="grid-area: middle;" onclick="updateGripperPose()" title="Update Position">
+                            🔄
+                        </button>
+                        <button class="btn btn-primary" style="grid-area: right;" onclick="cartesianMove('right')" title="Move Right in World Frame (-Y)">
+                            →
+                        </button>
+                        <button class="btn btn-primary" style="grid-area: down;" onclick="cartesianMove('back')" title="Move Back in World Frame (-X toward base)">
+                            ↓
+                        </button>
+                    </div>
+                    
+                    <!-- Up/Down controls -->
+                    <div style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;">
+                        <button class="btn btn-success" onclick="cartesianMove('up')" title="Move Up (+Z)">
+                            ⬆️ Up
+                        </button>
+                        <button class="btn btn-warning" onclick="cartesianMove('down')" title="Move Down (-Z)">
+                            ⬇️ Down
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Go to Position -->
+                <div style="border-top: 1px solid #ddd; padding-top: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Go to World Position (cm):</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                        <input type="number" id="target-x" placeholder="X (forward)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                        <input type="number" id="target-y" placeholder="Y (left)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                        <input type="number" id="target-z" placeholder="Z (up)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                    </div>
+                    <button class="btn btn-primary" onclick="moveToPosition()" style="width: 100%;">
+                        📍 Move to World Position
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Rotation Control (DISABLED - Under Development) -->
+            <div class="card" style="opacity: 0.5; pointer-events: none; position: relative;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 10px; font-weight: bold; color: #666; z-index: 10;">
+                    🚧 Under Development
+                </div>
+                <div class="card-header">
+                    <span>🔄</span>
+                    <h2 class="card-title">Gripper Rotation Control</h2>
+                </div>
+                
+                <!-- Rotation controls -->
+                <div style="margin-bottom: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Rotate Gripper:</div>
+                    
+                    <!-- Angle selector -->
+                    <div style="margin-bottom: 10px;">
+                        <label>Angle: </label>
+                        <select id="rotation-angle" style="padding: 5px; border-radius: 5px;">
+                            <option value="5">5°</option>
+                            <option value="10" selected>10°</option>
+                            <option value="15">15°</option>
+                            <option value="30">30°</option>
+                            <option value="45">45°</option>
+                            <option value="90">90°</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Wrist controls -->
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Wrist Controls:</div>
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            <button class="btn btn-info" onclick="rotateGripper('wrist_pitch', -1)" title="Wrist Pitch Down">
+                                ↓ Pitch
+                            </button>
+                            <button class="btn btn-info" onclick="rotateGripper('wrist_pitch', 1)" title="Wrist Pitch Up">
+                                ↑ Pitch
+                            </button>
+                            <button class="btn btn-warning" onclick="rotateGripper('wrist_roll', -1)" title="Wrist Roll Left">
+                                ↺ Roll
+                            </button>
+                            <button class="btn btn-warning" onclick="rotateGripper('wrist_roll', 1)" title="Wrist Roll Right">
+                                ↻ Roll
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Base rotation -->
+                    <div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Base Rotation:</div>
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            <button class="btn btn-success" onclick="rotateGripper('base', -1)" title="Rotate Base Left">
+                                ← Base Left
+                            </button>
+                            <button class="btn btn-success" onclick="rotateGripper('base', 1)" title="Rotate Base Right">
+                                Base Right →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Orientation display -->
+                <div style="padding: 10px; background: var(--light); border-radius: 8px;">
+                    <div style="font-size: 12px; color: #666;">Current Orientation (degrees):</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">
+                        <div style="font-size: 11px;">Roll: <span id="orient-roll" style="font-weight: bold;">--</span></div>
+                        <div style="font-size: 11px;">Pitch: <span id="orient-pitch" style="font-weight: bold;">--</span></div>
+                        <div style="font-size: 11px;">Yaw: <span id="orient-yaw" style="font-weight: bold;">--</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Joint Positions -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📊</span>
+                    <h2 class="card-title">Joint Positions (Radians)</h2>
+                </div>
+                
+                <div class="joints-display">
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Base rotation joint">Joint 1 (Base)</span>
+                        <span class="joint-value" id="joint-0">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Shoulder pitch joint">Joint 2 (Shoulder)</span>
+                        <span class="joint-value" id="joint-1">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Elbow flexion joint">Joint 3 (Elbow)</span>
+                        <span class="joint-value" id="joint-2">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Wrist pitch joint">Joint 4 (Wrist P)</span>
+                        <span class="joint-value" id="joint-3">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Wrist roll joint">Joint 5 (Wrist R)</span>
+                        <span class="joint-value" id="joint-4">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Gripper open/close">Joint 6 (Gripper)</span>
+                        <span class="joint-value" id="joint-5">0.000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recording -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📹</span>
+                    <h2 class="card-title">Trajectory Recording</h2>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-success tooltip" data-tooltip="Start recording - disables motors for manual teaching" id="btn-start-record" onclick="startRecording()">
+                        ⏺️ Start
+                    </button>
+                    <button class="btn btn-info tooltip" data-tooltip="Save current robot pose as keyframe" id="btn-save-keyframe" onclick="saveKeyframe()" disabled>
+                        📸 Keyframe
+                    </button>
+                    <button class="btn btn-danger tooltip" data-tooltip="Stop recording and save trajectory file" id="btn-stop-record" onclick="stopRecording()" disabled>
+                        ⏹️ Stop & Save
+                    </button>
+                </div>
+                
+                <div class="recording-panel" id="recording-panel">
+                    <div>
+                        <span class="recording-indicator"></span>
+                        <strong>Recording Active</strong>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        Keyframes saved: <strong id="keyframe-counter">0</strong>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 14px; color: #666;">
+                        Move robot manually and press "Keyframe" to save poses
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trajectory Playback -->
+        <div class="card">
+            <div class="card-header">
+                <span>🔄</span>
+                <h2 class="card-title">Trajectory Playback</h2>
+            </div>
+            
+            <!-- Playback Speed Control -->
+            <div class="speed-control" style="margin-bottom: 15px;">
+                <span>Playback Speed:</span>
+                <input type="range" class="speed-slider" id="playback-speed-slider" min="10" max="200" value="100">
+                <span class="speed-value" id="playback-speed-value">100%</span>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary tooltip" data-tooltip="Refresh trajectory list from disk" onclick="refreshTrajectories()">
+                    🔄 Refresh
+                </button>
+                <button class="btn btn-success tooltip" data-tooltip="Play selected trajectory at set speed" onclick="replaySelected()">
+                    ▶️ Play
+                </button>
+            </div>
+            
+            <div class="trajectory-list" id="trajectory-list">
+                <p style="text-align: center; color: #999;">Click "Refresh" to load trajectories</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Emergency Stop Button -->
+    <button class="emergency-stop" onclick="emergencyStop()">
+        <span class="emergency-stop-icon">🛑</span>
+        <span>EMERGENCY</span>
+        <span>STOP</span>
+    </button>
+    
+    <!-- Tutorial Button -->
+    <button class="tutorial-btn" onclick="showTutorial()">?</button>
+    
+    <!-- Tutorial Overlay -->
+    <div class="tutorial-overlay" id="tutorial-overlay">
+        <div class="tutorial-content">
+            <button class="tutorial-close" onclick="closeTutorial()">×</button>
+            <h2 class="tutorial-header">🎓 SO-101 Robot Control Tutorial</h2>
+            
+            <div class="tutorial-step">
+                <h3>Step 1: Connect to Robot</h3>
+                <p>1. Ensure robot is connected via USB (/dev/ttyACM0)</p>
+                <p>2. Click "Connect" button</p>
+                <p>3. Wait for green status indicator</p>
+            </div>
+            
+            <div class="tutorial-step">
+                <h3>Step 2: Set Home Position</h3>
+                <p>1. Move robot to desired home position</p>
+                <p>2. Click "Set Home" to save current position</p>
+                <p>3. Use "Go Home" anytime to return</p>
+            </div>
+            
+            <div class="tutorial-step">
+                <h3>Step 3: Control Speed</h3>
+                <p><strong>Movement Speed:</strong> Controls home position and manual movements</p>
+                <p><strong>Playback Speed:</strong> Controls trajectory replay speed</p>
+                <p>• Range: 10% (very slow) to 200% (double speed)</p>
+                <p>• Lower speed = smoother, safer movement</p>
+                <p>• Higher speed = faster operation</p>
+            </div>
+            
+            <div class="tutorial-step">
+                <h3>Step 4: Record Trajectory</h3>
+                <p>1. Click "Start" (motors auto-disable)</p>
+                <p>2. Physically move robot to desired pose</p>
+                <p>3. Click "Keyframe" to save position</p>
+                <p>4. Repeat for all waypoints (min. 2)</p>
+                <p>5. Click "Stop & Save" to finish</p>
+            </div>
+            
+            <div class="tutorial-step">
+                <h3>Step 5: Replay Trajectory</h3>
+                <p>1. Click "Refresh" to load saved files</p>
+                <p>2. Click on trajectory to select</p>
+                <p>3. Click "Play" to execute once</p>
+            </div>
+            
+            <div class="tutorial-step">
+                <h3>Joint Information</h3>
+                <p><strong>Joint 1:</strong> Base rotation (-π to π)</p>
+                <p><strong>Joint 2:</strong> Shoulder pitch (-π to π)</p>
+                <p><strong>Joint 3:</strong> Elbow flexion (-π to π)</p>
+                <p><strong>Joint 4:</strong> Wrist pitch (-π to π)</p>
+                <p><strong>Joint 5:</strong> Wrist roll (-π to π)</p>
+                <p><strong>Joint 6:</strong> Gripper (1.5=open, -1.5=closed)</p>
+            </div>
+            
+            <div class="tutorial-step" style="background: #fff3cd;">
+                <h3>⚠️ Safety Tips</h3>
+                <p>• Clear workspace before operation</p>
+                <p>• Start with low speed (50%)</p>
+                <p>• Keep emergency stop ready</p>
+                <p>• Disable motors before manual movement</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Message -->
+    <div id="message" class="message"></div>
+    
+    <script>
+        let isRecording = false;
+        let keyframeCount = 0;
+        let selectedTrajectory = null;
+        let homePosition = null;
+        let currentSpeed = 100;
+        let playbackSpeed = 100;
+        let isMoving = false;
+        let motorsEnabled = true;  // Track actual motor state from backend
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved home position
+            const savedHome = localStorage.getItem('so101_home_position');
+            if (savedHome) {
+                homePosition = JSON.parse(savedHome);
+                document.getElementById('home-indicator').classList.add('set');
+                document.getElementById('home-status').textContent = 'Set';
+                
+                // Display saved home position
+                if (homePosition.length >= 6) {
+                    document.getElementById('home-position-display').style.display = 'block';
+                    const joints = homePosition.slice(0, 5).map(p => p.toFixed(2)).join(', ');
+                    const gripper = homePosition[5].toFixed(3);
+                    document.getElementById('home-joints').textContent = joints;
+                    document.getElementById('home-gripper').textContent = gripper + ' rad';
+                }
+            }
+            
+            // Movement speed slider
+            const speedSlider = document.getElementById('speed-slider');
+            speedSlider.addEventListener('input', function() {
+                currentSpeed = this.value;
+                document.getElementById('speed-value').textContent = currentSpeed + '%';
+            });
+            
+            // Playback speed slider
+            const playbackSlider = document.getElementById('playback-speed-slider');
+            playbackSlider.addEventListener('input', function() {
+                playbackSpeed = this.value;
+                document.getElementById('playback-speed-value').textContent = playbackSpeed + '%';
+            });
+            
+            // Start status updates
+            setInterval(updateStatus, 1000);
+            refreshTrajectories();
+        });
+        
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    const dot = document.getElementById('status-dot');
+                    const text = document.getElementById('status-text');
+                    
+                    if (data.connected) {
+                        dot.classList.add('connected');
+                        text.textContent = 'Connected';
+                        
+                        // Update motor state
+                        if (data.motors_enabled !== undefined) {
+                            motorsEnabled = data.motors_enabled;
+                            // Only show warning banner if motors are disabled and not recording
+                            if (!motorsEnabled && !isRecording) {
+                                document.getElementById('motor-warning').classList.add('active');
+                            } else {
+                                document.getElementById('motor-warning').classList.remove('active');
+                            }
+                        }
+                        
+                        // Update gripper pose periodically (disabled for now)
+                        // updateGripperPose();
+                        
+                        // Update motion indicator
+                        isMoving = data.is_moving || false;
+                        const motionIndicator = document.getElementById('motion-indicator');
+                        if (isMoving) {
+                            motionIndicator.classList.add('active');
+                        } else {
+                            motionIndicator.classList.remove('active');
+                        }
+                        
+                        // Update read quality indicator
+                        if (data.read_quality) {
+                            const qualityIndicator = document.getElementById('read-quality-indicator');
+                            const qualityIcon = document.getElementById('read-quality-icon');
+                            const qualityText = document.getElementById('read-quality-text');
+                            
+                            if (data.read_quality === 'poor') {
+                                qualityIndicator.style.display = 'flex';
+                                qualityIndicator.style.background = '#ffebee';
+                                qualityIcon.textContent = '⚠️';
+                                qualityText.textContent = 'Poor Signal';
+                                qualityText.style.color = '#c62828';
+                            } else if (data.read_quality === 'fair') {
+                                qualityIndicator.style.display = 'flex';
+                                qualityIndicator.style.background = '#fff3e0';
+                                qualityIcon.textContent = '📡';
+                                qualityText.textContent = 'Fair Signal';
+                                qualityText.style.color = '#f57c00';
+                            } else {
+                                qualityIndicator.style.display = 'none';
+                            }
+                        }
+                        
+                        // Update gripper
+                        document.getElementById('gripper-status').textContent = data.gripper || '-';
+                        
+                        // Update gripper icon
+                        const icon = document.getElementById('gripper-icon');
+                        if (data.gripper === 'OPEN') {
+                            icon.textContent = '👐';
+                        } else if (data.gripper === 'CLOSED') {
+                            icon.textContent = '✊';
+                        } else {
+                            icon.textContent = '🤏';
+                        }
+                        
+                        // Update positions
+                        if (data.positions) {
+                            data.positions.forEach((pos, i) => {
+                                const elem = document.getElementById(`joint-${i}`);
+                                if (elem) elem.textContent = pos.toFixed(3);
+                            });
+                            // Update gripper value separately
+                            document.getElementById('gripper-value').textContent = data.positions[5]?.toFixed(3) || '0.000';
+                        }
+                    } else {
+                        dot.classList.remove('connected');
+                        text.textContent = 'Disconnected';
+                        document.getElementById('gripper-status').textContent = '-';
+                        document.getElementById('motion-indicator').classList.remove('active');
+                    }
+                });
+        }
+        
+        function showMessage(text, type = 'success') {
+            const msg = document.getElementById('message');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            msg.style.display = 'block';
+            
+            setTimeout(() => {
+                msg.style.display = 'none';
+            }, 3000);
+        }
+        
+        function connectRobot() {
+            fetch('/api/connect', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    showMessage(data.message, data.success ? 'success' : 'error');
+                    updateStatus();
+                });
+        }
+        
+        function disconnectRobot() {
+            fetch('/api/disconnect', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    showMessage(data.message, data.success ? 'success' : 'error');
+                    updateStatus();
+                });
+        }
+        
+        function enableTorque() {
+            fetch('/api/enable_torque', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('Motors locked - Robot holding position', 'success');
+                        updateStatus(); // Force status update
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                });
+        }
+        
+        function confirmDisableTorque() {
+            // Only show warning if motors are enabled
+            if (motorsEnabled) {
+                const warningMsg = `WARNING: Release Motors?\n\n` +
+                                  `The robot will lose power and FALL due to gravity!\n\n` +
+                                  `Make sure to:\n` +
+                                  `1. Support the robot arm with your hand\n` +
+                                  `2. Clear the area below\n` +
+                                  `3. Be ready to catch it\n\n` +
+                                  `Are you sure you want to release all motors?`;
+                
+                if (confirm(warningMsg)) {
+                    disableTorque();
+                }
+            } else {
+                showMessage('Motors are already released', 'warning');
+            }
+        }
+        
+        function disableTorque() {
+            fetch('/api/disable_torque', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('Motors released - Support the robot!', 'warning');
+                        updateStatus(); // Force status update
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                });
+        }
+        
+        function setHomePosition() {
+            // First validate the position reading
+            fetch('/api/set_home', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.positions) {
+                        // Save validated positions
+                        homePosition = data.positions;
+                        localStorage.setItem('so101_home_position', JSON.stringify(homePosition));
+                        
+                        // Update UI
+                        document.getElementById('home-indicator').classList.add('set');
+                        document.getElementById('home-status').textContent = 'Set';
+                        document.getElementById('home-position-display').style.display = 'block';
+                        
+                        // Display saved positions
+                        const joints = homePosition.slice(0, 5).map(p => p.toFixed(2)).join(', ');
+                        const gripper = homePosition[5].toFixed(3);
+                        document.getElementById('home-joints').textContent = joints;
+                        document.getElementById('home-gripper').textContent = gripper + ' rad';
+                        
+                        // Show gripper status
+                        let gripperStatus = 'MIDDLE';
+                        if (homePosition[5] > 1.0) gripperStatus = 'OPEN';
+                        else if (homePosition[5] < -1.0) gripperStatus = 'CLOSED';
+                        
+                        showMessage(`Home position saved (Gripper: ${gripperStatus})`, 'success');
+                    } else {
+                        showMessage(data.message || 'Failed to read position', 'error');
+                    }
+                })
+                .catch(err => {
+                    showMessage('Error reading position. Please try again.', 'error');
+                });
+        }
+        
+        function goHome() {
+            if (!homePosition) {
+                showMessage('Home position not set. Please set home first.', 'warning');
+                return;
+            }
+            
+            // Check if motors are enabled
+            if (!motorsEnabled) {
+                showMessage('Motors are released! Lock motors first.', 'warning');
+                return;
+            }
+            
+            // Check if already moving
+            if (isMoving) {
+                showMessage('Robot is already moving! Use Emergency Stop first.', 'warning');
+                return;
+            }
+            
+            // Ensure we have all 6 positions
+            if (homePosition.length < 6) {
+                homePosition = homePosition.concat([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).slice(0, 6);
+            }
+            
+            fetch('/api/home', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    position: homePosition,
+                    speed: parseInt(currentSpeed)  // Ensure speed is a number
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message, data.success ? 'success' : 'error');
+            });
+        }
+        
+        function emergencyStop() {
+            fetch('/api/emergency_stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    showMessage(data.message, data.success ? 'success' : 'error');
+                    if (data.success) {
+                        // Force update status
+                        updateStatus();
+                    }
+                });
+        }
+        
+        function gripperControl(action) {
+            fetch(`/api/gripper/${action}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    showMessage(data.message, data.success ? 'success' : 'error');
+                    setTimeout(updateStatus, 500);
+                });
+        }
+        
+        // Cartesian Control Functions
+        function updateGripperPose() {
+            fetch('/api/gripper_pose')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const pose = data.pose;
+                        // Convert from meters to cm for display
+                        document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
+                        document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
+                        document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                        
+                        // Update orientation if available
+                        if (pose.orientation) {
+                            document.getElementById('orient-roll').textContent = (pose.orientation.roll * 180 / Math.PI).toFixed(1);
+                            document.getElementById('orient-pitch').textContent = (pose.orientation.pitch * 180 / Math.PI).toFixed(1);
+                            document.getElementById('orient-yaw').textContent = (pose.orientation.yaw * 180 / Math.PI).toFixed(1);
+                        }
+                    }
+                });
+        }
+        
+        function rotateGripper(axis, direction) {
+            const angle = parseFloat(document.getElementById('rotation-angle').value);
+            const actualAngle = angle * direction;  // direction is 1 or -1
+            
+            fetch('/api/rotate_gripper', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    axis: axis,
+                    angle: actualAngle,
+                    unit: 'degrees'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    // Update pose display
+                    if (data.new_pose) {
+                        const pose = data.new_pose;
+                        document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
+                        document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
+                        document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                        
+                        if (pose.orientation) {
+                            document.getElementById('orient-roll').textContent = (pose.orientation.roll * 180 / Math.PI).toFixed(1);
+                            document.getElementById('orient-pitch').textContent = (pose.orientation.pitch * 180 / Math.PI).toFixed(1);
+                            document.getElementById('orient-yaw').textContent = (pose.orientation.yaw * 180 / Math.PI).toFixed(1);
+                        }
+                    }
+                    // Update motor state if it changed
+                    if (data.motors_enabled !== undefined) {
+                        motorsEnabled = data.motors_enabled;
+                    }
+                }
+                setTimeout(updateStatus, 500);
+            });
+        }
+        
+        function cartesianMove(direction) {
+            const distance = parseFloat(document.getElementById('move-distance').value);
+            
+            fetch('/api/cartesian_move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    direction: direction,
+                    distance: distance,
+                    unit: 'cm'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    // Update position display
+                    if (data.new_pose) {
+                        const pose = data.new_pose;
+                        document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
+                        document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
+                        document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                    }
+                    // Update motor state if it changed
+                    if (data.motors_enabled !== undefined) {
+                        motorsEnabled = data.motors_enabled;
+                    }
+                }
+                setTimeout(updateStatus, 500);
+            });
+        }
+        
+        function moveToPosition() {
+            const x = parseFloat(document.getElementById('target-x').value);
+            const y = parseFloat(document.getElementById('target-y').value);
+            const z = parseFloat(document.getElementById('target-z').value);
+            
+            if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                showMessage('Please enter valid X, Y, Z coordinates', 'error');
+                return;
+            }
+            
+            fetch('/api/move_to_position', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target: { x: x, y: y, z: z },
+                    unit: 'cm'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    // Update position display
+                    if (data.pose) {
+                        const pose = data.pose;
+                        document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
+                        document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
+                        document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                    }
+                    // Update motor state if it changed
+                    if (data.motors_enabled !== undefined) {
+                        motorsEnabled = data.motors_enabled;
+                    }
+                }
+                setTimeout(updateStatus, 500);
+            });
+        }
+        
+        function startRecording() {
+            fetch('/api/record/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        isRecording = true;
+                        keyframeCount = 0;
+                        document.getElementById('btn-start-record').disabled = true;
+                        document.getElementById('btn-save-keyframe').disabled = false;
+                        document.getElementById('btn-stop-record').disabled = false;
+                        document.getElementById('recording-panel').classList.add('active');
+                        document.getElementById('recording-status').style.display = 'flex';
+                        document.getElementById('keyframe-counter').textContent = '0';
+                        showMessage(data.message, 'success');
+                        updateStatus(); // Update to reflect motor state change
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                });
+        }
+        
+        function saveKeyframe() {
+            fetch('/api/record/keyframe', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        keyframeCount = data.keyframe_count;
+                        document.getElementById('keyframe-counter').textContent = keyframeCount;
+                        document.getElementById('keyframe-count').textContent = `(${keyframeCount})`;
+                        showMessage(data.message, 'success');
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                });
+        }
+        
+        function stopRecording() {
+            fetch('/api/record/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    isRecording = false;
+                    document.getElementById('btn-start-record').disabled = false;
+                    document.getElementById('btn-save-keyframe').disabled = true;
+                    document.getElementById('btn-stop-record').disabled = true;
+                    document.getElementById('recording-panel').classList.remove('active');
+                    document.getElementById('recording-status').style.display = 'none';
+                    
+                    if (data.success) {
+                        showMessage(`Saved: ${data.filename}`, 'success');
+                        setTimeout(refreshTrajectories, 1000);
+                        updateStatus(); // Update to reflect motor state change
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                });
+        }
+        
+        function refreshTrajectories() {
+            fetch('/api/trajectories')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('trajectory-list');
+                    if (data.length === 0) {
+                        list.innerHTML = '<p style="text-align: center; color: #999;">No trajectories found</p>';
+                    } else {
+                        list.innerHTML = data.map(traj => `
+                            <div class="trajectory-item" onclick="selectTrajectory('${traj.filename}', this)">
+                                <strong>${traj.filename}</strong><br>
+                                <small>Created: ${new Date(traj.created).toLocaleString()}<br>
+                                Keyframes: ${traj.keyframes}</small>
+                            </div>
+                        `).join('');
+                    }
+                });
+        }
+        
+        function selectTrajectory(filename, element) {
+            selectedTrajectory = filename;
+            document.querySelectorAll('.trajectory-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+        
+        function replaySelected() {
+            if (!selectedTrajectory) {
+                showMessage('Please select a trajectory first', 'warning');
+                return;
+            }
+            
+            fetch('/api/replay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    filename: selectedTrajectory,
+                    speed: parseInt(playbackSpeed)  // Use playback speed slider value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message, data.success ? 'success' : 'error');
+            });
+        }
+        
+        function showTutorial() {
+            document.getElementById('tutorial-overlay').classList.add('active');
+        }
+        
+        function closeTutorial() {
+            document.getElementById('tutorial-overlay').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
