@@ -1,0 +1,19 @@
+[0.203s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_actions': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/pathonai/ros2_ws/src/opensource_dev/ros2_RobotSimulation/ros2_actions -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/pathonai/ros2_ws/src/opensource_dev/install/ros2_actions
+[0.445s] -- Found ament_cmake: 2.5.4 (/home/pathonai/ros2_jazzy/install/ament_cmake/share/ament_cmake/cmake)
+[0.447s] Traceback (most recent call last):
+[0.447s]   File "/home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/package_templates/templates_2_cmake.py", line 21, in <module>
+[0.447s]     from ament_package.templates import get_environment_hook_template_path
+[0.447s] ModuleNotFoundError: No module named 'ament_package'
+[0.462s] [31mCMake Error at /home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/ament_cmake_package_templates-extras.cmake:41 (message):
+[0.462s]   execute_process(/usr/bin/python3
+[0.462s]   /home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/package_templates/templates_2_cmake.py
+[0.462s]   /home/pathonai/ros2_ws/src/opensource_dev/build/ros2_actions/ament_cmake_package_templates/templates.cmake)
+[0.462s]   returned error code 1
+[0.463s] Call Stack (most recent call first):
+[0.463s]   /home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/ament_cmake_coreConfig.cmake:41 (include)
+[0.463s]   /home/pathonai/ros2_jazzy/install/ament_cmake/share/ament_cmake/cmake/ament_cmake_export_dependencies-extras.cmake:15 (find_package)
+[0.463s]   /home/pathonai/ros2_jazzy/install/ament_cmake/share/ament_cmake/cmake/ament_cmakeConfig.cmake:41 (include)
+[0.463s]   CMakeLists.txt:19 (find_package)
+[0.463s] 
+[0.463s] [0m
+[0.464s] -- Configuring incomplete, errors occurred!

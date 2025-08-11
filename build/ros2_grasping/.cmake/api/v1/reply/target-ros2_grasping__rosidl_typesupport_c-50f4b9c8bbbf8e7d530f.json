@@ -1,0 +1,604 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "libros2_grasping__rosidl_typesupport_c.so"
+		}
+	],
+	"backtrace" : 5,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"include",
+			"ament_execute_extensions",
+			"rosidl_generate_interfaces",
+			"_install",
+			"ament_cmake_symlink_install_targets",
+			"install",
+			"target_link_libraries",
+			"set_target_properties",
+			"find_package",
+			"add_definitions"
+		],
+		"files" : 
+		[
+			"/home/pathonai/ros2_jazzy/install/rosidl_typesupport_c/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c_generate_interfaces.cmake",
+			"/home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/core/ament_execute_extensions.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_cmake/share/rosidl_cmake/cmake/rosidl_generate_interfaces.cmake",
+			"CMakeLists.txt",
+			"/home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/symlink_install/ament_cmake_symlink_install_targets.cmake",
+			"/home/pathonai/ros2_jazzy/install/ament_cmake_core/share/ament_cmake_core/cmake/symlink_install/install.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_generator_c/share/rosidl_generator_c/cmake/rosidl_generator_c_generate_interfaces.cmake",
+			"/home/pathonai/ros2_jazzy/install/rcutils/share/rcutils/cmake/rcutilsExport.cmake",
+			"/home/pathonai/ros2_jazzy/install/rcutils/share/rcutils/cmake/ament_cmake_export_targets-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/rcutils/share/rcutils/cmake/rcutilsConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_runtime_c/share/rosidl_runtime_c/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_runtime_c/share/rosidl_runtime_c/cmake/rosidl_runtime_cConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_typesupport_introspection_c/share/rosidl_typesupport_introspection_c/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_typesupport_introspection_c/share/rosidl_typesupport_introspection_c/cmake/rosidl_typesupport_introspection_cConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_typesupport_c/share/rosidl_typesupport_c/cmake/rosidl_typesupport_c-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_typesupport_c/share/rosidl_typesupport_c/cmake/rosidl_typesupport_cConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_core_generators/share/rosidl_core_generators/cmake/rosidl_core_generators-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_core_generators/share/rosidl_core_generators/cmake/rosidl_core_generatorsConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_default_generators/share/rosidl_default_generators/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_default_generators/share/rosidl_default_generators/cmake/rosidl_default_generatorsConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/ament_cmake_ros/share/ament_cmake_ros/cmake/ament_cmake_ros-extras.cmake",
+			"/home/pathonai/ros2_jazzy/install/ament_cmake_ros/share/ament_cmake_ros/cmake/ament_cmake_rosConfig.cmake",
+			"/home/pathonai/ros2_jazzy/install/rosidl_typesupport_fastrtps_c/share/rosidl_typesupport_fastrtps_c/cmake/rosidl_typesupport_fastrtps_c_generate_interfaces.cmake"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 3,
+				"line" : 46,
+				"parent" : 0
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 280,
+				"parent" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 48,
+				"parent" : 2
+			},
+			{
+				"file" : 0,
+				"parent" : 3
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 106,
+				"parent" : 4
+			},
+			{
+				"command" : 6,
+				"file" : 0,
+				"line" : 157,
+				"parent" : 4
+			},
+			{
+				"command" : 5,
+				"file" : 5,
+				"line" : 37,
+				"parent" : 6
+			},
+			{
+				"command" : 4,
+				"file" : 4,
+				"line" : 50,
+				"parent" : 7
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 136,
+				"parent" : 4
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 146,
+				"parent" : 4
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 146,
+				"parent" : 4
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 146,
+				"parent" : 4
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 146,
+				"parent" : 4
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 139,
+				"parent" : 4
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 48,
+				"parent" : 2
+			},
+			{
+				"file" : 6,
+				"parent" : 15
+			},
+			{
+				"command" : 7,
+				"file" : 6,
+				"line" : 165,
+				"parent" : 16
+			},
+			{
+				"command" : 7,
+				"file" : 6,
+				"line" : 165,
+				"parent" : 16
+			},
+			{
+				"command" : 7,
+				"file" : 6,
+				"line" : 165,
+				"parent" : 16
+			},
+			{
+				"command" : 7,
+				"file" : 6,
+				"line" : 165,
+				"parent" : 16
+			},
+			{
+				"command" : 7,
+				"file" : 6,
+				"line" : 170,
+				"parent" : 16
+			},
+			{
+				"command" : 9,
+				"file" : 3,
+				"line" : 45,
+				"parent" : 0
+			},
+			{
+				"file" : 19,
+				"parent" : 22
+			},
+			{
+				"command" : 1,
+				"file" : 19,
+				"line" : 41,
+				"parent" : 23
+			},
+			{
+				"file" : 18,
+				"parent" : 24
+			},
+			{
+				"command" : 9,
+				"file" : 18,
+				"line" : 21,
+				"parent" : 25
+			},
+			{
+				"file" : 17,
+				"parent" : 26
+			},
+			{
+				"command" : 1,
+				"file" : 17,
+				"line" : 41,
+				"parent" : 27
+			},
+			{
+				"file" : 16,
+				"parent" : 28
+			},
+			{
+				"command" : 9,
+				"file" : 16,
+				"line" : 21,
+				"parent" : 29
+			},
+			{
+				"file" : 15,
+				"parent" : 30
+			},
+			{
+				"command" : 1,
+				"file" : 15,
+				"line" : 41,
+				"parent" : 31
+			},
+			{
+				"file" : 14,
+				"parent" : 32
+			},
+			{
+				"command" : 9,
+				"file" : 14,
+				"line" : 13,
+				"parent" : 33
+			},
+			{
+				"file" : 13,
+				"parent" : 34
+			},
+			{
+				"command" : 1,
+				"file" : 13,
+				"line" : 41,
+				"parent" : 35
+			},
+			{
+				"file" : 12,
+				"parent" : 36
+			},
+			{
+				"command" : 9,
+				"file" : 12,
+				"line" : 21,
+				"parent" : 37
+			},
+			{
+				"file" : 11,
+				"parent" : 38
+			},
+			{
+				"command" : 1,
+				"file" : 11,
+				"line" : 41,
+				"parent" : 39
+			},
+			{
+				"file" : 10,
+				"parent" : 40
+			},
+			{
+				"command" : 9,
+				"file" : 10,
+				"line" : 21,
+				"parent" : 41
+			},
+			{
+				"file" : 9,
+				"parent" : 42
+			},
+			{
+				"command" : 1,
+				"file" : 9,
+				"line" : 41,
+				"parent" : 43
+			},
+			{
+				"file" : 8,
+				"parent" : 44
+			},
+			{
+				"command" : 1,
+				"file" : 8,
+				"line" : 9,
+				"parent" : 45
+			},
+			{
+				"file" : 7,
+				"parent" : 46
+			},
+			{
+				"command" : 8,
+				"file" : 7,
+				"line" : 61,
+				"parent" : 47
+			},
+			{
+				"command" : 8,
+				"file" : 0,
+				"line" : 119,
+				"parent" : 4
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 48,
+				"parent" : 2
+			},
+			{
+				"file" : 22,
+				"parent" : 50
+			},
+			{
+				"command" : 9,
+				"file" : 22,
+				"line" : 21,
+				"parent" : 51
+			},
+			{
+				"file" : 21,
+				"parent" : 52
+			},
+			{
+				"command" : 1,
+				"file" : 21,
+				"line" : 41,
+				"parent" : 53
+			},
+			{
+				"file" : 20,
+				"parent" : 54
+			},
+			{
+				"command" : 10,
+				"file" : 20,
+				"line" : 25,
+				"parent" : 55
+			},
+			{
+				"command" : 8,
+				"file" : 0,
+				"line" : 116,
+				"parent" : 4
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-std=gnu++17 -fPIC"
+				},
+				{
+					"backtrace" : 49,
+					"fragment" : "-Wall"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 9,
+					"define" : "RCUTILS_ENABLE_FAULT_INJECTION"
+				},
+				{
+					"define" : "ROSIDL_GENERATOR_C_BUILDING_DLL_ros2_grasping"
+				},
+				{
+					"backtrace" : 56,
+					"define" : "ROS_PACKAGE_NAME=\"ros2_grasping\""
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 9,
+					"path" : "/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping/rosidl_generator_c"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/service_msgs/include/service_msgs"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/builtin_interfaces/include/builtin_interfaces"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/rosidl_runtime_c/include/rosidl_runtime_c"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/rcutils/include/rcutils"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/rosidl_typesupport_interface/include/rosidl_typesupport_interface"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/action_msgs/include/action_msgs"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/unique_identifier_msgs/include/unique_identifier_msgs"
+				},
+				{
+					"backtrace" : 14,
+					"isSystem" : true,
+					"path" : "/home/pathonai/ros2_jazzy/install/rosidl_typesupport_c/include/rosidl_typesupport_c"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					57
+				],
+				"standard" : "17"
+			},
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 9,
+			"id" : "ros2_grasping__rosidl_generator_c::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "ros2_grasping__rosidl_typesupport_c::@6890427a1f51a3e7e1df",
+	"install" : 
+	{
+		"destinations" : 
+		[
+			{
+				"backtrace" : 8,
+				"path" : "lib"
+			},
+			{
+				"backtrace" : 8,
+				"path" : "lib"
+			}
+		],
+		"prefix" : 
+		{
+			"path" : "/home/pathonai/ros2_ws/src/opensource_dev/install/ros2_grasping"
+		}
+	},
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "-Wl,-rpath,/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping:/home/pathonai/ros2_jazzy/install/action_msgs/lib:/home/pathonai/ros2_jazzy/install/unique_identifier_msgs/lib:/home/pathonai/ros2_jazzy/install/service_msgs/lib:/home/pathonai/ros2_jazzy/install/builtin_interfaces/lib:/home/pathonai/ros2_jazzy/install/rosidl_typesupport_c/lib:/home/pathonai/ros2_jazzy/install/rcpputils/lib:/home/pathonai/ros2_jazzy/install/rosidl_runtime_c/lib:/home/pathonai/ros2_jazzy/install/rcutils/lib:",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 9,
+				"fragment" : "libros2_grasping__rosidl_generator_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 10,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/action_msgs/lib/libaction_msgs__rosidl_typesupport_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/unique_identifier_msgs/lib/libunique_identifier_msgs__rosidl_typesupport_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 12,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/service_msgs/lib/libservice_msgs__rosidl_typesupport_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 13,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/builtin_interfaces/lib/libbuiltin_interfaces__rosidl_typesupport_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 14,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/rosidl_typesupport_c/lib/librosidl_typesupport_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 17,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/action_msgs/lib/libaction_msgs__rosidl_generator_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 18,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/service_msgs/lib/libservice_msgs__rosidl_generator_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 19,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/builtin_interfaces/lib/libbuiltin_interfaces__rosidl_generator_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 20,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/unique_identifier_msgs/lib/libunique_identifier_msgs__rosidl_generator_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 14,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/rosidl_runtime_c/lib/librosidl_runtime_c.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 21,
+				"fragment" : "/home/pathonai/ros2_jazzy/install/rcutils/lib/librcutils.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 48,
+				"fragment" : "-ldl",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-Wl,-rpath-link,/home/pathonai/ros2_jazzy/install/rcpputils/lib",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"name" : "ros2_grasping__rosidl_typesupport_c",
+	"nameOnDisk" : "libros2_grasping__rosidl_typesupport_c.so",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 5,
+			"compileGroupIndex" : 0,
+			"isGenerated" : true,
+			"path" : "/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping/rosidl_typesupport_c/ros2_grasping/action/attacher__type_support.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping/rosidl_typesupport_c/ros2_grasping/action/attacher__type_support.cpp.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "SHARED_LIBRARY"
+}

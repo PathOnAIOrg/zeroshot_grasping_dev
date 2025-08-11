@@ -1,0 +1,1 @@
+/home/pathonai/ros2_ws/src/opensource_dev/ROS2/lerobot_ws/src/lerobot_description/launch/so101_gazebo.launch.py

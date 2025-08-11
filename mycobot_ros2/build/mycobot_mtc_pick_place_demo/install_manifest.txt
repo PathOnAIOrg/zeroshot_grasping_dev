@@ -1,7 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/lib/libcluster_extraction.so
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/lib/libget_planning_scene_client.so
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/lib/libnormals_curvature_and_rsd_estimation.so
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/lib/libobject_segmentation.so
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/lib/libplane_segmentation.so
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/share/mycobot_mtc_pick_place_demo/cmake/export_mycobot_mtc_pick_place_demoExport.cmake
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/mycobot_mtc_pick_place_demo/share/mycobot_mtc_pick_place_demo/cmake/export_mycobot_mtc_pick_place_demoExport-release.cmake

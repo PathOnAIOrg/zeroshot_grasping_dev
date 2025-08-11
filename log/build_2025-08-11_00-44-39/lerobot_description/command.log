@@ -1,0 +1,3 @@
+Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description -- -j16 -l16
+Invoked command in '/home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description -- -j16 -l16
+Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description

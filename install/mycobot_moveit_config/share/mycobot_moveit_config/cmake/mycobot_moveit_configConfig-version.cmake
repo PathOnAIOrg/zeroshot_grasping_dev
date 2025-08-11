@@ -1,0 +1,1 @@
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_moveit_config/ament_cmake_core/mycobot_moveit_configConfig-version.cmake

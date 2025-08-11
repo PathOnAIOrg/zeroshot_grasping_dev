@@ -1,0 +1,32 @@
+-- Install configuration: ""
+-- Execute custom install script
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/initial_positions.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/joint_limits.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/kinematics.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/moveit_controllers.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/mycobot_280.srdf
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/pilz_cartesian_limits.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/ros2_controllers.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/mycobot_280/ros2_controllers_template.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/ompl_planning.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/pilz_industrial_motion_planner_planning.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/config/stomp_planning.yaml
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/launch/load_ros2_controllers.launch.py
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/launch/move_group.launch.py
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/rviz/move_group.rviz
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/.setup_assistant
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/ament_index/resource_index/package_run_dependencies/mycobot_moveit_config
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/ament_index/resource_index/parent_prefix_path/mycobot_moveit_config
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/ament_prefix_path.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/ament_prefix_path.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/path.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/environment/path.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.bash
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.zsh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/local_setup.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/package.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/ament_index/resource_index/packages/mycobot_moveit_config
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/cmake/mycobot_moveit_configConfig.cmake
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/cmake/mycobot_moveit_configConfig-version.cmake
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/mycobot_moveit_config/share/mycobot_moveit_config/package.xml

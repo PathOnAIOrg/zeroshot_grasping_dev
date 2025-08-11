@@ -1,0 +1,26 @@
+{
+  "type_description_msg": {
+    "type_description": {
+      "type_name": "ros2_grasping/action/Attacher_Feedback",
+      "fields": [
+        {
+          "name": "feedback",
+          "type": {
+            "type_id": 17,
+            "capacity": 0,
+            "string_capacity": 0,
+            "nested_type_name": ""
+          },
+          "default_value": ""
+        }
+      ]
+    },
+    "referenced_type_descriptions": []
+  },
+  "type_hashes": [
+    {
+      "type_name": "ros2_grasping/action/Attacher_Feedback",
+      "hash_string": "RIHS01_79d4d8f17c3788a89f448e1b3d2d7c925856d0143ec879d3077f101fe0d6cd6b"
+    }
+  ]
+}

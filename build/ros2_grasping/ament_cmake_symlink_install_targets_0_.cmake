@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping/rosidl_generator_py/ros2_grasping/ros2_grasping_s__rosidl_typesupport_introspection_c.so" "TARGETS" "ros2_grasping_s__rosidl_typesupport_introspection_c" "DESTINATION" "lib/python3.12/site-packages/ros2_grasping")

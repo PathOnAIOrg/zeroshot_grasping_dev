@@ -1,0 +1,13 @@
+{
+  "package_name": "ros2_grasping",
+  "output_dir": "/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping/rosidl_generator_type_description/ros2_grasping",
+  "idl_tuples": [
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping/rosidl_adapter/ros2_grasping:action/Attacher.idl"
+  ],
+  "include_paths": [
+    "service_msgs:/home/pathonai/ros2_jazzy/install/service_msgs/share/service_msgs",
+    "builtin_interfaces:/home/pathonai/ros2_jazzy/install/builtin_interfaces/share/builtin_interfaces",
+    "action_msgs:/home/pathonai/ros2_jazzy/install/action_msgs/share/action_msgs",
+    "unique_identifier_msgs:/home/pathonai/ros2_jazzy/install/unique_identifier_msgs/share/unique_identifier_msgs"
+  ]
+}
