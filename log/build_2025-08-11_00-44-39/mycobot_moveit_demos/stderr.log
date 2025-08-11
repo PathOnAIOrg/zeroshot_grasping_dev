@@ -1,7 +1,0 @@
-/usr/bin/ld: warning: libgz-math7.so.7, needed by /home/pathonai/ros2_jazzy/install/rviz_default_plugins/lib/librviz_default_plugins.so, not found (try using -rpath or -rpath-link)
-/usr/bin/ld: /home/pathonai/ros2_jazzy/install/rviz_default_plugins/lib/librviz_default_plugins.so: undefined reference to `gz::math::v7::Angle::Normalize()'
-/usr/bin/ld: /home/pathonai/ros2_jazzy/install/rviz_default_plugins/lib/librviz_default_plugins.so: undefined reference to `gz::math::v7::Angle::Radian() const'
-collect2: error: ld returned 1 exit status
-gmake[2]: *** [CMakeFiles/plan_around_objects.dir/build.make:423: plan_around_objects] Error 1
-gmake[1]: *** [CMakeFiles/Makefile2:165: CMakeFiles/plan_around_objects.dir/all] Error 2
-gmake: *** [Makefile:146: all] Error 2

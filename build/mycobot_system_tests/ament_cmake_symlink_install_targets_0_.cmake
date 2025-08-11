@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_system_tests/arm_gripper_loop_controller" "TARGETS" "arm_gripper_loop_controller" "DESTINATION" "lib/mycobot_system_tests")

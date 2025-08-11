@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/lerobot_description/ament_cmake_core/lerobot_descriptionConfig-version.cmake

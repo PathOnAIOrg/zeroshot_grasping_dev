@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/GraspingDemo/setup.py

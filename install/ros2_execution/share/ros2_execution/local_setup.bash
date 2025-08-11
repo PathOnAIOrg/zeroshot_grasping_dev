@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_execution/ament_cmake_environment_hooks/local_setup.bash

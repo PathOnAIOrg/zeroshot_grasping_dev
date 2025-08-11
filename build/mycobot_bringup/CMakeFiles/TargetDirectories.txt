@@ -1,9 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/uninstall.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/mycobot_bringup_uninstall.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/test.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/edit_cache.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/rebuild_cache.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/list_install_components.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/install.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/install/local.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/CMakeFiles/install/strip.dir

@@ -1,1 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/ament_cmake_environment_hooks/local_setup.sh

@@ -1,9 +1,0 @@
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/uninstall.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/ur5_ros2_gazebo_uninstall.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/test.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/edit_cache.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/rebuild_cache.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/list_install_components.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/install.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/install/local.dir
-/home/pathonai/ros2_ws/src/opensource_dev/build/ur5_ros2_gazebo/CMakeFiles/install/strip.dir
