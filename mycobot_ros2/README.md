@@ -63,7 +63,8 @@ cd opensource_dev/mycobot_ros2
 bash ./mycobot_mtc_pick_place_demo/scripts/robot.sh         # launch gazebo and rviz (moveit), tested
 bash ./mycobot_mtc_pick_place_demo/scripts/pointcloud.sh    # launch point cloud related modules, to be tested
 ```
-```
+
+```bash
 source /opt/ros/jazzy/setup.bash
 source ~/ros2_ws/install/setup.bash
 # if you add more ros-related code in the mycobot_ros2 folder, remember to colcon build it
