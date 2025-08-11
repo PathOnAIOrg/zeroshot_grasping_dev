@@ -1,0 +1,9 @@
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/uninstall.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/mycobot_description_uninstall.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/test.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/edit_cache.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/rebuild_cache.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/list_install_components.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/install.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/install/local.dir
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_description/CMakeFiles/install/strip.dir

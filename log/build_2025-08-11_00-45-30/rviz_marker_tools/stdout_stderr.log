@@ -1,0 +1,27 @@
+[100%] Built target rviz_marker_tools
+-- Install configuration: "Release"
+-- Execute custom install script
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/include/rviz_marker_tools/marker_creation.h
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/environment/library_path.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/environment/library_path.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/ament_index/resource_index/package_run_dependencies/rviz_marker_tools
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/ament_index/resource_index/parent_prefix_path/rviz_marker_tools
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/environment/ament_prefix_path.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/environment/ament_prefix_path.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/environment/path.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/environment/path.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.bash
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.sh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.zsh
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/local_setup.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/package.dsv
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/ament_index/resource_index/packages/rviz_marker_tools
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/cmake/ament_cmake_export_targets-extras.cmake
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsConfig.cmake
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsConfig-version.cmake
+-- Symlinking: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/package.xml
+-- Installing: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/lib/librviz_marker_tools.so
+-- Set non-toolchain portion of runtime path of "/home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/lib/librviz_marker_tools.so" to ""
+-- Installing: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsTargetsExport.cmake
+-- Installing: /home/pathonai/ros2_ws/src/opensource_dev/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsTargetsExport-release.cmake

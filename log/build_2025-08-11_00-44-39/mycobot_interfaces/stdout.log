@@ -1,0 +1,11 @@
+[  2%] [34m[1mGenerating type hashes for ROS interfaces[0m
+[  2%] Built target ament_cmake_python_symlink_mycobot_interfaces
+running egg_info
+creating mycobot_interfaces.egg-info
+writing mycobot_interfaces.egg-info/PKG-INFO
+writing dependency_links to mycobot_interfaces.egg-info/dependency_links.txt
+writing top-level names to mycobot_interfaces.egg-info/top_level.txt
+writing manifest file 'mycobot_interfaces.egg-info/SOURCES.txt'
+reading manifest file 'mycobot_interfaces.egg-info/SOURCES.txt'
+writing manifest file 'mycobot_interfaces.egg-info/SOURCES.txt'
+[  2%] Built target ament_cmake_python_build_mycobot_interfaces_egg

@@ -1,0 +1,33 @@
+{
+  "package_name": "moveit_task_constructor_msgs",
+  "output_dir": "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_generator_type_description/moveit_task_constructor_msgs",
+  "idl_tuples": [
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/Property.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/Solution.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/SolutionInfo.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/StageDescription.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/StageStatistics.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/SubSolution.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/SubTrajectory.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/TaskDescription.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/TaskStatistics.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:msg/TrajectoryExecutionInfo.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:srv/GetSolution.idl",
+    "/home/pathonai/ros2_ws/src/opensource_dev/build/moveit_task_constructor_msgs/rosidl_adapter/moveit_task_constructor_msgs:action/ExecuteTaskSolution.idl"
+  ],
+  "include_paths": [
+    "builtin_interfaces:/home/pathonai/ros2_jazzy/install/builtin_interfaces/share/builtin_interfaces",
+    "moveit_msgs:/opt/ros/jazzy/share/moveit_msgs",
+    "action_msgs:/home/pathonai/ros2_jazzy/install/action_msgs/share/action_msgs",
+    "std_msgs:/home/pathonai/ros2_jazzy/install/std_msgs/share/std_msgs",
+    "geometry_msgs:/home/pathonai/ros2_jazzy/install/geometry_msgs/share/geometry_msgs",
+    "sensor_msgs:/home/pathonai/ros2_jazzy/install/sensor_msgs/share/sensor_msgs",
+    "shape_msgs:/home/pathonai/ros2_jazzy/install/shape_msgs/share/shape_msgs",
+    "object_recognition_msgs:/opt/ros/jazzy/share/object_recognition_msgs",
+    "octomap_msgs:/opt/ros/jazzy/share/octomap_msgs",
+    "trajectory_msgs:/home/pathonai/ros2_jazzy/install/trajectory_msgs/share/trajectory_msgs",
+    "service_msgs:/home/pathonai/ros2_jazzy/install/service_msgs/share/service_msgs",
+    "visualization_msgs:/home/pathonai/ros2_jazzy/install/visualization_msgs/share/visualization_msgs",
+    "unique_identifier_msgs:/home/pathonai/ros2_jazzy/install/unique_identifier_msgs/share/unique_identifier_msgs"
+  ]
+}

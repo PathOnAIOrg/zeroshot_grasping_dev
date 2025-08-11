@@ -1,0 +1,11 @@
+[  2%] [34m[1mGenerating type hashes for ROS interfaces[0m
+[  2%] Built target ament_cmake_python_symlink_graspnet_ros
+running egg_info
+creating graspnet_ros.egg-info
+writing graspnet_ros.egg-info/PKG-INFO
+writing dependency_links to graspnet_ros.egg-info/dependency_links.txt
+writing top-level names to graspnet_ros.egg-info/top_level.txt
+writing manifest file 'graspnet_ros.egg-info/SOURCES.txt'
+reading manifest file 'graspnet_ros.egg-info/SOURCES.txt'
+writing manifest file 'graspnet_ros.egg-info/SOURCES.txt'
+[  2%] Built target ament_cmake_python_build_graspnet_ros_egg

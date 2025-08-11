@@ -1,0 +1,1 @@
+/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_bringup/ament_cmake_core/mycobot_bringupConfig-version.cmake

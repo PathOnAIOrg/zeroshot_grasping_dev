@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Release-bd4c012a2bf009e8702f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.15"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "rviz_marker_tools",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "rviz_marker_tools::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-rviz_marker_tools-Release-ec261e212807ecb31787.json",
+					"name" : "rviz_marker_tools",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "rviz_marker_tools_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-rviz_marker_tools_uninstall-Release-c87859300ec4f8031e75.json",
+					"name" : "rviz_marker_tools_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-Release-cadb18aee7ba9b135a4c.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/pathonai/ros2_ws/src/opensource_dev/build/rviz_marker_tools",
+		"source" : "/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/moveit_task_constructor/rviz_marker_tools"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}

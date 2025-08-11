@@ -1,1 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_ros2/ament_cmake_environment_hooks/local_setup.zsh

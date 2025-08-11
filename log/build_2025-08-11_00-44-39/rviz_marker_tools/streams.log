@@ -1,0 +1,4 @@
+[0.020s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/rviz_marker_tools': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/rviz_marker_tools -- -j16 -l16
+[0.446s] [ 50%] [32mBuilding CXX object CMakeFiles/rviz_marker_tools.dir/src/marker_creation.cpp.o[0m
+[5.591s] [100%] [32m[1mLinking CXX shared library librviz_marker_tools.so[0m
+[6.267s] [100%] Built target rviz_marker_tools

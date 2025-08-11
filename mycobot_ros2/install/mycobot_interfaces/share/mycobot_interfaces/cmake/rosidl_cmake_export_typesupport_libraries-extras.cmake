@@ -1,1 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_interfaces/rosidl_cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake

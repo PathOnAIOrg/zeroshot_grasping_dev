@@ -1,0 +1,1 @@
+/home/pathonai/ros2_ws/src/opensource_dev/mycobot_ros2/mycobot_bringup/scripts/mycobot_280_gazebo_and_moveit.sh

@@ -1,0 +1,58 @@
+[0.564s] Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/pathonai/ros2_jazzy/install/rqt_bag_plugins:/home/pathonai/ros2_jazzy/install/rqt_bag:/home/pathonai/ros2_jazzy/install/rosbag2_examples_py:/home/pathonai/ros2_jazzy/install/launch_testing_examples:/home/pathonai/ros2_jazzy/install/ros2bag:/home/pathonai/ros2_jazzy/install/tracetools_test:/home/pathonai/ros2_jazzy/install/tracetools_launch:/home/pathonai/ros2_jazzy/install/topic_monitor:/home/pathonai/ros2_jazzy/install/tf2_tools:/home/pathonai/ros2_jazzy/install/examples_tf2_py:/home/pathonai/ros2_jazzy/install/tf2_ros_py:/home/pathonai/ros2_jazzy/install/examples_rclpy_pointcloud_publisher:/home/pathonai/ros2_jazzy/install/sensor_msgs_py:/home/pathonai/ros2_jazzy/install/quality_of_service_demo_py:/home/pathonai/ros2_jazzy/install/camera_info_manager_py:/home/pathonai/ros2_jazzy/install/rqt_plot:/home/pathonai/ros2_jazzy/install/ros2doctor:/home/pathonai/ros2_jazzy/install/lifecycle_py:/home/pathonai/ros2_jazzy/install/examples_rclpy_minimal_subscriber:/home/pathonai/ros2_jazzy/install/examples_rclpy_minimal_service:/home/pathonai/ros2_jazzy/install/examples_rclpy_minimal_publisher:/home/pathonai/ros2_jazzy/install/examples_rclpy_minimal_client:/home/pathonai/ros2_jazzy/install/examples_rclpy_executors:/home/pathonai/ros2_jazzy/install/demo_nodes_py:/home/pathonai/ros2_jazzy/install/rqt:/home/pathonai/ros2_jazzy/install/ros2component:/home/pathonai/ros2_jazzy/install/sros2:/home/pathonai/ros2_jazzy/install/rqt_topic:/home/pathonai/ros2_jazzy/install/rqt_srv:/home/pathonai/ros2_jazzy/install/rqt_shell:/home/pathonai/ros2_jazzy/install/rqt_service_caller:/home/pathonai/ros2_jazzy/install/rqt_reconfigure:/home/pathonai/ros2_jazzy/install/rqt_py_console:/home/pathonai/ros2_jazzy/install/rqt_publisher:/home/pathonai/ros2_jazzy/install/rqt_action:/home/pathonai/ros2_jazzy/install/rqt_msg:/home/pathonai/ros2_jazzy/install/rqt_console:/home/pathonai/ros2_jazzy/install/rqt_graph:/home/pathonai/ros2_jazzy/install/rqt_gui_py:/home/pathonai/ros2_jazzy/install/rqt_gui:/home/pathonai/ros2_jazzy/install/ros2trace:/home/pathonai/ros2_jazzy/install/ros2param:/home/pathonai/ros2_jazzy/install/ros2lifecycle:/home/pathonai/ros2_jazzy/install/ros2service:/home/pathonai/ros2_jazzy/install/ros2topic:/home/pathonai/ros2_jazzy/install/ros2test:/home/pathonai/ros2_jazzy/install/ros2run:/home/pathonai/ros2_jazzy/install/ros2launch:/home/pathonai/ros2_jazzy/install/ros2pkg:/home/pathonai/ros2_jazzy/install/ros2node:/home/pathonai/ros2_jazzy/install/ros2multicast:/home/pathonai/ros2_jazzy/install/ros2interface:/home/pathonai/ros2_jazzy/install/ros2action:/home/pathonai/ros2_jazzy/install/ros2cli:/home/pathonai/ros2_jazzy/install/launch_testing_ros:/home/pathonai/ros2_jazzy/install/launch_ros:/home/pathonai/ros2_jazzy/install/examples_rclpy_minimal_action_server:/home/pathonai/ros2_jazzy/install/examples_rclpy_minimal_action_client:/home/pathonai/ros2_jazzy/install/examples_rclpy_guard_conditions:/home/pathonai/ros2_jazzy/install/action_tutorials_py:/home/pathonai/ros2_jazzy/install/ament_uncrustify:/home/pathonai/ros2_jazzy/install/tracetools_trace:/home/pathonai/ros2_jazzy/install/tracetools_read:/home/pathonai/ros2_jazzy/install/test_tracetools_launch:/home/pathonai/ros2_jazzy/install/test_ros2trace:/home/pathonai/ros2_jazzy/install/test_launch_ros:/home/pathonai/ros2_jazzy/install/rpyutils:/home/pathonai/ros2_jazzy/install/rosidl_runtime_py:/home/pathonai/ros2_jazzy/install/rosidl_pycommon:/home/pathonai/ros2_jazzy/install/rosidl_cli:/home/pathonai/ros2_jazzy/install/launch_pytest:/home/pathonai/ros2_jazzy/install/launch_testing:/home/pathonai/ros2_jazzy/install/launch_yaml:/home/pathonai/ros2_jazzy/install/launch_xml:/home/pathonai/ros2_jazzy/install/launch:/home/pathonai/ros2_jazzy/install/osrf_pycommon:/home/pathonai/ros2_jazzy/install/domain_coordinator:/home/pathonai/ros2_jazzy/install/ament_xmllint:/home/pathonai/ros2_jazzy/install/ament_pyflakes:/home/pathonai/ros2_jazzy/install/ament_pycodestyle:/home/pathonai/ros2_jazzy/install/ament_pep257:/home/pathonai/ros2_jazzy/install/ament_pclint:/home/pathonai/ros2_jazzy/install/ament_package:/home/pathonai/ros2_jazzy/install/ament_mypy:/home/pathonai/ros2_jazzy/install/ament_lint_cmake:/home/pathonai/ros2_jazzy/install/ament_flake8:/home/pathonai/ros2_jazzy/install/ament_copyright:/home/pathonai/ros2_jazzy/install/ament_lint:/home/pathonai/ros2_jazzy/install/ament_index_python:/home/pathonai/ros2_jazzy/install/ament_cpplint:/home/pathonai/ros2_jazzy/install/ament_cppcheck:/home/pathonai/ros2_jazzy/install/ament_clang_tidy:/home/pathonai/ros2_jazzy/install/ament_clang_format:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/ros2_grasping -- -j16 -l16
+[0.683s] [  2%] [34m[1mGenerating type hashes for ROS interfaces[0m
+[0.705s] [  2%] Built target ament_cmake_python_symlink_ros2_grasping
+[1.216s] [  2%] Built target ros2_grasping__rosidl_generator_type_description
+[1.242s] [  5%] [34m[1mGenerating C code for ROS interfaces[0m
+[1.272s] [  8%] [34m[1mGenerating C++ code for ROS interfaces[0m
+[1.530s] running egg_info
+[1.606s] writing ros2_grasping.egg-info/PKG-INFO
+[1.610s] writing dependency_links to ros2_grasping.egg-info/dependency_links.txt
+[1.610s] writing top-level names to ros2_grasping.egg-info/top_level.txt
+[1.925s] reading manifest file 'ros2_grasping.egg-info/SOURCES.txt'
+[1.930s] writing manifest file 'ros2_grasping.egg-info/SOURCES.txt'
+[2.121s] [  8%] Built target ament_cmake_python_build_ros2_grasping_egg
+[2.676s] [  8%] Built target ros2_grasping__cpp
+[3.000s] [ 11%] [32mBuilding C object CMakeFiles/ros2_grasping__rosidl_generator_c.dir/rosidl_generator_c/ros2_grasping/action/detail/attacher__description.c.o[0m
+[3.001s] [ 14%] [32mBuilding C object CMakeFiles/ros2_grasping__rosidl_generator_c.dir/rosidl_generator_c/ros2_grasping/action/detail/attacher__type_support.c.o[0m
+[3.001s] [ 17%] [32mBuilding C object CMakeFiles/ros2_grasping__rosidl_generator_c.dir/rosidl_generator_c/ros2_grasping/action/detail/attacher__functions.c.o[0m
+[3.422s] [ 20%] [32m[1mLinking C shared library libros2_grasping__rosidl_generator_c.so[0m
+[3.546s] [ 20%] Built target ros2_grasping__rosidl_generator_c
+[3.605s] [ 23%] [34m[1mGenerating C++ type support for eProsima Fast-RTPS[0m
+[3.613s] [ 26%] [34m[1mGenerating C++ introspection for ROS interfaces[0m
+[3.623s] [ 29%] [34m[1mGenerating C type support dispatch for ROS interfaces[0m
+[3.631s] [ 32%] [34m[1mGenerating C++ type support dispatch for ROS interfaces[0m
+[3.631s] [ 35%] [34m[1mGenerating C introspection for ROS interfaces[0m
+[3.631s] [ 38%] [34m[1mGenerating C type support for eProsima Fast-RTPS[0m
+[4.984s] [ 41%] [32mBuilding CXX object CMakeFiles/ros2_grasping__rosidl_typesupport_c.dir/rosidl_typesupport_c/ros2_grasping/action/attacher__type_support.cpp.o[0m
+[5.051s] [ 44%] [32mBuilding CXX object CMakeFiles/ros2_grasping__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/ros2_grasping/action/detail/attacher__type_support.cpp.o[0m
+[5.278s] [ 47%] [32m[1mLinking CXX shared library libros2_grasping__rosidl_typesupport_c.so[0m
+[5.453s] [ 50%] [32mBuilding CXX object CMakeFiles/ros2_grasping__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/ros2_grasping/action/attacher__type_support.cpp.o[0m
+[5.477s] [ 52%] [32mBuilding C object CMakeFiles/ros2_grasping__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/ros2_grasping/action/detail/attacher__type_support.c.o[0m
+[5.497s] [ 52%] Built target ros2_grasping__rosidl_typesupport_c
+[5.560s] [ 55%] [32mBuilding CXX object CMakeFiles/ros2_grasping__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/ros2_grasping/action/detail/dds_fastrtps/attacher__type_support.cpp.o[0m
+[5.724s] [ 58%] [32m[1mLinking C shared library libros2_grasping__rosidl_typesupport_introspection_c.so[0m
+[5.929s] [ 58%] Built target ros2_grasping__rosidl_typesupport_introspection_c
+[6.060s] [ 61%] [32mBuilding CXX object CMakeFiles/ros2_grasping__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/ros2_grasping/action/detail/attacher__type_support_c.cpp.o[0m
+[6.888s] [ 64%] [32m[1mLinking CXX shared library libros2_grasping__rosidl_typesupport_cpp.so[0m
+[7.054s] [ 67%] [32m[1mLinking CXX shared library libros2_grasping__rosidl_typesupport_introspection_cpp.so[0m
+[7.054s] [ 67%] Built target ros2_grasping__rosidl_typesupport_cpp
+[7.219s] [ 67%] Built target ros2_grasping__rosidl_typesupport_introspection_cpp
+[7.373s] [ 70%] [32m[1mLinking CXX shared library libros2_grasping__rosidl_typesupport_fastrtps_c.so[0m
+[7.574s] [ 70%] Built target ros2_grasping__rosidl_typesupport_fastrtps_c
+[7.760s] [ 73%] [32m[1mLinking CXX shared library libros2_grasping__rosidl_typesupport_fastrtps_cpp.so[0m
+[7.977s] [ 73%] Built target ros2_grasping__rosidl_typesupport_fastrtps_cpp
+[8.071s] [ 73%] Built target ros2_grasping
+[8.149s] [ 76%] [34m[1mGenerating Python code for ROS interfaces[0m
+[9.823s] [ 76%] Built target ros2_grasping__py
+[9.887s] [ 79%] [32mBuilding C object CMakeFiles/ros2_grasping__rosidl_generator_py.dir/rosidl_generator_py/ros2_grasping/action/_attacher_s.c.o[0m
+[10.270s] [ 82%] [32m[1mLinking C shared library libros2_grasping__rosidl_generator_py.so[0m
+[10.409s] [ 82%] Built target ros2_grasping__rosidl_generator_py
+[10.539s] [ 85%] [32mBuilding C object CMakeFiles/ros2_grasping_s__rosidl_typesupport_fastrtps_c.dir/rosidl_generator_py/ros2_grasping/_ros2_grasping_s.ep.rosidl_typesupport_fastrtps_c.c.o[0m
+[10.540s] [ 88%] [32mBuilding C object CMakeFiles/ros2_grasping_s__rosidl_typesupport_introspection_c.dir/rosidl_generator_py/ros2_grasping/_ros2_grasping_s.ep.rosidl_typesupport_introspection_c.c.o[0m
+[10.545s] [ 91%] [32mBuilding C object CMakeFiles/ros2_grasping_s__rosidl_typesupport_c.dir/rosidl_generator_py/ros2_grasping/_ros2_grasping_s.ep.rosidl_typesupport_c.c.o[0m
+[10.880s] [ 94%] [32m[1mLinking C shared module rosidl_generator_py/ros2_grasping/ros2_grasping_s__rosidl_typesupport_c.so[0m
+[10.884s] [ 97%] [32m[1mLinking C shared module rosidl_generator_py/ros2_grasping/ros2_grasping_s__rosidl_typesupport_fastrtps_c.so[0m
+[10.903s] [100%] [32m[1mLinking C shared module rosidl_generator_py/ros2_grasping/ros2_grasping_s__rosidl_typesupport_introspection_c.so[0m
+[10.977s] [100%] Built target ros2_grasping_s__rosidl_typesupport_fastrtps_c
+[11.030s] [100%] Built target ros2_grasping_s__rosidl_typesupport_c
+[11.046s] [100%] Built target ros2_grasping_s__rosidl_typesupport_introspection_c

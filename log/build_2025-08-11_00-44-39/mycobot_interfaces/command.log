@@ -1,0 +1,2 @@
+Invoking command in '/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_interfaces': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_interfaces -- -j16 -l16
+Invoked command in '/home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_interfaces' returned '2': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/pathonai/ros2_ws/src/opensource_dev/build/mycobot_interfaces -- -j16 -l16
