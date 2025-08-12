@@ -42,9 +42,9 @@ def main():
         # Define some safe test positions
         positions = [
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],      # Neutral position
-            [0.3, -0.2, 0.5, 0.0, 0.0, 0.0],     # Test position 1
-            [-0.3, -0.2, 0.5, 0.0, 0.0, 0.0],    # Test position 2
-            [0.0, -0.5, 1.0, 0.5, 0.0, 0.0],     # Test position 3
+            # [0.3, -0.2, 0.5, 0.0, 0.0, 0.0],     # Test position 1
+            # [-0.3, -0.2, 0.5, 0.0, 0.0, 0.0],    # Test position 2
+            # [0.0, -0.5, 1.0, 0.5, 0.0, 0.0],     # Test position 3
         ]
         
         print("\n🎯 Executing test movements...")

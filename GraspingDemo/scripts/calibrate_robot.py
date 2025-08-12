@@ -16,7 +16,7 @@ from so101_grasp.robot.calibration import RobotCalibrator
 def main():
     """Main calibration function."""
     parser = argparse.ArgumentParser(description="SO-101 Robot Calibration")
-    parser.add_argument("--port", default="/dev/tty.usbmodem5A680107891", 
+    parser.add_argument("--port", default="/dev/ttyACM0", 
                        help="Robot serial port")
     parser.add_argument("--force", action="store_true", 
                        help="Force recalibration even if file exists")

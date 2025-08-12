@@ -1,0 +1,42 @@
+{
+    "robot_name": "SO101",
+    "urdf_file": "urdf/so101_base.xacro",
+    "mesh_folder": "meshes/so101",
+    "default_joint_angles": {
+        "1": 0.0,
+        "2": -0.5,
+        "3": 0.8,
+        "4": -0.3,
+        "5": 0.0,
+        "6": 0.0
+    },
+    "joint_names": {
+        "1": "Base Rotation",
+        "2": "Shoulder Pitch",
+        "3": "Elbow Flexion",
+        "4": "Wrist Pitch",
+        "5": "Wrist Roll",
+        "6": "Gripper"
+    },
+    "joint_limits": {
+        "1": [-2.79253, 2.79253],
+        "2": [-1.65806, 1.65806],
+        "3": [-1.65806, 1.65806],
+        "4": [-1.65806, 1.65806],
+        "5": [-2.79253, 2.79253],
+        "6": [-0.174533, 1.74533]
+    },
+    "visualization": {
+        "scale_to_cm": 100.0,
+        "default_opacity": 0.7,
+        "show_axes": true,
+        "show_joint_markers": true,
+        "mesh_simplification": false
+    },
+    "colors": {
+        "3d_printed": [1.0, 0.82, 0.12, 1.0],
+        "servo_motor": [0.1, 0.1, 0.1, 1.0],
+        "joint_marker": [1.0, 0.5, 0.0, 1.0],
+        "link_connection": [1.0, 0.0, 0.0, 1.0]
+    }
+}
