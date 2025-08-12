@@ -4,12 +4,5 @@
     <xacro:include filename="$(find lerobot_description)/urdf/so101_base.xacro" />
     <xacro:include filename="$(find lerobot_description)/urdf/so101_gazebo.xacro" />
     <xacro:include filename="$(find lerobot_description)/urdf/so101_ros2_control.xacro" />
-    <!-- Include the camera xacro -->
-    <xacro:include filename="$(find lerobot_description)/urdf/_d415.urdf.xacro"/>
 
-    <!-- Mount the camera to some link -->
-    <!-- Attach the RealSense D415 to base_link -->
-    <xacro:sensor_d415 name="d415" parent="world">
-      <origin xyz="0.2 0 0.1" rpy="0 0 0"/>
-    </xacro:sensor_d415>
 </robot>
