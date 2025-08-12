@@ -873,6 +873,41 @@
                         <!-- Three.js container -->
                         <div id="pointcloud-container-threejs" style="display: none; width: 100%; height: 500px; background: #1a1a1a; border-radius: 10px; border: 1px solid #ddd; position: relative;"></div>
                         
+                        <!-- Grasp Detection Section -->
+                        <div style="margin-top: 15px; padding: 15px; background: #fff5e6; border-radius: 10px;">
+                            <h4 style="margin-top: 0; margin-bottom: 15px;">🦾 Grasp Detection (ThinkGrasp)</h4>
+                            
+                            <div class="form-group" style="margin-bottom: 10px;">
+                                <label for="grasp-text" style="display: block; margin-bottom: 5px;">Grasp Command:</label>
+                                <input type="text" id="grasp-text" placeholder="e.g., pick up the red ball" 
+                                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            
+                            <button onclick="detectGraspPose()" class="btn btn-primary" 
+                                    style="width: 100%; padding: 10px; background: #ff6b35; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🎯 Detect Grasp Pose
+                            </button>
+                            
+                            <div id="grasp-status" style="margin-top: 10px; display: none;">
+                                <div class="alert" id="grasp-status-message" style="padding: 10px; border-radius: 4px;"></div>
+                            </div>
+                            
+                            <div id="grasp-result" style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 4px; display: none;">
+                                <strong style="color: #fff;">Grasp Pose Result:</strong>
+                                <pre id="grasp-result-text" style="color: #0f0; font-size: 12px; margin: 5px 0;"></pre>
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <button onclick="showGraspInPlotly()" class="btn btn-info" 
+                                            style="flex: 1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                        📊 Show in Plotly
+                                    </button>
+                                    <button onclick="executeGraspPose()" class="btn btn-success" 
+                                            style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                        🤖 Execute Grasp
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Robot-Camera Transform Controls -->
                         <div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 10px;">
                             <h4 style="margin-top: 0; margin-bottom: 15px;">🤖 Robot-Camera Transform Adjustment</h4>
@@ -3164,6 +3199,332 @@
             // Apply rotation - match Plotly rotation order (ZYX Euler)
             robotModel.rotation.order = 'ZYX';
             robotModel.rotation.set(rotRoll, rotPitch, rotYaw);
+        }
+        
+        // Global variable to store detected grasp pose
+        let detectedGraspPose = null;
+        let graspVisualization = null;
+        
+        // Function to detect grasp pose using ThinkGrasp
+        async function detectGraspPose() {
+            const graspText = document.getElementById('grasp-text').value.trim();
+            if (!graspText) {
+                showMessage('Please enter a grasp command', 'error');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('grasp-status');
+            const statusMessage = document.getElementById('grasp-status-message');
+            const resultDiv = document.getElementById('grasp-result');
+            const resultText = document.getElementById('grasp-result-text');
+            
+            // Show status
+            statusDiv.style.display = 'block';
+            statusMessage.className = 'alert alert-info';
+            statusMessage.innerHTML = '⏳ Capturing scene and detecting grasp pose...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                // First, capture the current scene
+                const captureResponse = await fetch('/api/camera/capture', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        pointcloud: true
+                    })
+                });
+                
+                const captureData = await captureResponse.json();
+                if (!captureData.success) {
+                    throw new Error(captureData.message || 'Failed to capture scene');
+                }
+                
+                // Extract capture name from the capture_info string
+                const captureName = captureData.capture_info || captureData.message;
+                const captureNameMatch = captureName.match(/(\d{8}_\d{6})/);
+                if (!captureNameMatch) {
+                    throw new Error('Could not extract capture name from response');
+                }
+                const extractedCaptureName = captureNameMatch[1];
+                
+                // Now call the grasp detection API
+                const graspResponse = await fetch('/api/grasp/detect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        capture_name: extractedCaptureName,
+                        grasp_text: graspText
+                    })
+                });
+                
+                const graspData = await graspResponse.json();
+                if (!graspData.success) {
+                    throw new Error(graspData.message || 'Failed to detect grasp pose');
+                }
+                
+                // Store the grasp pose and joint states globally
+                detectedGraspPose = graspData.grasp_pose;
+                const jointStates = graspData.joint_states;
+                window.currentGraspJointStates = jointStates;  // Store globally for later use
+                
+                // Display results
+                statusMessage.className = 'alert alert-success';
+                statusMessage.innerHTML = '✅ Grasp pose detected successfully!';
+                
+                // Format joint states for display
+                let jointStatesText = '';
+                if (jointStates) {
+                    jointStatesText = '\n\nJoint States (radians):\n';
+                    jointStatesText += `  Joint 1 (Base):     ${jointStates.joint_1?.toFixed(3) || '0.000'}\n`;
+                    jointStatesText += `  Joint 2 (Shoulder): ${jointStates.joint_2?.toFixed(3) || '0.000'}\n`;
+                    jointStatesText += `  Joint 3 (Elbow):    ${jointStates.joint_3?.toFixed(3) || '0.000'}\n`;
+                    jointStatesText += `  Joint 4 (Wrist P):  ${jointStates.joint_4?.toFixed(3) || '0.000'}\n`;
+                    jointStatesText += `  Joint 5 (Wrist R):  ${jointStates.joint_5?.toFixed(3) || '0.000'}\n`;
+                    jointStatesText += `  Joint 6 (Gripper):  ${jointStates.joint_6?.toFixed(3) || '0.000'}\n`;
+                    
+                    if (jointStates.joint_angles_deg) {
+                        jointStatesText += '\nJoint States (degrees):\n';
+                        jointStates.joint_angles_deg.forEach((angle, i) => {
+                            const jointNames = ['Base', 'Shoulder', 'Elbow', 'Wrist P', 'Wrist R', 'Gripper'];
+                            jointStatesText += `  ${jointNames[i]}: ${angle.toFixed(1)}°\n`;
+                        });
+                    }
+                }
+                
+                resultDiv.style.display = 'block';
+                resultText.textContent = JSON.stringify({
+                    position: detectedGraspPose.xyz,
+                    rotation: detectedGraspPose.rot,
+                    depth: detectedGraspPose.dep
+                }, null, 2) + jointStatesText;
+                
+                // Visualize grasp pose on point cloud
+                visualizeGraspPose(detectedGraspPose);
+                
+                // Update Plotly visualization if it's active
+                if (currentViewerType === 'plotly') {
+                    updatePlotlyWithGraspPose(detectedGraspPose, jointStates);
+                }
+                
+            } catch (error) {
+                console.error('Grasp detection error:', error);
+                statusMessage.className = 'alert alert-danger';
+                statusMessage.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.style.display = 'none';
+            }
+        }
+        
+        // Function to visualize grasp pose on the point cloud
+        function visualizeGraspPose(graspPose) {
+            if (!pointCloudScene || !graspPose) return;
+            
+            // Remove previous grasp visualization
+            if (graspVisualization) {
+                pointCloudScene.remove(graspVisualization);
+                graspVisualization = null;
+            }
+            
+            // Create grasp visualization group
+            graspVisualization = new THREE.Group();
+            graspVisualization.name = 'graspVisualization';
+            
+            // Convert grasp position (camera coordinates in mm to scene coordinates in m)
+            const position = graspPose.xyz;
+            const rotation = graspPose.rot;
+            
+            // Create gripper representation
+            const gripperLength = 0.12;  // 12cm gripper length
+            const gripperWidth = 0.08;   // 8cm gripper width
+            const gripperThickness = 0.02; // 2cm thickness
+            
+            // Create gripper fingers
+            const fingerGeometry = new THREE.BoxGeometry(gripperThickness, gripperLength / 2, gripperThickness);
+            const gripperMaterial = new THREE.MeshPhongMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            // Create gripper base
+            const baseGeometry = new THREE.BoxGeometry(gripperWidth, gripperThickness, gripperThickness * 2);
+            const baseMesh = new THREE.Mesh(baseGeometry, gripperMaterial);
+            graspVisualization.add(baseMesh);
+            
+            // Create left finger
+            const leftFinger = new THREE.Mesh(fingerGeometry, gripperMaterial);
+            leftFinger.position.set(-gripperWidth/3, -gripperLength/4, 0);
+            graspVisualization.add(leftFinger);
+            
+            // Create right finger
+            const rightFinger = new THREE.Mesh(fingerGeometry, gripperMaterial);
+            rightFinger.position.set(gripperWidth/3, -gripperLength/4, 0);
+            graspVisualization.add(rightFinger);
+            
+            // Apply position (convert mm to m for display)
+            graspVisualization.position.set(position[0] / 10, position[1] / 10, position[2] / 10);  // Convert to cm for display
+            
+            // Apply rotation matrix
+            const rotMatrix = new THREE.Matrix3();
+            rotMatrix.set(
+                rotation[0][0], rotation[0][1], rotation[0][2],
+                rotation[1][0], rotation[1][1], rotation[1][2],
+                rotation[2][0], rotation[2][1], rotation[2][2]
+            );
+            const rotMatrix4 = new THREE.Matrix4();
+            rotMatrix4.setFromMatrix3(rotMatrix);
+            graspVisualization.rotation.setFromRotationMatrix(rotMatrix4);
+            
+            // Add approach vector arrow
+            const arrowOrigin = new THREE.Vector3(0, 0, 0);  // Local to gripper
+            const arrowDirection = new THREE.Vector3(0, -1, 0); // Approach from above in gripper frame
+            
+            const arrowHelper = new THREE.ArrowHelper(
+                arrowDirection,
+                arrowOrigin,
+                0.15, // length (15cm)
+                0xff0000, // color (red)
+                0.05, // head length
+                0.03  // head width
+            );
+            graspVisualization.add(arrowHelper);
+            
+            // Add coordinate frame at grasp pose
+            const axesHelper = new THREE.AxesHelper(0.1);  // 10cm axes
+            graspVisualization.add(axesHelper);
+            
+            pointCloudScene.add(graspVisualization);
+            
+            console.log('Grasp pose visualized at:', position);
+        }
+        
+        // Function to update Plotly visualization with grasp pose
+        async function updatePlotlyWithGraspPose(graspPose, jointStates) {
+            // Store grasp data globally for Plotly update
+            window.currentGraspPose = graspPose;
+            window.currentGraspJointStates = jointStates;
+            
+            // Update the Plotly iframe with grasp pose data
+            const iframe = document.getElementById('pointcloud-iframe');
+            if (!iframe) {
+                console.error('Plotly iframe not found');
+                return;
+            }
+            
+            // Get current iframe URL and add grasp parameters
+            let currentUrl = iframe.src;
+            if (!currentUrl) {
+                // If no URL yet, trigger a plotly update first
+                await updatePlotlyLiveOnce();
+                currentUrl = iframe.src;
+            }
+            
+            // Parse URL and add grasp parameters
+            const url = new URL(currentUrl, window.location.origin);
+            
+            // Add grasp pose parameters
+            url.searchParams.set('grasp_pose', JSON.stringify(graspPose));
+            url.searchParams.set('grasp_joint_states', JSON.stringify(jointStates));
+            url.searchParams.set('show_grasp', 'true');
+            
+            // Reload iframe with grasp data
+            iframe.src = url.toString();
+            
+            console.log('Plotly visualization updated with grasp pose');
+            
+            // Also update robot visualization if needed
+            if (jointStates && showRobotInPlotly) {
+                const robotJointAngles = {
+                    '1': jointStates.joint_1,
+                    '2': jointStates.joint_2,
+                    '3': jointStates.joint_3,
+                    '4': jointStates.joint_4,
+                    '5': jointStates.joint_5,
+                    '6': jointStates.joint_6
+                };
+                
+                // Request updated visualization with new joint states
+                setTimeout(() => {
+                    updatePlotlyVisualization(robotJointAngles);
+                }, 1000);
+            }
+        }
+        
+        // Function to update Plotly visualization with new joint states
+        async function updatePlotlyVisualization(jointAngles) {
+            try {
+                // Get current robot transform values
+                const robotPosX = parseFloat(document.getElementById('robot-pos-x-input').value) || 0;
+                const robotPosY = parseFloat(document.getElementById('robot-pos-y-input').value) || 0;
+                const robotPosZ = parseFloat(document.getElementById('robot-pos-z-input').value) || 0;
+                const robotRotRoll = parseFloat(document.getElementById('robot-rot-roll').value) || 0;
+                const robotRotPitch = parseFloat(document.getElementById('robot-rot-pitch').value) || 0;
+                const robotRotYaw = parseFloat(document.getElementById('robot-rot-yaw').value) || 0;
+                
+                // Request updated visualization
+                const response = await fetch('/api/robot/update_visualization', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        joint_states: jointAngles,
+                        robot_position: [robotPosX/100, robotPosY/100, robotPosZ/100], // cm to m
+                        robot_rotation: [robotRotRoll, robotRotPitch, robotRotYaw]
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log('Robot visualization updated with grasp joint states');
+                }
+            } catch (error) {
+                console.error('Error updating robot visualization:', error);
+            }
+        }
+        
+        // Function to explicitly show grasp in Plotly viewer
+        function showGraspInPlotly() {
+            if (!detectedGraspPose) {
+                showMessage('No grasp pose detected', 'error');
+                return;
+            }
+            
+            // Switch to Plotly viewer if not already
+            if (currentViewerType !== 'plotly') {
+                document.getElementById('pointcloud-viewer-type').value = 'plotly';
+                switchPointCloudViewer();
+            }
+            
+            // Update Plotly with grasp pose
+            setTimeout(() => {
+                updatePlotlyWithGraspPose(detectedGraspPose, window.currentGraspJointStates);
+            }, 500);
+        }
+        
+        // Function to execute the detected grasp
+        async function executeGraspPose() {
+            if (!detectedGraspPose) {
+                showMessage('No grasp pose detected', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/grasp/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        grasp_pose: detectedGraspPose
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('Grasp execution started', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to execute grasp', 'error');
+                }
+            } catch (error) {
+                console.error('Grasp execution error:', error);
+                showMessage('Error executing grasp', 'error');
+            }
         }
         
         // Update robot joint angles in Three.js
