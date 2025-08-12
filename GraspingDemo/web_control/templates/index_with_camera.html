@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SO-101 Robot & Camera Control</title>
+    
+    <!-- Three.js for point cloud visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #5e72e4;
+            --success: #2dce89;
+            --danger: #f5365c;
+            --warning: #fb6340;
+            --info: #11cdef;
+            --dark: #32325d;
+            --light: #f7fafc;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        
+        .control-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .camera-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Camera Visualization */
+        .camera-views {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .camera-view {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 4/3;
+        }
+        
+        .camera-view img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .camera-view-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        #pointcloud-container {
+            width: 100%;
+            height: 400px;
+            background: #000;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .camera-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .radio-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .captures-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .capture-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .capture-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+            margin-bottom: -2px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1 style="color: var(--dark); margin-bottom: 5px;">🤖 SO-101 Robot Control</h1>
+                <div id="status-display">
+                    <span id="robot-status" class="status-badge status-disconnected">Robot: Disconnected</span>
+                    <span id="camera-status" class="status-badge status-disconnected">Camera: Disconnected</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-danger" onclick="emergencyStop()">🛑 EMERGENCY STOP</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <!-- Robot Control Panel -->
+            <div class="control-panel">
+                <h2 style="margin-bottom: 20px;">Robot Controls</h2>
+                
+                <!-- Connection Section -->
+                <div class="section">
+                    <div class="section-title">🔌 Connection</div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="connectRobot()">Connect Robot</button>
+                        <button class="btn btn-danger" onclick="disconnectRobot()">Disconnect</button>
+                    </div>
+                </div>
+                
+                <!-- Motor Control -->
+                <div class="section">
+                    <div class="section-title">⚙️ Motor Control</div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="enableTorque()">Enable Motors</button>
+                        <button class="btn btn-warning" onclick="disableTorque()">Release Mode</button>
+                    </div>
+                </div>
+                
+                <!-- Gripper Control -->
+                <div class="section">
+                    <div class="section-title">🤏 Gripper</div>
+                    <div class="btn-group">
+                        <button class="btn btn-info" onclick="controlGripper('open')">Open</button>
+                        <button class="btn btn-info" onclick="controlGripper('middle')">Middle</button>
+                        <button class="btn btn-info" onclick="controlGripper('close')">Close</button>
+                    </div>
+                </div>
+                
+                <!-- Position Info -->
+                <div class="section">
+                    <div class="section-title">📍 Current Position</div>
+                    <div id="position-info" style="font-family: monospace; font-size: 12px;">
+                        Waiting for connection...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Camera Panel -->
+            <div class="camera-panel">
+                <h2 style="margin-bottom: 20px;">Camera Visualization</h2>
+                
+                <!-- Camera Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('connection')">Connection</button>
+                    <button class="tab" onclick="switchTab('visualization')">Visualization</button>
+                    <button class="tab" onclick="switchTab('captures')">Captures</button>
+                </div>
+                
+                <!-- Connection Tab -->
+                <div id="connection-tab" class="tab-content active">
+                    <div class="section">
+                        <div class="section-title">📷 Camera Type</div>
+                        <div class="camera-type-selector">
+                            <div class="radio-btn">
+                                <input type="radio" id="camera-auto" name="camera-type" value="auto" checked>
+                                <label for="camera-auto">Auto-detect</label>
+                            </div>
+                            <div class="radio-btn">
+                                <input type="radio" id="camera-realsense" name="camera-type" value="realsense">
+                                <label for="camera-realsense">RealSense</label>
+                            </div>
+                            <div class="radio-btn">
+                                <input type="radio" id="camera-webcam" name="camera-type" value="webcam">
+                                <label for="camera-webcam">Webcam</label>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-success" onclick="connectCamera()">Connect Camera</button>
+                            <button class="btn btn-danger" onclick="disconnectCamera()">Disconnect</button>
+                        </div>
+                        <div id="camera-info" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
+                    </div>
+                </div>
+                
+                <!-- Visualization Tab -->
+                <div id="visualization-tab" class="tab-content">
+                    <div class="section">
+                        <div class="section-title">🎥 Live Stream</div>
+                        <div class="camera-controls">
+                            <button class="btn btn-primary" onclick="startStream()">Start Stream</button>
+                            <button class="btn btn-danger" onclick="stopStream()">Stop Stream</button>
+                            <button class="btn btn-success" onclick="captureFrame()">📸 Capture</button>
+                        </div>
+                        
+                        <div class="camera-views">
+                            <div class="camera-view">
+                                <div class="camera-view-label">RGB</div>
+                                <img id="rgb-view" src="" alt="RGB Stream">
+                            </div>
+                            <div class="camera-view">
+                                <div class="camera-view-label">Depth</div>
+                                <img id="depth-view" src="" alt="Depth Stream">
+                            </div>
+                        </div>
+                        
+                        <div id="pointcloud-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Captures Tab -->
+                <div id="captures-tab" class="tab-content">
+                    <div class="section">
+                        <div class="section-title">💾 Captured Images</div>
+                        <button class="btn btn-info" onclick="refreshCaptures()">Refresh List</button>
+                        <div class="captures-list" id="captures-list">
+                            <p>No captures yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let isStreaming = false;
+        let streamInterval = null;
+        let pointCloudScene = null;
+        let pointCloudRenderer = null;
+        let pointCloudCamera = null;
+        let pointCloudControls = null;
+        let pointCloud = null;
+        
+        // Initialize Three.js for point cloud
+        function initPointCloud() {
+            const container = document.getElementById('pointcloud-container');
+            
+            // Scene
+            pointCloudScene = new THREE.Scene();
+            pointCloudScene.background = new THREE.Color(0x000000);
+            
+            // Camera
+            pointCloudCamera = new THREE.PerspectiveCamera(
+                75,
+                container.clientWidth / container.clientHeight,
+                0.1,
+                1000
+            );
+            pointCloudCamera.position.set(0, 0, 2);
+            
+            // Renderer
+            pointCloudRenderer = new THREE.WebGLRenderer({ antialias: true });
+            pointCloudRenderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(pointCloudRenderer.domElement);
+            
+            // Controls
+            pointCloudControls = new THREE.OrbitControls(pointCloudCamera, pointCloudRenderer.domElement);
+            pointCloudControls.enableDamping = true;
+            pointCloudControls.dampingFactor = 0.05;
+            
+            // Add axes helper
+            const axesHelper = new THREE.AxesHelper(0.5);
+            pointCloudScene.add(axesHelper);
+            
+            // Add grid
+            const gridHelper = new THREE.GridHelper(2, 20);
+            gridHelper.rotation.x = Math.PI / 2;
+            pointCloudScene.add(gridHelper);
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                pointCloudControls.update();
+                pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
+            }
+            animate();
+        }
+        
+        // Update point cloud visualization
+        function updatePointCloud(data) {
+            if (!pointCloudScene) {
+                initPointCloud();
+            }
+            
+            // Remove old point cloud
+            if (pointCloud) {
+                pointCloudScene.remove(pointCloud);
+            }
+            
+            // Create geometry
+            const geometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array(data.vertices.flat());
+            const colors = new Float32Array(data.colors.flat().map(c => c / 255));
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            // Create material
+            const material = new THREE.PointsMaterial({
+                size: 0.002,
+                vertexColors: true
+            });
+            
+            // Create points
+            pointCloud = new THREE.Points(geometry, material);
+            pointCloudScene.add(pointCloud);
+        }
+        
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+        
+        // Robot Control Functions
+        async function connectRobot() {
+            try {
+                const response = await fetch('/api/connect', { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+                updateStatus();
+            } catch (error) {
+                showMessage('Connection failed: ' + error, 'error');
+            }
+        }
+        
+        async function disconnectRobot() {
+            try {
+                const response = await fetch('/api/disconnect', { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, 'success');
+                updateStatus();
+            } catch (error) {
+                showMessage('Disconnect failed: ' + error, 'error');
+            }
+        }
+        
+        async function enableTorque() {
+            try {
+                const response = await fetch('/api/enable_torque', { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+            } catch (error) {
+                showMessage('Failed to enable motors: ' + error, 'error');
+            }
+        }
+        
+        async function disableTorque() {
+            try {
+                const response = await fetch('/api/disable_torque', { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+            } catch (error) {
+                showMessage('Failed to disable motors: ' + error, 'error');
+            }
+        }
+        
+        async function controlGripper(action) {
+            try {
+                const response = await fetch(`/api/gripper/${action}`, { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+            } catch (error) {
+                showMessage('Gripper control failed: ' + error, 'error');
+            }
+        }
+        
+        async function emergencyStop() {
+            try {
+                const response = await fetch('/api/emergency_stop', { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+            } catch (error) {
+                showMessage('Emergency stop failed: ' + error, 'error');
+            }
+        }
+        
+        // Camera Control Functions
+        async function connectCamera() {
+            const cameraType = document.querySelector('input[name="camera-type"]:checked').value;
+            
+            try {
+                const response = await fetch('/api/camera/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: cameraType })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(`Connected to ${data.type} camera`, 'success');
+                    updateCameraInfo();
+                } else {
+                    showMessage(data.message, 'error');
+                }
+                updateStatus();
+            } catch (error) {
+                showMessage('Camera connection failed: ' + error, 'error');
+            }
+        }
+        
+        async function disconnectCamera() {
+            stopStream();
+            try {
+                const response = await fetch('/api/camera/disconnect', { method: 'POST' });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+                updateStatus();
+            } catch (error) {
+                showMessage('Camera disconnect failed: ' + error, 'error');
+            }
+        }
+        
+        async function startStream() {
+            if (isStreaming) return;
+            
+            isStreaming = true;
+            streamInterval = setInterval(updateStreams, 100); // Update at 10 FPS
+            showMessage('Stream started', 'success');
+        }
+        
+        function stopStream() {
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+            isStreaming = false;
+            showMessage('Stream stopped', 'info');
+        }
+        
+        async function updateStreams() {
+            // Update RGB stream
+            try {
+                const rgbResponse = await fetch('/api/camera/rgb');
+                const rgbData = await rgbResponse.json();
+                if (rgbData.success) {
+                    document.getElementById('rgb-view').src = 'data:image/jpeg;base64,' + rgbData.image;
+                }
+            } catch (error) {
+                console.error('RGB stream error:', error);
+            }
+            
+            // Update depth stream (RealSense only)
+            try {
+                const depthResponse = await fetch('/api/camera/depth');
+                const depthData = await depthResponse.json();
+                if (depthData.success) {
+                    document.getElementById('depth-view').src = 'data:image/jpeg;base64,' + depthData.image;
+                }
+            } catch (error) {
+                // Depth not available (probably webcam)
+                document.getElementById('depth-view').src = '';
+            }
+            
+            // Update point cloud (RealSense only, less frequent)
+            if (Math.random() < 0.2) { // Update point cloud every ~5th frame
+                try {
+                    const pcResponse = await fetch('/api/camera/pointcloud?downsample=8');
+                    const pcData = await pcResponse.json();
+                    if (pcData.success) {
+                        updatePointCloud(pcData.pointcloud);
+                    }
+                } catch (error) {
+                    // Point cloud not available
+                }
+            }
+        }
+        
+        async function captureFrame() {
+            try {
+                const response = await fetch('/api/camera/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pointcloud: true })
+                });
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    refreshCaptures();
+                }
+            } catch (error) {
+                showMessage('Capture failed: ' + error, 'error');
+            }
+        }
+        
+        async function refreshCaptures() {
+            try {
+                const response = await fetch('/api/camera/list_captures');
+                const captures = await response.json();
+                
+                const listDiv = document.getElementById('captures-list');
+                if (captures.length === 0) {
+                    listDiv.innerHTML = '<p>No captures yet</p>';
+                } else {
+                    listDiv.innerHTML = captures.map(cap => `
+                        <div class="capture-item">
+                            <span>${cap.name}</span>
+                            <span>
+                                ${cap.has_rgb ? '🖼️' : ''}
+                                ${cap.has_depth ? '📊' : ''}
+                                ${cap.has_pointcloud ? '☁️' : ''}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to refresh captures:', error);
+            }
+        }
+        
+        async function updateCameraInfo() {
+            try {
+                const response = await fetch('/api/camera/status');
+                const status = await response.json();
+                
+                const infoDiv = document.getElementById('camera-info');
+                if (status.connected && status.info) {
+                    infoDiv.innerHTML = `
+                        <strong>Camera:</strong> ${status.info.name}<br>
+                        <strong>Serial:</strong> ${status.info.serial}<br>
+                        <strong>Resolution:</strong> ${status.info.intrinsics?.width}x${status.info.intrinsics?.height}
+                    `;
+                } else {
+                    infoDiv.innerHTML = '';
+                }
+            } catch (error) {
+                console.error('Failed to get camera info:', error);
+            }
+        }
+        
+        // Status update
+        async function updateStatus() {
+            try {
+                // Robot status
+                const robotResponse = await fetch('/api/status');
+                const robotData = await robotResponse.json();
+                
+                const robotBadge = document.getElementById('robot-status');
+                if (robotData.connected) {
+                    robotBadge.textContent = `Robot: Connected ${robotData.motors_enabled ? '(Motors ON)' : '(Release Mode)'}`;
+                    robotBadge.className = 'status-badge status-connected';
+                    
+                    // Update position info
+                    const posInfo = document.getElementById('position-info');
+                    if (robotData.positions) {
+                        posInfo.innerHTML = `
+                            J1: ${robotData.positions[0].toFixed(3)} rad<br>
+                            J2: ${robotData.positions[1].toFixed(3)} rad<br>
+                            J3: ${robotData.positions[2].toFixed(3)} rad<br>
+                            J4: ${robotData.positions[3].toFixed(3)} rad<br>
+                            J5: ${robotData.positions[4].toFixed(3)} rad<br>
+                            Gripper: ${robotData.gripper}
+                        `;
+                    }
+                } else {
+                    robotBadge.textContent = 'Robot: Disconnected';
+                    robotBadge.className = 'status-badge status-disconnected';
+                    document.getElementById('position-info').innerHTML = 'Waiting for connection...';
+                }
+                
+                // Camera status
+                const cameraResponse = await fetch('/api/camera/status');
+                const cameraData = await cameraResponse.json();
+                
+                const cameraBadge = document.getElementById('camera-status');
+                if (cameraData.connected) {
+                    cameraBadge.textContent = `Camera: ${cameraData.type}`;
+                    cameraBadge.className = 'status-badge status-connected';
+                } else {
+                    cameraBadge.textContent = 'Camera: Disconnected';
+                    cameraBadge.className = 'status-badge status-disconnected';
+                }
+            } catch (error) {
+                console.error('Status update error:', error);
+            }
+        }
+        
+        // Message display
+        function showMessage(message, type) {
+            // Simple alert for now, can be replaced with better UI
+            console.log(`[${type}] ${message}`);
+            if (type === 'error') {
+                alert('Error: ' + message);
+            }
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            setInterval(updateStatus, 1000); // Update status every second
+            initPointCloud(); // Initialize 3D visualization
+        });
+    </script>
+</body>
+</html>
