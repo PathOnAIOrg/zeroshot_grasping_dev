@@ -606,10 +606,9 @@
     </style>
     
     <!-- Three.js for 3D point cloud visualization -->
-    <script type="module">
-        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
-        window.THREE = THREE;
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/loaders/STLLoader.js"></script>
 </head>
 <body>
     <!-- Motor Warning Banner -->
@@ -802,7 +801,7 @@
                             </div>
                         </div>
                         
-                        <!-- Point Cloud Controls (Plotly Only) -->
+                        <!-- Point Cloud Controls -->
                         <div style="display: flex; gap: 15px; margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
                             <div style="flex: 1;">
                                 <label style="display: flex; align-items: center; gap: 5px;">
@@ -817,10 +816,9 @@
                                 </label>
                             </div>
                             <div style="flex: 1;">
-                                <label style="display: flex; align-items: center; gap: 5px;">
-                                    <input type="checkbox" id="auto-refresh-plotly" onchange="togglePlotlyAutoRefresh()">
-                                    <span style="font-size: 12px;">Auto-refresh (1s)</span>
-                                </label>
+                                <button class="btn btn-primary btn-sm" onclick="updatePlotlyNow()" style="padding: 5px 10px; font-size: 12px;">
+                                    🔄 Update Plotly
+                                </button>
                             </div>
                             <div style="flex: 1;">
                                 <label style="font-size: 11px; color: #666;">Density (Plotly):</label>
@@ -874,6 +872,121 @@
                         </div>
                         <!-- Three.js container -->
                         <div id="pointcloud-container-threejs" style="display: none; width: 100%; height: 500px; background: #1a1a1a; border-radius: 10px; border: 1px solid #ddd; position: relative;"></div>
+                        
+                        <!-- Robot-Camera Transform Controls -->
+                        <div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 10px;">
+                            <h4 style="margin-top: 0; margin-bottom: 15px;">🤖 Robot-Camera Transform Adjustment</h4>
+                            
+                            <!-- Position Controls -->
+                            <div style="margin-bottom: 15px;">
+                                <strong style="font-size: 13px;">Translation (cm):</strong>
+                                <div style="display: grid; grid-template-columns: 40px 1fr 80px; gap: 8px; margin-top: 8px;">
+                                    <label style="font-size: 12px;">X:</label>
+                                    <input type="range" id="robot-pos-x" min="-200" max="200" value="0" step="1" 
+                                           oninput="updateRobotTransform()" style="width: 100%;">
+                                    <input type="number" id="robot-pos-x-input" value="0" min="-500" max="500" 
+                                           onchange="updateRobotPositionFromInput('x')"
+                                           style="width: 70px; font-size: 11px; padding: 2px;">
+                                    
+                                    <label style="font-size: 12px;">Y:</label>
+                                    <input type="range" id="robot-pos-y" min="-200" max="200" value="0" step="1" 
+                                           oninput="updateRobotTransform()" style="width: 100%;">
+                                    <input type="number" id="robot-pos-y-input" value="0" min="-500" max="500"
+                                           onchange="updateRobotPositionFromInput('y')"
+                                           style="width: 70px; font-size: 11px; padding: 2px;">
+                                    
+                                    <label style="font-size: 12px;">Z:</label>
+                                    <input type="range" id="robot-pos-z" min="-200" max="200" value="0" step="1" 
+                                           oninput="updateRobotTransform()" style="width: 100%;">
+                                    <input type="number" id="robot-pos-z-input" value="0" min="-500" max="500"
+                                           onchange="updateRobotPositionFromInput('z')"
+                                           style="width: 70px; font-size: 11px; padding: 2px;">
+                                </div>
+                                <div style="font-size: 10px; color: #666; margin-top: 5px;">
+                                    Slider range: ±200cm | Input range: ±500cm
+                                </div>
+                            </div>
+                            
+                            <!-- Rotation Controls -->
+                            <div style="margin-bottom: 12px;">
+                                <strong style="font-size: 13px;">Rotation (degrees):</strong>
+                                <div style="display: grid; grid-template-columns: 40px 1fr 60px; gap: 8px; margin-top: 8px;">
+                                    <label style="font-size: 12px;">Roll:</label>
+                                    <input type="range" id="robot-rot-roll" min="-180" max="180" value="0" step="5" 
+                                           oninput="updateRobotTransform()" style="width: 100%;">
+                                    <span id="robot-rot-roll-value" style="font-size: 11px;">0°</span>
+                                    
+                                    <label style="font-size: 12px;">Pitch:</label>
+                                    <input type="range" id="robot-rot-pitch" min="-180" max="180" value="0" step="5" 
+                                           oninput="updateRobotTransform()" style="width: 100%;">
+                                    <span id="robot-rot-pitch-value" style="font-size: 11px;">0°</span>
+                                    
+                                    <label style="font-size: 12px;">Yaw:</label>
+                                    <input type="range" id="robot-rot-yaw" min="-180" max="180" value="0" step="5" 
+                                           oninput="updateRobotTransform()" style="width: 100%;">
+                                    <span id="robot-rot-yaw-value" style="font-size: 11px;">0°</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Quick Rotation Buttons -->
+                            <div style="margin-bottom: 12px;">
+                                <strong style="font-size: 13px;">Quick Rotations:</strong>
+                                <div style="display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap;">
+                                    <button class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" onclick="applyQuickRotation(180, 0, 0)">Flip X</button>
+                                    <button class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" onclick="applyQuickRotation(0, 180, 0)">Flip Y</button>
+                                    <button class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" onclick="applyQuickRotation(0, 0, 180)">Flip Z</button>
+                                    <button class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" onclick="applyQuickRotation(0, 0, 90)">+90° Z</button>
+                                    <button class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" onclick="applyQuickRotation(0, 0, -90)">-90° Z</button>
+                                    <button class="btn btn-sm" style="font-size: 11px; padding: 3px 8px;" onclick="applyQuickRotation(0, 180, 270)">HandEye Default</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Transform Profiles -->
+                            <div style="margin-bottom: 12px; padding: 10px; background: #fff; border-radius: 5px;">
+                                <strong style="font-size: 13px;">Transform Profiles:</strong>
+                                <div style="margin-top: 8px;">
+                                    <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+                                        <input type="text" id="profile-name-input" placeholder="Profile name..." 
+                                               style="flex: 1; font-size: 11px; padding: 3px 5px;">
+                                        <button class="btn btn-primary btn-sm" style="font-size: 11px; padding: 3px 8px;" 
+                                                onclick="saveTransformProfile()">
+                                            💾 Save Profile
+                                        </button>
+                                    </div>
+                                    <div style="display: flex; gap: 5px; align-items: center;">
+                                        <select id="profile-selector" style="flex: 1; font-size: 11px; padding: 3px;"
+                                                onchange="profileSelectionChanged()">
+                                            <option value="">-- Select Profile --</option>
+                                        </select>
+                                        <button class="btn btn-info btn-sm" style="font-size: 11px; padding: 3px 8px;"
+                                                onclick="loadSelectedProfile()">
+                                            📂 Load
+                                        </button>
+                                        <button class="btn btn-warning btn-sm" style="font-size: 11px; padding: 3px 8px;"
+                                                onclick="deleteSelectedProfile()">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 8px; font-size: 10px; color: #666;">
+                                    Profiles are saved in browser storage
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 5px 12px;" onclick="resetRobotTransform()">
+                                    🔄 Reset All
+                                </button>
+                                <button class="btn btn-success btn-sm" style="font-size: 12px; padding: 5px 12px;" onclick="exportProfiles()">
+                                    📤 Export
+                                </button>
+                                <button class="btn btn-success btn-sm" style="font-size: 12px; padding: 5px 12px;" onclick="importProfiles()">
+                                    📥 Import
+                                </button>
+                            </div>
+                            <input type="file" id="import-profiles-file" style="display: none;" accept=".json" onchange="handleProfileImport(event)">
+                        </div>
                     </div>
                     
                     <!-- Right side: RGB and Depth -->
@@ -1419,6 +1532,8 @@
         let pointCloudRenderer = null;
         let pointCloud = null;
         let pointCloudPoints = null;  // Reference to the THREE.Points object
+        let robotModel = null;  // Three.js robot model
+        let robotJoints = {};  // Joint references for animation
         
         // Point cloud control variables
         let pointCloudDensity = 8;  // Downsampling factor (1=dense, 16=sparse)
@@ -1442,45 +1557,91 @@
         
         function toggleRobotVisualization() {
             showRobotInPlotly = document.getElementById('show-robot-viz').checked;
+            
+            // Handle Three.js robot visibility
+            if (currentViewerType === 'threejs' && robotModel) {
+                robotModel.visible = showRobotInPlotly;
+            }
+            
             // Refresh the current Plotly view if it's active
             if (currentViewerType === 'plotly' && lastCaptureName) {
                 updatePlotlyPointCloud(lastCaptureName);
             }
         }
         
-        let plotlyAutoRefreshInterval = null;
-        
-        function togglePlotlyAutoRefresh() {
-            const enabled = document.getElementById('auto-refresh-plotly').checked;
+        // Manual update function for Plotly
+        function updatePlotlyNow() {
+            if (currentViewerType !== 'plotly') {
+                showMessage('Switch to Plotly viewer first', 'info');
+                return;
+            }
             
-            if (enabled) {
-                // Start auto-refresh
-                if (plotlyAutoRefreshInterval) {
-                    clearInterval(plotlyAutoRefreshInterval);
-                }
-                
-                plotlyAutoRefreshInterval = setInterval(() => {
-                    if (currentViewerType === 'plotly') {
-                        if (isCameraStreaming) {
-                            // If streaming, update live view
-                            startPlotlyLiveUpdate();
-                        } else if (lastCaptureName) {
-                            // If viewing a capture, refresh it with current robot state
-                            updatePlotlyPointCloud(lastCaptureName);
-                        }
-                    }
-                }, 1000); // Refresh every 1 second
-                
-                showMessage('Plotly auto-refresh enabled', 'success');
+            if (isCameraStreaming && !currentCaptureName) {
+                // Update live view once
+                updatePlotlyLiveOnce();
+            } else if (lastCaptureName) {
+                // Update capture with current robot state
+                updatePlotlyPointCloud(lastCaptureName);
             } else {
-                // Stop auto-refresh
-                if (plotlyAutoRefreshInterval) {
-                    clearInterval(plotlyAutoRefreshInterval);
-                    plotlyAutoRefreshInterval = null;
+                showMessage('No point cloud to update. Start camera stream or load a capture.', 'warning');
+            }
+        }
+        
+        // Update Plotly live view once (no interval)
+        async function updatePlotlyLiveOnce() {
+            const iframe = document.getElementById('pointcloud-iframe');
+            const placeholder = document.getElementById('pointcloud-placeholder');
+            
+            try {
+                // Get current joint states if robot is connected
+                let jointStates = null;
+                if (robotConnected) {
+                    const jointResponse = await fetch('/api/robot/joint_states');
+                    const jointData = await jointResponse.json();
+                    if (jointData.success) {
+                        jointStates = jointData.joint_states;
+                    }
                 }
-                // Also stop the live update interval if it exists
-                stopPlotlyLiveUpdate();
-                showMessage('Plotly auto-refresh disabled', 'info');
+                
+                // Get robot position from input fields (which can have values beyond slider range)
+                const robotPosX = parseFloat(document.getElementById('robot-pos-x-input').value) / 100; // Convert cm to m
+                const robotPosY = parseFloat(document.getElementById('robot-pos-y-input').value) / 100;
+                const robotPosZ = parseFloat(document.getElementById('robot-pos-z-input').value) / 100;
+                
+                // Get robot rotation from sliders
+                const robotRotRoll = parseFloat(document.getElementById('robot-rot-roll').value);
+                const robotRotPitch = parseFloat(document.getElementById('robot-rot-pitch').value);
+                const robotRotYaw = parseFloat(document.getElementById('robot-rot-yaw').value);
+                
+                // Build URL with parameters
+                const params = new URLSearchParams({
+                    density: pointCloudDensity,
+                    max_points: maxPointsLimit,
+                    size: pointCloudSize,
+                    show_camera: showCameraInPlotly,
+                    show_robot: showRobotInPlotly,
+                    robot_pos_x: robotPosX,
+                    robot_pos_y: robotPosY,
+                    robot_pos_z: robotPosZ,
+                    robot_rot_roll: robotRotRoll,
+                    robot_rot_pitch: robotRotPitch,
+                    robot_rot_yaw: robotRotYaw,
+                    t: Date.now()  // Cache buster
+                });
+                
+                // Add joint states if available
+                if (jointStates) {
+                    params.append('joint_states', JSON.stringify(jointStates));
+                }
+                
+                iframe.src = `/api/camera/pointcloud/live?${params.toString()}`;
+                iframe.style.display = 'block';
+                placeholder.style.display = 'none';
+                
+                showMessage('Plotly point cloud updated', 'success');
+            } catch (error) {
+                console.error('Error updating Plotly view:', error);
+                showMessage('Failed to update Plotly view', 'error');
             }
         }
         
@@ -1571,6 +1732,15 @@
                 playbackSpeed = this.value;
                 document.getElementById('playback-speed-value').textContent = playbackSpeed + '%';
             });
+            
+            // Initialize Three.js viewer if it's the selected viewer
+            setTimeout(() => {
+                const viewerType = document.getElementById('pointcloud-viewer-type');
+                if (viewerType && viewerType.value === 'threejs') {
+                    console.log('Initializing Three.js viewer on page load');
+                    initPointCloud();
+                }
+            }, 100);
             
             // Start status updates
             setInterval(updateStatus, 1000);
@@ -2139,6 +2309,10 @@
             cameraStreamInterval = setInterval(updateCameraStreams, 100); // Update at 10 FPS
             showMessage('Camera stream started', 'success');
             
+            // Clear any current capture name since we're going live
+            currentCaptureName = null;
+            lastCaptureForPlotly = null;
+            
             // Initialize point cloud based on current viewer type
             if (currentViewerType === 'threejs') {
                 initPointCloud();
@@ -2147,8 +2321,8 @@
                 // Trigger immediate update
                 updateThreeJSPointCloud();
             } else {
-                // Start live Plotly updates
-                startPlotlyLiveUpdate();
+                // For Plotly, just show initial view but don't start auto-updates
+                updatePlotlyLiveOnce();
             }
         }
         
@@ -2163,8 +2337,7 @@
                 pointCloudUpdateInterval = null;
             }
             
-            // Stop Plotly live updates
-            stopPlotlyLiveUpdate();
+            // No need to stop Plotly updates since they're manual now
             
             isCameraStreaming = false;
             showMessage('Camera stream stopped', 'info');
@@ -2446,7 +2619,8 @@
             }
             
             if (currentViewerType === 'plotly') {
-                startPlotlyLiveUpdate();
+                // For Plotly, just update once when Live button is clicked
+                updatePlotlyLiveOnce();
             } else {
                 // Initialize Three.js if needed
                 if (!pointCloudScene) {
@@ -2466,68 +2640,7 @@
             currentCaptureName = null;
         }
         
-        let plotlyLiveInterval = null;
-        
-        function startPlotlyLiveUpdate() {
-            const iframe = document.getElementById('pointcloud-iframe');
-            const placeholder = document.getElementById('pointcloud-placeholder');
-            
-            // Clear any existing interval
-            if (plotlyLiveInterval) {
-                clearInterval(plotlyLiveInterval);
-            }
-            
-            // Function to update Plotly with live data
-            async function updatePlotlyLive() {
-                try {
-                    // Get current joint states if robot is connected
-                    let jointStates = null;
-                    if (robotConnected) {
-                        const jointResponse = await fetch('/api/robot/joint_states');
-                        const jointData = await jointResponse.json();
-                        if (jointData.success) {
-                            jointStates = jointData.joint_states;
-                        }
-                    }
-                    
-                    // Build URL with parameters including robot joint states
-                    const params = new URLSearchParams({
-                        density: pointCloudDensity,
-                        max_points: maxPointsLimit,
-                        size: pointCloudSize,
-                        show_camera: showCameraInPlotly,
-                        show_robot: showRobotInPlotly,
-                        t: Date.now()  // Cache buster
-                    });
-                    
-                    // Add joint states if available
-                    if (jointStates) {
-                        params.append('joint_states', JSON.stringify(jointStates));
-                    }
-                    
-                    iframe.src = `/api/camera/pointcloud/live?${params.toString()}`;
-                    iframe.style.display = 'block';
-                    placeholder.style.display = 'none';
-                } catch (error) {
-                    console.error('Error updating Plotly live view:', error);
-                }
-            }
-            
-            // Initial update
-            updatePlotlyLive();
-            
-            // Set up interval for live updates (every 1 second for Plotly)
-            plotlyLiveInterval = setInterval(updatePlotlyLive, 1000);
-            
-            showMessage('Plotly live point cloud started (updates every 1s)', 'success');
-        }
-        
-        function stopPlotlyLiveUpdate() {
-            if (plotlyLiveInterval) {
-                clearInterval(plotlyLiveInterval);
-                plotlyLiveInterval = null;
-            }
-        }
+        // Plotly doesn't use live intervals anymore - it's manual update only
         
         async function updateThreeJSPointCloud() {
             if (!isCameraStreaming || currentViewerType !== 'threejs') {
@@ -2544,6 +2657,19 @@
                 console.log('Three.js point cloud response:', {success: data.success, hasPointcloud: !!data.pointcloud, numPoints: data.pointcloud?.num_points});
                 if (data.success && data.pointcloud) {
                     updatePointCloud(data.pointcloud);
+                    
+                    // Update robot model if visible
+                    if (showRobotInPlotly && robotConnected) {
+                        // Get current joint states
+                        const jointResponse = await fetch('/api/robot/joint_states');
+                        const jointData = await jointResponse.json();
+                        if (jointData.success) {
+                            updateRobotJoints(jointData.joint_states);
+                        }
+                    }
+                    
+                    // Update robot transform
+                    updateRobotModelTransform();
                 } else {
                     console.warn('No point cloud data in response:', data);
                 }
@@ -2569,9 +2695,9 @@
                     pointCloudUpdateInterval = null;
                 }
                 
-                // Start Plotly updates if streaming
-                if (isCameraStreaming) {
-                    startPlotlyLiveUpdate();
+                // For Plotly, just show current state (no auto-updates)
+                if (isCameraStreaming && !currentCaptureName) {
+                    updatePlotlyLiveOnce();
                 }
             } else {
                 plotlyContainer.style.display = 'none';
@@ -2627,79 +2753,441 @@
             gridHelper.material.transparent = true;
             pointCloudScene.add(gridHelper);
             
-            // Camera
+            // Initialize robot model
+            initRobotModel();
+            
+            // Camera - match Plotly's viewing setup
             pointCloudCamera = new THREE.PerspectiveCamera(
                 60,
                 container.clientWidth / container.clientHeight,
                 0.01,
                 10
             );
-            pointCloudCamera.position.set(0.5, 0.5, 1);
+            // Set camera position to match typical Plotly view
+            pointCloudCamera.position.set(1.5, 1.5, 1.5);
+            pointCloudCamera.lookAt(0, 0, 0);
             
             // Renderer
             pointCloudRenderer = new THREE.WebGLRenderer({ antialias: true });
             pointCloudRenderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(pointCloudRenderer.domElement);
             
-            // Simple mouse controls (without OrbitControls)
-            let mouseX = 0, mouseY = 0;
-            let isMouseDown = false;
-            let cameraRadius = 1.5;
-            let cameraTheta = 0;
-            let cameraPhi = Math.PI / 4;
-            
-            container.addEventListener('mousedown', (e) => {
-                isMouseDown = true;
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            });
-            
-            container.addEventListener('mousemove', (e) => {
-                if (!isMouseDown) return;
+            // Camera controls
+            try {
+                // Try to use OrbitControls if available
+                if (typeof THREE.OrbitControls !== 'undefined') {
+                    const controls = new THREE.OrbitControls(pointCloudCamera, pointCloudRenderer.domElement);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.05;
+                    controls.rotateSpeed = 0.5;
+                    controls.zoomSpeed = 1.2;
+                    controls.panSpeed = 0.8;
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+                    
+                    // Store controls reference for animation loop
+                    pointCloudRenderer.controls = controls;
+                    console.log('OrbitControls initialized successfully');
+                } else {
+                    throw new Error('OrbitControls not available');
+                }
+            } catch (error) {
+                console.warn('OrbitControls not available, using simple mouse controls:', error);
+                // Fallback to simple mouse controls
+                let mouseX = 0, mouseY = 0;
+                let isMouseDown = false;
+                let cameraRadius = 1.5;
+                let cameraTheta = 0;
+                let cameraPhi = Math.PI / 4;
                 
-                const deltaX = e.clientX - mouseX;
-                const deltaY = e.clientY - mouseY;
+                container.addEventListener('mousedown', (e) => {
+                    isMouseDown = true;
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                });
                 
-                cameraTheta -= deltaX * 0.01;
-                cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi + deltaY * 0.01));
+                container.addEventListener('mousemove', (e) => {
+                    if (!isMouseDown) return;
+                    
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+                    
+                    cameraTheta -= deltaX * 0.01;
+                    cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi + deltaY * 0.01));
+                    
+                    pointCloudCamera.position.x = cameraRadius * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+                    pointCloudCamera.position.y = cameraRadius * Math.cos(cameraPhi);
+                    pointCloudCamera.position.z = cameraRadius * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+                    pointCloudCamera.lookAt(0, 0, 0);
+                    
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                });
                 
-                pointCloudCamera.position.x = cameraRadius * Math.sin(cameraPhi) * Math.cos(cameraTheta);
-                pointCloudCamera.position.y = cameraRadius * Math.cos(cameraPhi);
-                pointCloudCamera.position.z = cameraRadius * Math.sin(cameraPhi) * Math.sin(cameraTheta);
-                pointCloudCamera.lookAt(0, 0, 0);
+                container.addEventListener('mouseup', () => {
+                    isMouseDown = false;
+                });
                 
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            });
-            
-            container.addEventListener('mouseup', () => {
-                isMouseDown = false;
-            });
-            
-            container.addEventListener('mouseleave', () => {
-                isMouseDown = false;
-            });
-            
-            // Mouse wheel for zoom
-            container.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                cameraRadius *= 1 + e.deltaY * 0.001;
-                cameraRadius = Math.max(0.5, Math.min(5, cameraRadius));
+                container.addEventListener('mouseleave', () => {
+                    isMouseDown = false;
+                });
                 
-                pointCloudCamera.position.x = cameraRadius * Math.sin(cameraPhi) * Math.cos(cameraTheta);
-                pointCloudCamera.position.y = cameraRadius * Math.cos(cameraPhi);
-                pointCloudCamera.position.z = cameraRadius * Math.sin(cameraPhi) * Math.sin(cameraTheta);
-                pointCloudCamera.lookAt(0, 0, 0);
-            });
+                // Mouse wheel for zoom
+                container.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    cameraRadius *= 1 + e.deltaY * 0.001;
+                    cameraRadius = Math.max(0.5, Math.min(5, cameraRadius));
+                    
+                    pointCloudCamera.position.x = cameraRadius * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+                    pointCloudCamera.position.y = cameraRadius * Math.cos(cameraPhi);
+                    pointCloudCamera.position.z = cameraRadius * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+                    pointCloudCamera.lookAt(0, 0, 0);
+                });
+            }
             
             // Axes and grid helpers already added above
             
             // Animation loop
             function animate() {
                 requestAnimationFrame(animate);
+                
+                // Update controls if they exist
+                if (pointCloudRenderer.controls) {
+                    pointCloudRenderer.controls.update();
+                }
+                
                 pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
             }
             animate();
+        }
+        
+        // Initialize robot model in Three.js with URDF
+        async function initRobotModel() {
+            if (!pointCloudScene || typeof THREE === 'undefined') return;
+            
+            robotModel = new THREE.Group();
+            robotModel.name = 'robotModel';
+            robotJoints = {};
+            
+            try {
+                // Fetch URDF data from the server
+                const response = await fetch('/api/robot/urdf_data');
+                const urdfData = await response.json();
+                
+                if (urdfData.success && urdfData.urdf_data) {
+                    // Parse URDF and create Three.js model
+                    await loadURDFInThreeJS(urdfData.urdf_data);
+                } else {
+                    // Fallback to simple model if URDF loading fails
+                    createSimpleRobotModel();
+                }
+            } catch (error) {
+                console.error('Failed to load URDF data:', error);
+                // Fallback to simple model
+                createSimpleRobotModel();
+            }
+            
+            // Add better lighting for STL visualization
+            const light1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            light1.position.set(1, 1, 1);
+            light1.name = 'robotLight1';
+            pointCloudScene.add(light1);
+            
+            const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+            light2.position.set(-1, -0.5, -1);
+            light2.name = 'robotLight2';
+            pointCloudScene.add(light2);
+            
+            const ambientLight = new THREE.AmbientLight(0x808080);  // Brighter ambient
+            ambientLight.name = 'ambientLight';
+            pointCloudScene.add(ambientLight);
+            
+            pointCloudScene.add(robotModel);
+            
+            // Apply initial transform
+            updateRobotModelTransform();
+        }
+        
+        // Load URDF model with STL meshes in Three.js
+        async function loadURDFInThreeJS(urdfData) {
+            const links = urdfData.links || {};
+            const joints = urdfData.joints || {};
+            
+            // Material for robot meshes
+            const robotMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x7c93bd,
+                specular: 0x111111,
+                shininess: 100,
+                side: THREE.DoubleSide  // Render both sides
+            });
+            
+            // STL Loader
+            const loader = new THREE.STLLoader();
+            
+            // Create link groups
+            const linkGroups = {};
+            
+            // Add a world link (empty group) for the base_joint to connect to
+            linkGroups['world'] = new THREE.Group();
+            linkGroups['world'].name = 'world';
+            
+            // Load each link with its STL mesh
+            for (const [linkName, linkData] of Object.entries(links)) {
+                const linkGroup = new THREE.Group();
+                linkGroup.name = linkName;
+                linkGroups[linkName] = linkGroup;
+                
+                if (linkData.visual && linkData.visual.geometry && linkData.visual.geometry.mesh) {
+                    const meshPath = linkData.visual.geometry.mesh.filename;
+                    
+                    try {
+                        // Load STL file
+                        const stlUrl = `/static/meshes/${meshPath}`;
+                        console.log(`Loading STL for ${linkName}: ${stlUrl}`);
+                        
+                        await new Promise((resolve, reject) => {
+                            loader.load(
+                                stlUrl,
+                                (geometry) => {
+                                    // Apply scale if specified - match Plotly scaling
+                                    const scale = linkData.visual.geometry.mesh.scale || [1, 1, 1];
+                                    geometry.scale(scale[0], scale[1], scale[2]);
+                                    
+                                    // Don't apply visual origin transform to geometry
+                                    // Instead apply it to the mesh after creation
+                                    
+                                    // Compute normals for proper lighting (but don't center!)
+                                    geometry.computeVertexNormals();
+                                    
+                                    const mesh = new THREE.Mesh(geometry, robotMaterial);
+                                    
+                                    // Apply visual origin transform to mesh
+                                    if (linkData.visual.origin) {
+                                        const xyz = linkData.visual.origin.xyz || [0, 0, 0];
+                                        const rpy = linkData.visual.origin.rpy || [0, 0, 0];
+                                        
+                                        mesh.position.set(xyz[0], xyz[1], xyz[2]);
+                                        mesh.rotation.set(rpy[0], rpy[1], rpy[2]);
+                                    }
+                                    
+                                    linkGroup.add(mesh);
+                                    console.log(`Successfully loaded mesh for ${linkName}`);
+                                    resolve();
+                                },
+                                (progress) => {
+                                    // Progress callback
+                                },
+                                (error) => {
+                                    console.warn(`Failed to load STL for ${linkName}:`, error);
+                                    resolve(); // Continue even if one mesh fails
+                                }
+                            );
+                        });
+                    } catch (error) {
+                        console.warn(`Error loading mesh for ${linkName}:`, error);
+                    }
+                }
+            }
+            
+            // Build joint hierarchy
+            console.log('Building joint hierarchy...');
+            console.log('Available links:', Object.keys(linkGroups));
+            console.log('Joints to connect:', joints);
+            
+            // Track which links have been added to hierarchy
+            const addedLinks = new Set();
+            
+            for (const [jointName, jointData] of Object.entries(joints)) {
+                const parentLink = linkGroups[jointData.parent];
+                const childLink = linkGroups[jointData.child];
+                
+                console.log(`Processing joint ${jointName}: ${jointData.parent} -> ${jointData.child}`);
+                
+                if (parentLink && childLink) {
+                    // Create joint transform group
+                    const jointGroup = new THREE.Group();
+                    jointGroup.name = jointName;
+                    
+                    // Apply joint origin - match Plotly transform order
+                    if (jointData.origin) {
+                        const xyz = jointData.origin.xyz || [0, 0, 0];
+                        const rpy = jointData.origin.rpy || [0, 0, 0];
+                        
+                        jointGroup.position.set(xyz[0], xyz[1], xyz[2]);
+                        
+                        // Apply rotation in XYZ order (like Plotly)
+                        jointGroup.rotation.order = 'XYZ';
+                        jointGroup.rotation.set(rpy[0], rpy[1], rpy[2]);
+                    }
+                    
+                    // Store joint reference for animation
+                    // Include all joint types for hierarchy, but only revolute/continuous for animation
+                    if (jointData.type === 'revolute' || jointData.type === 'continuous') {
+                        robotJoints[jointName] = jointGroup;
+                        jointGroup.userData = {
+                            jointName: jointName,
+                            axis: [0, 0, 1], // Use Z-axis rotation like Plotly (simplified)
+                            limits: jointData.limits
+                        };
+                    } else if (jointData.type === 'fixed') {
+                        // Fixed joints don't move but are important for hierarchy
+                        console.log(`Fixed joint ${jointName} connecting ${jointData.parent} to ${jointData.child}`);
+                    }
+                    
+                    // Build hierarchy - only add child if not already added
+                    if (!addedLinks.has(jointData.child)) {
+                        parentLink.add(jointGroup);
+                        jointGroup.add(childLink);
+                        addedLinks.add(jointData.child);
+                        console.log(`Connected ${jointData.parent} -> ${jointData.child} via ${jointName}`);
+                    } else {
+                        console.warn(`Link ${jointData.child} already in hierarchy, skipping`);
+                    }
+                } else {
+                    console.warn(`Missing links for joint ${jointName}: parent=${jointData.parent} (${parentLink ? 'found' : 'missing'}), child=${jointData.child} (${childLink ? 'found' : 'missing'})`);
+                }
+            }
+            
+            // Find and add the base link (root of the hierarchy)
+            // The base link is one that is never a child in any joint
+            const childLinks = new Set();
+            for (const joint of Object.values(joints)) {
+                childLinks.add(joint.child);
+            }
+            
+            // Find links that are not children (potential base links)
+            const baseCandidates = Object.keys(linkGroups).filter(name => !childLinks.has(name));
+            console.log('Base link candidates (not children in any joint):', baseCandidates);
+            
+            // Try known base names first (including world)
+            const baseNames = ['world', 'base', 'link_base', 'base_link', 'link_0'];
+            let baseAdded = false;
+            
+            for (const baseName of baseNames) {
+                if ((baseCandidates.includes(baseName) || baseName === 'world') && linkGroups[baseName]) {
+                    robotModel.add(linkGroups[baseName]);
+                    console.log(`Added base link: ${baseName}`);
+                    baseAdded = true;
+                    break;
+                }
+            }
+            
+            if (!baseAdded && baseCandidates.length > 0) {
+                // Add first candidate as base
+                const baseName = baseCandidates[0];
+                robotModel.add(linkGroups[baseName]);
+                console.log(`Added base link: ${baseName}`);
+                baseAdded = true;
+            }
+            
+            if (!baseAdded) {
+                // Last resort: add all links directly to robot model
+                console.warn('Could not determine base link, adding all links to robot model');
+                for (const [linkName, linkGroup] of Object.entries(linkGroups)) {
+                    robotModel.add(linkGroup);
+                    console.log(`Added link directly: ${linkName}`);
+                }
+            }
+            
+            // Debug: Log the complete hierarchy
+            console.log('Robot model hierarchy:');
+            robotModel.traverse((child) => {
+                if (child.name) {
+                    const depth = getDepth(child);
+                    console.log('  '.repeat(depth) + '- ' + child.name);
+                }
+            });
+            
+            function getDepth(obj) {
+                let depth = 0;
+                let parent = obj.parent;
+                while (parent && parent !== robotModel) {
+                    depth++;
+                    parent = parent.parent;
+                }
+                return depth;
+            }
+            
+            // Scale to match point cloud (URDF is in meters, convert to cm for display)
+            robotModel.scale.set(100, 100, 100);  // Convert meters to cm
+            
+            console.log('Robot model loaded with links:', Object.keys(linkGroups));
+            console.log('Robot joints configured:', Object.keys(robotJoints));
+        }
+        
+        // Fallback simple robot model
+        function createSimpleRobotModel() {
+            // Base
+            const baseGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.05, 32);
+            const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 0.025;
+            robotModel.add(base);
+            
+            // Create simple joint representation
+            const jointGeometry = new THREE.SphereGeometry(0.015, 16, 16);
+            const jointMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+            const linkGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.1, 16);
+            const linkMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+            
+            let prevJoint = base;
+            for (let i = 1; i <= 6; i++) {
+                const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+                joint.name = `joint_${i}`;
+                robotJoints[i] = joint;
+                
+                const link = new THREE.Mesh(linkGeometry, linkMaterial);
+                link.position.y = 0.05;
+                prevJoint.add(link);
+                link.add(joint);
+                joint.position.y = 0.05;
+                prevJoint = joint;
+            }
+        }
+        
+        // Update robot model transform in Three.js
+        function updateRobotModelTransform() {
+            if (!robotModel) return;
+            
+            // Get transform from UI
+            const posX = parseFloat(document.getElementById('robot-pos-x-input').value) / 100; // cm to m
+            const posY = parseFloat(document.getElementById('robot-pos-y-input').value) / 100;
+            const posZ = parseFloat(document.getElementById('robot-pos-z-input').value) / 100;
+            
+            const rotRoll = parseFloat(document.getElementById('robot-rot-roll').value) * Math.PI / 180;
+            const rotPitch = parseFloat(document.getElementById('robot-rot-pitch').value) * Math.PI / 180;
+            const rotYaw = parseFloat(document.getElementById('robot-rot-yaw').value) * Math.PI / 180;
+            
+            // Apply position - match Plotly coordinate system exactly
+            robotModel.position.set(posX, posY, posZ);
+            
+            // Apply rotation - match Plotly rotation order (ZYX Euler)
+            robotModel.rotation.order = 'ZYX';
+            robotModel.rotation.set(rotRoll, rotPitch, rotYaw);
+        }
+        
+        // Update robot joint angles in Three.js
+        function updateRobotJoints(jointStates) {
+            if (!robotJoints || !jointStates) return;
+            
+            // The URDF joint names are just numbers: "1", "2", "3", "4", "5", "6"
+            // Update each joint rotation directly using the numeric names
+            for (let i = 1; i <= 6; i++) {
+                const jointName = i.toString();  // URDF uses "1", "2", etc.
+                const joint = robotJoints[jointName];
+                
+                if (joint && jointStates[jointName] !== undefined) {
+                    const angle = jointStates[jointName];
+                    
+                    // Use Z-axis rotation like Plotly (simplified approach)
+                    // Reset rotation first, then apply around Z-axis
+                    joint.rotation.set(0, 0, 0);
+                    joint.rotateZ(angle);
+                    console.log(`Updated joint ${jointName} to angle ${angle}`);
+                } else if (!joint) {
+                    console.warn(`Joint ${jointName} not found in robotJoints`);
+                }
+            }
         }
         
         // Update point cloud visualization
@@ -2914,10 +3402,303 @@
         // Load coordinate info on page load
         window.addEventListener('load', () => {
             refreshCoordinateInfo();
+            loadProfileList();
         });
         
         // Live Robot Visualization Functions
         let liveRobotInterval = null;
+        
+        // Robot Transform Functions
+        function updateRobotTransform() {
+            // Update input fields with slider values
+            document.getElementById('robot-pos-x-input').value = document.getElementById('robot-pos-x').value;
+            document.getElementById('robot-pos-y-input').value = document.getElementById('robot-pos-y').value;
+            document.getElementById('robot-pos-z-input').value = document.getElementById('robot-pos-z').value;
+            
+            // Update display values for rotation
+            document.getElementById('robot-rot-roll-value').textContent = document.getElementById('robot-rot-roll').value + '°';
+            document.getElementById('robot-rot-pitch-value').textContent = document.getElementById('robot-rot-pitch').value + '°';
+            document.getElementById('robot-rot-yaw-value').textContent = document.getElementById('robot-rot-yaw').value + '°';
+            
+            // If live update is running, trigger an update
+            if (liveRobotInterval) {
+                updateRobotVizOnce();
+            }
+            
+            // Update Three.js robot model immediately
+            if (currentViewerType === 'threejs' && robotModel) {
+                updateRobotModelTransform();
+            }
+            
+            // For Plotly, user needs to manually click Update button
+        }
+        
+        function updateRobotPositionFromInput(axis) {
+            let value = 0;
+            let slider = null;
+            let input = null;
+            
+            switch(axis) {
+                case 'x':
+                    input = document.getElementById('robot-pos-x-input');
+                    slider = document.getElementById('robot-pos-x');
+                    break;
+                case 'y':
+                    input = document.getElementById('robot-pos-y-input');
+                    slider = document.getElementById('robot-pos-y');
+                    break;
+                case 'z':
+                    input = document.getElementById('robot-pos-z-input');
+                    slider = document.getElementById('robot-pos-z');
+                    break;
+            }
+            
+            if (input && slider) {
+                value = parseFloat(input.value);
+                // Clamp to input limits
+                if (value < -500) value = -500;
+                if (value > 500) value = 500;
+                input.value = value;
+                
+                // Update slider if within its range
+                if (value >= parseFloat(slider.min) && value <= parseFloat(slider.max)) {
+                    slider.value = value;
+                } else {
+                    // Set slider to its limit if value is outside range
+                    slider.value = value < 0 ? slider.min : slider.max;
+                }
+                
+                // Trigger updates
+                if (liveRobotInterval) {
+                    updateRobotVizOnce();
+                }
+            }
+        }
+        
+        function resetRobotTransform() {
+            // Reset position
+            document.getElementById('robot-pos-x').value = 0;
+            document.getElementById('robot-pos-y').value = 0;
+            document.getElementById('robot-pos-z').value = 0;
+            document.getElementById('robot-pos-x-input').value = 0;
+            document.getElementById('robot-pos-y-input').value = 0;
+            document.getElementById('robot-pos-z-input').value = 0;
+            
+            // Reset rotation
+            document.getElementById('robot-rot-roll').value = 0;
+            document.getElementById('robot-rot-pitch').value = 0;
+            document.getElementById('robot-rot-yaw').value = 0;
+            
+            updateRobotTransform();
+        }
+        
+        function applyQuickRotation(roll, pitch, yaw) {
+            document.getElementById('robot-rot-roll').value = roll;
+            document.getElementById('robot-rot-pitch').value = pitch;
+            document.getElementById('robot-rot-yaw').value = yaw;
+            updateRobotTransform();
+        }
+        
+        // Transform Profile Management
+        function loadProfileList() {
+            const profiles = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+            const selector = document.getElementById('profile-selector');
+            
+            // Clear existing options except the first
+            while (selector.options.length > 1) {
+                selector.remove(1);
+            }
+            
+            // Add saved profiles
+            for (const name in profiles) {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                selector.appendChild(option);
+            }
+        }
+        
+        function saveTransformProfile() {
+            const profileName = document.getElementById('profile-name-input').value.trim();
+            
+            if (!profileName) {
+                showMessage('Please enter a profile name', 'warning');
+                return;
+            }
+            
+            const transform = {
+                position: {
+                    x: parseFloat(document.getElementById('robot-pos-x-input').value),
+                    y: parseFloat(document.getElementById('robot-pos-y-input').value),
+                    z: parseFloat(document.getElementById('robot-pos-z-input').value)
+                },
+                rotation: {
+                    roll: parseFloat(document.getElementById('robot-rot-roll').value),
+                    pitch: parseFloat(document.getElementById('robot-rot-pitch').value),
+                    yaw: parseFloat(document.getElementById('robot-rot-yaw').value)
+                },
+                timestamp: new Date().toISOString(),
+                description: `X:${transform.position.x}cm, Y:${transform.position.y}cm, Z:${transform.position.z}cm, Roll:${transform.rotation.roll}°, Pitch:${transform.rotation.pitch}°, Yaw:${transform.rotation.yaw}°`
+            };
+            
+            // Get existing profiles
+            const profiles = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+            
+            // Add/update profile
+            profiles[profileName] = transform;
+            
+            // Save to localStorage
+            localStorage.setItem('robotTransformProfiles', JSON.stringify(profiles));
+            
+            // Clear input and reload list
+            document.getElementById('profile-name-input').value = '';
+            loadProfileList();
+            
+            // Select the newly saved profile
+            document.getElementById('profile-selector').value = profileName;
+            
+            showMessage(`Profile "${profileName}" saved successfully`, 'success');
+        }
+        
+        function loadSelectedProfile() {
+            const selector = document.getElementById('profile-selector');
+            const profileName = selector.value;
+            
+            if (!profileName) {
+                showMessage('Please select a profile', 'warning');
+                return;
+            }
+            
+            const profiles = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+            const transform = profiles[profileName];
+            
+            if (transform) {
+                // Set input values
+                document.getElementById('robot-pos-x-input').value = transform.position.x;
+                document.getElementById('robot-pos-y-input').value = transform.position.y;
+                document.getElementById('robot-pos-z-input').value = transform.position.z;
+                
+                // Update sliders (clamped to their range)
+                const xSlider = document.getElementById('robot-pos-x');
+                const ySlider = document.getElementById('robot-pos-y');
+                const zSlider = document.getElementById('robot-pos-z');
+                
+                xSlider.value = Math.max(xSlider.min, Math.min(xSlider.max, transform.position.x));
+                ySlider.value = Math.max(ySlider.min, Math.min(ySlider.max, transform.position.y));
+                zSlider.value = Math.max(zSlider.min, Math.min(zSlider.max, transform.position.z));
+                
+                document.getElementById('robot-rot-roll').value = transform.rotation.roll;
+                document.getElementById('robot-rot-pitch').value = transform.rotation.pitch;
+                document.getElementById('robot-rot-yaw').value = transform.rotation.yaw;
+                
+                updateRobotTransform();
+                showMessage(`Profile "${profileName}" loaded`, 'success');
+            }
+        }
+        
+        function deleteSelectedProfile() {
+            const selector = document.getElementById('profile-selector');
+            const profileName = selector.value;
+            
+            if (!profileName) {
+                showMessage('Please select a profile to delete', 'warning');
+                return;
+            }
+            
+            if (!confirm(`Delete profile "${profileName}"?`)) {
+                return;
+            }
+            
+            const profiles = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+            delete profiles[profileName];
+            localStorage.setItem('robotTransformProfiles', JSON.stringify(profiles));
+            
+            loadProfileList();
+            showMessage(`Profile "${profileName}" deleted`, 'success');
+        }
+        
+        function profileSelectionChanged() {
+            const selector = document.getElementById('profile-selector');
+            if (selector.value) {
+                const profiles = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+                const profile = profiles[selector.value];
+                if (profile && profile.description) {
+                    // Could show profile details in a tooltip or status area
+                    console.log('Selected profile:', profile.description);
+                }
+            }
+        }
+        
+        function exportProfiles() {
+            const profiles = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+            
+            if (Object.keys(profiles).length === 0) {
+                showMessage('No profiles to export', 'warning');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(profiles, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `robot_transform_profiles_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showMessage('Profiles exported successfully', 'success');
+        }
+        
+        function importProfiles() {
+            document.getElementById('import-profiles-file').click();
+        }
+        
+        function handleProfileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    const existing = JSON.parse(localStorage.getItem('robotTransformProfiles') || '{}');
+                    
+                    // Merge profiles
+                    const merged = {...existing, ...imported};
+                    localStorage.setItem('robotTransformProfiles', JSON.stringify(merged));
+                    
+                    loadProfileList();
+                    showMessage(`Imported ${Object.keys(imported).length} profiles`, 'success');
+                } catch (error) {
+                    showMessage('Failed to import profiles: Invalid file format', 'error');
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input
+            event.target.value = '';
+        }
+        
+        // Backwards compatibility functions
+        function saveRobotTransform() {
+            saveTransformProfile();
+        }
+        
+        function loadRobotTransform() {
+            loadSelectedProfile();
+        }
+        
+        // Backwards compatibility
+        function updateRobotPosition() {
+            updateRobotTransform();
+        }
+        
+        function resetRobotPosition() {
+            resetRobotTransform();
+        }
         
         async function updateRobotVizOnce() {
             try {
@@ -2937,6 +3718,16 @@
                     const vizFrame = document.getElementById('robot-viz-iframe');
                     const placeholder = document.getElementById('robot-viz-placeholder');
                     
+                    // Get robot position from input fields (which can have values beyond slider range)
+                    const robotPosX = parseFloat(document.getElementById('robot-pos-x-input').value) / 100; // Convert cm to m
+                    const robotPosY = parseFloat(document.getElementById('robot-pos-y-input').value) / 100;
+                    const robotPosZ = parseFloat(document.getElementById('robot-pos-z-input').value) / 100;
+                    
+                    // Get robot rotation from sliders
+                    const robotRotRoll = parseFloat(document.getElementById('robot-rot-roll').value);
+                    const robotRotPitch = parseFloat(document.getElementById('robot-rot-pitch').value);
+                    const robotRotYaw = parseFloat(document.getElementById('robot-rot-yaw').value);
+                    
                     // Create POST request for visualization
                     const vizResponse = await fetch('/api/robot/update_visualization', {
                         method: 'POST',
@@ -2944,7 +3735,9 @@
                         body: JSON.stringify({
                             joint_states: states,
                             show_camera: false,  // Don't show camera in robot-only view
-                            show_robot: true
+                            show_robot: true,
+                            robot_position: [robotPosX, robotPosY, robotPosZ],
+                            robot_rotation: [robotRotRoll, robotRotPitch, robotRotYaw]
                         })
                     });
                     

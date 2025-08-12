@@ -740,7 +740,7 @@ def create_camera_visualization(camera_info=None):
 
 def vis_pcd_plotly(pointclouds, size_ls=None, title="3D Point Cloud", 
                   show_camera=True, camera_info=None,
-                  show_robot=True, robot_joint_angles=None, robot_position=None):
+                  show_robot=True, robot_joint_angles=None, robot_position=None, robot_rotation=None):
     """
     Visualize point clouds using Plotly (similar to GenDP demo)
     
@@ -753,6 +753,7 @@ def vis_pcd_plotly(pointclouds, size_ls=None, title="3D Point Cloud",
         show_robot: Whether to show URDF robot model
         robot_joint_angles: Dictionary of joint angles in radians
         robot_position: Robot base position [x, y, z] in meters
+        robot_rotation: Robot base rotation [roll, pitch, yaw] in degrees
     
     Returns:
         Plotly figure object
@@ -804,6 +805,7 @@ def vis_pcd_plotly(pointclouds, size_ls=None, title="3D Point Cloud",
                 robot_traces = visualizer.create_plotly_traces(
                     joint_angles=robot_joint_angles,
                     robot_position=robot_position,
+                    robot_rotation=robot_rotation,
                     scale=100.0,  # Convert to cm
                     simplified=False  # Use full mesh visualization
                 )

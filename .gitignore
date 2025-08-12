@@ -72,3 +72,4 @@ ROS2/FoundationPose2/sam2.1_b.pt
 /handeye/log
 /handeye/build
 /handeye/ros2_digital_twin/log
+/GraspingDemo/web_control/__pycache__
