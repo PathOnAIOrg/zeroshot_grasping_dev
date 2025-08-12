@@ -1335,24 +1335,134 @@ def get_live_pointcloud():
                     # Convert position from mm to cm
                     pos_cm = [x / 10 for x in grasp_pose['xyz']]
                     rot = grasp_pose['rot']
+                    grasp_depth = grasp_pose.get('dep', 0.05)  # Grasp depth/width
                     
-                    # Add grasp cone
-                    grasp_cone = go.Cone(
+                    # Create two-finger gripper visualization
+                    gripper_width = grasp_depth * 100  # Convert to cm
+                    finger_length = 8  # 8cm finger length
+                    finger_width = 1.5  # 1.5cm finger width
+                    palm_height = 3    # 3cm palm height
+                    
+                    # Add gripper palm/base as a box
+                    palm_x = [pos_cm[0] - 3, pos_cm[0] + 3, pos_cm[0] + 3, pos_cm[0] - 3,
+                             pos_cm[0] - 3, pos_cm[0] + 3, pos_cm[0] + 3, pos_cm[0] - 3]
+                    palm_y = [pos_cm[1] - 0.5, pos_cm[1] - 0.5, pos_cm[1] + 0.5, pos_cm[1] + 0.5,
+                             pos_cm[1] - 0.5, pos_cm[1] - 0.5, pos_cm[1] + 0.5, pos_cm[1] + 0.5]
+                    palm_z = [pos_cm[2], pos_cm[2], pos_cm[2], pos_cm[2],
+                             pos_cm[2] + palm_height, pos_cm[2] + palm_height, pos_cm[2] + palm_height, pos_cm[2] + palm_height]
+                    
+                    # Add gripper palm mesh
+                    fig.add_trace(go.Mesh3d(
+                        x=palm_x, y=palm_y, z=palm_z,
+                        i=[0, 0, 0, 0, 4, 4, 1, 2],
+                        j=[1, 2, 4, 3, 5, 7, 5, 6],
+                        k=[2, 3, 5, 7, 6, 3, 6, 7],
+                        color='gray',
+                        opacity=0.7,
+                        name='Gripper Palm',
+                        showlegend=False
+                    ))
+                    
+                    # Add left finger as lines
+                    left_finger_x = [
+                        pos_cm[0] - gripper_width/2,  # Base
+                        pos_cm[0] - gripper_width/2,  # Tip
+                        None,
+                        pos_cm[0] - gripper_width/2 - finger_width/2,  # Side edge 1
+                        pos_cm[0] - gripper_width/2 - finger_width/2,
+                        None,
+                        pos_cm[0] - gripper_width/2 + finger_width/2,  # Side edge 2
+                        pos_cm[0] - gripper_width/2 + finger_width/2,
+                    ]
+                    left_finger_y = [
+                        pos_cm[1], pos_cm[1], None,
+                        pos_cm[1], pos_cm[1], None,
+                        pos_cm[1], pos_cm[1]
+                    ]
+                    left_finger_z = [
+                        pos_cm[2], pos_cm[2] - finger_length, None,
+                        pos_cm[2], pos_cm[2] - finger_length, None,
+                        pos_cm[2], pos_cm[2] - finger_length
+                    ]
+                    
+                    fig.add_trace(go.Scatter3d(
+                        x=left_finger_x, y=left_finger_y, z=left_finger_z,
+                        mode='lines',
+                        line=dict(color='green', width=8),
+                        name='Left Finger',
+                        showlegend=False
+                    ))
+                    
+                    # Add right finger as lines
+                    right_finger_x = [
+                        pos_cm[0] + gripper_width/2,  # Base
+                        pos_cm[0] + gripper_width/2,  # Tip
+                        None,
+                        pos_cm[0] + gripper_width/2 - finger_width/2,  # Side edge 1
+                        pos_cm[0] + gripper_width/2 - finger_width/2,
+                        None,
+                        pos_cm[0] + gripper_width/2 + finger_width/2,  # Side edge 2
+                        pos_cm[0] + gripper_width/2 + finger_width/2,
+                    ]
+                    right_finger_y = left_finger_y  # Same Y positions
+                    right_finger_z = left_finger_z  # Same Z positions
+                    
+                    fig.add_trace(go.Scatter3d(
+                        x=right_finger_x, y=right_finger_y, z=right_finger_z,
+                        mode='lines',
+                        line=dict(color='green', width=8),
+                        name='Right Finger',
+                        showlegend=False
+                    ))
+                    
+                    # Add contact points on fingers
+                    contact_points_x = [
+                        pos_cm[0] - gripper_width/2,  # Left finger contact
+                        pos_cm[0] + gripper_width/2   # Right finger contact
+                    ]
+                    contact_points_y = [pos_cm[1], pos_cm[1]]
+                    contact_points_z = [pos_cm[2] - finger_length * 0.7, pos_cm[2] - finger_length * 0.7]
+                    
+                    fig.add_trace(go.Scatter3d(
+                        x=contact_points_x,
+                        y=contact_points_y,
+                        z=contact_points_z,
+                        mode='markers',
+                        marker=dict(size=10, color='gold', symbol='circle',
+                                  line=dict(color='orange', width=2)),
+                        name='Contact Points',
+                        showlegend=False
+                    ))
+                    
+                    # Add grasp width indicator
+                    fig.add_trace(go.Scatter3d(
+                        x=[pos_cm[0] - gripper_width/2, pos_cm[0] + gripper_width/2],
+                        y=[pos_cm[1], pos_cm[1]],
+                        z=[pos_cm[2] - finger_length * 0.5, pos_cm[2] - finger_length * 0.5],
+                        mode='lines+text',
+                        line=dict(color='cyan', width=3, dash='dash'),
+                        text=['', f'{gripper_width:.1f}cm'],
+                        textposition='top center',
+                        name='Grasp Width',
+                        showlegend=False
+                    ))
+                    
+                    # Add approach arrow (smaller cone)
+                    fig.add_trace(go.Cone(
                         x=[pos_cm[0]],
                         y=[pos_cm[1]],
-                        z=[pos_cm[2]],
-                        u=[rot[0][2] * 10],
-                        v=[rot[1][2] * 10],
-                        w=[rot[2][2] * 10],
+                        z=[pos_cm[2] + finger_length],
+                        u=[0],
+                        v=[0],
+                        w=[-5],  # Pointing down
                         sizemode='absolute',
-                        sizeref=5,
+                        sizeref=3,
                         anchor='tip',
-                        colorscale=[[0, 'lime'], [1, 'lime']],
+                        colorscale=[[0, 'red'], [1, 'red']],
                         showscale=False,
-                        name='Grasp Pose',
-                        opacity=0.8
-                    )
-                    fig.add_trace(grasp_cone)
+                        name='Approach Direction',
+                        opacity=0.6
+                    ))
                     
                     # Add coordinate axes
                     axis_length = 10  # 10cm
@@ -1403,6 +1513,128 @@ def get_live_pointcloud():
                         textfont=dict(size=14, color='lime'),
                         name='Grasp Point'
                     ))
+                    
+                    # Add arm visualization if joint states are provided
+                    grasp_joint_states_str = request.args.get('grasp_joint_states')
+                    if grasp_joint_states_str:
+                        try:
+                            joint_states = json.loads(grasp_joint_states_str)
+                            
+                            # Robot arm parameters (simplified SO-ARM100 dimensions in cm)
+                            link_lengths = [10, 20, 20, 10]  # Base to shoulder, upper arm, forearm, wrist
+                            
+                            # Extract joint angles (assuming they're in radians)
+                            joints = [
+                                joint_states.get('joint_1', 0),
+                                joint_states.get('joint_2', 0),
+                                joint_states.get('joint_3', 0),
+                                joint_states.get('joint_4', 0),
+                                joint_states.get('joint_5', 0),
+                                joint_states.get('joint_6', 0)
+                            ]
+                            
+                            # Calculate forward kinematics (simplified)
+                            joint_positions = []
+                            
+                            # Base position
+                            base_pos = [0, 0, 0]
+                            joint_positions.append(base_pos)
+                            
+                            # Shoulder position (vertical from base)
+                            shoulder_pos = [0, 0, link_lengths[0]]
+                            joint_positions.append(shoulder_pos)
+                            
+                            # Elbow position (using shoulder and elbow angles)
+                            elbow_x = link_lengths[1] * np.cos(joints[1]) * np.cos(joints[0])
+                            elbow_y = link_lengths[1] * np.cos(joints[1]) * np.sin(joints[0])
+                            elbow_z = shoulder_pos[2] + link_lengths[1] * np.sin(joints[1])
+                            joint_positions.append([elbow_x, elbow_y, elbow_z])
+                            
+                            # Wrist position
+                            wrist_angle = joints[1] + joints[2]
+                            wrist_x = elbow_x + link_lengths[2] * np.cos(wrist_angle) * np.cos(joints[0])
+                            wrist_y = elbow_y + link_lengths[2] * np.cos(wrist_angle) * np.sin(joints[0])
+                            wrist_z = elbow_z + link_lengths[2] * np.sin(wrist_angle)
+                            joint_positions.append([wrist_x, wrist_y, wrist_z])
+                            
+                            # End effector position
+                            end_angle = wrist_angle + joints[3]
+                            end_x = wrist_x + link_lengths[3] * np.cos(end_angle) * np.cos(joints[0])
+                            end_y = wrist_y + link_lengths[3] * np.cos(end_angle) * np.sin(joints[0])
+                            end_z = wrist_z + link_lengths[3] * np.sin(end_angle)
+                            joint_positions.append([end_x, end_y, end_z])
+                            
+                            # Draw arm links
+                            for i in range(len(joint_positions) - 1):
+                                start = joint_positions[i]
+                                end = joint_positions[i + 1]
+                                
+                                # Add link as a line
+                                fig.add_trace(go.Scatter3d(
+                                    x=[start[0], end[0]],
+                                    y=[start[1], end[1]],
+                                    z=[start[2], end[2]],
+                                    mode='lines',
+                                    line=dict(color='orange', width=10),
+                                    name=f'Link {i+1}',
+                                    showlegend=False
+                                ))
+                                
+                                # Add joint as a sphere
+                                fig.add_trace(go.Scatter3d(
+                                    x=[end[0]],
+                                    y=[end[1]],
+                                    z=[end[2]],
+                                    mode='markers',
+                                    marker=dict(size=12, color='gold', symbol='circle',
+                                              line=dict(color='darkorange', width=2)),
+                                    name=f'Joint {i+1}',
+                                    showlegend=False
+                                ))
+                            
+                            # Add base joint
+                            fig.add_trace(go.Scatter3d(
+                                x=[base_pos[0]],
+                                y=[base_pos[1]],
+                                z=[base_pos[2]],
+                                mode='markers',
+                                marker=dict(size=15, color='darkred', symbol='square'),
+                                name='Base',
+                                showlegend=False
+                            ))
+                            
+                            # Add trajectory from end effector to grasp target
+                            fig.add_trace(go.Scatter3d(
+                                x=[end_x, pos_cm[0]],
+                                y=[end_y, pos_cm[1]],
+                                z=[end_z, pos_cm[2]],
+                                mode='lines+markers',
+                                line=dict(color='lime', width=3, dash='dash'),
+                                marker=dict(size=8, color='lime'),
+                                name='Grasp Trajectory',
+                                text=['End Effector', 'Grasp Target'],
+                                textposition='top center'
+                            ))
+                            
+                            # Add distance annotation
+                            distance = np.sqrt((end_x - pos_cm[0])**2 + 
+                                             (end_y - pos_cm[1])**2 + 
+                                             (end_z - pos_cm[2])**2)
+                            
+                            fig.add_trace(go.Scatter3d(
+                                x=[(end_x + pos_cm[0])/2],
+                                y=[(end_y + pos_cm[1])/2],
+                                z=[(end_z + pos_cm[2])/2],
+                                mode='text',
+                                text=[f'Distance: {distance:.1f}cm'],
+                                textfont=dict(size=12, color='yellow'),
+                                showlegend=False
+                            ))
+                            
+                            print(f"Added arm configuration visualization with joints: {joints}")
+                            
+                        except Exception as e:
+                            print(f"Error adding arm visualization: {e}")
                     
                     # Update camera to focus on grasp
                     fig.update_layout(
@@ -2035,6 +2267,46 @@ def serve_mesh(filename):
     return send_from_directory(mesh_dir, filename)
 
 
+def transform_camera_to_world(position_camera, camera_intrinsics, depth_array, depth_scale):
+    """
+    Transform position from camera coordinates to world coordinates.
+    
+    Args:
+        position_camera: [x, y, z] in camera frame (meters)
+        camera_intrinsics: Camera intrinsic parameters (not used in simple transform)
+        depth_array: Depth image array (not used in simple transform)
+        depth_scale: Scale factor to convert depth units to meters
+    
+    Returns:
+        Position in world coordinates [x, y, z] in meters
+    """
+    # Camera frame to world frame transformation
+    # Typical transformation for robotic applications:
+    # Camera: X-right, Y-down, Z-forward (RealSense convention)
+    # World: X-forward, Y-left, Z-up (robot/point cloud convention)
+    
+    x_cam, y_cam, z_cam = position_camera
+    
+    # Apply coordinate frame transformation
+    # This is a common transformation for RGB-D cameras in robotics
+    x_world = z_cam   # Forward in world is depth in camera
+    y_world = -x_cam  # Left in world is negative right in camera  
+    z_world = -y_cam  # Up in world is negative down in camera
+    
+    # Apply any additional camera mounting offsets if needed
+    # These would come from hand-eye calibration
+    # For now, using default offsets
+    camera_offset_x = 0.0  # meters
+    camera_offset_y = 0.0  # meters
+    camera_offset_z = 0.3  # Camera mounted 30cm above robot base
+    
+    x_world += camera_offset_x
+    y_world += camera_offset_y
+    z_world += camera_offset_z
+    
+    return np.array([x_world, y_world, z_world])
+
+
 def calculate_grasp_joint_states(xyz, rot_matrix):
     """Calculate robot joint states for a given grasp pose using inverse kinematics"""
     global robot
@@ -2163,20 +2435,54 @@ def detect_grasp_pose():
                 if 'application/json' in content_type:
                     grasp_data = response.json()
                     
-                    # Extract grasp pose
-                    xyz = grasp_data.get('xyz', [0, 0, 0])
+                    # Extract grasp pose (in camera coordinates)
+                    xyz_camera = grasp_data.get('xyz', [0, 0, 0])
                     rot = grasp_data.get('rot', [[1,0,0],[0,1,0],[0,0,1]])
                     dep = grasp_data.get('dep', 0)
                     
+                    # Transform grasp pose from camera to world coordinates
+                    # The grasp pose from ThinkGrasp is in camera frame
+                    # Need to transform to world/robot frame for visualization
+                    
+                    # Camera to world transformation
+                    # Camera frame: X-right, Y-down, Z-forward (RealSense convention)
+                    # World frame: X-forward, Y-left, Z-up (robot/point cloud convention)
+                    
+                    # Convert mm to meters for consistency
+                    x_cam = xyz_camera[0] / 1000.0  # Convert mm to m
+                    y_cam = xyz_camera[1] / 1000.0
+                    z_cam = xyz_camera[2] / 1000.0
+                    
+                    # Apply coordinate frame transformation
+                    # This transformation aligns camera frame with world frame
+                    x_world = z_cam   # Forward in world is depth in camera
+                    y_world = -x_cam  # Left in world is negative right in camera
+                    z_world = -y_cam  # Up in world is negative down in camera
+                    
+                    # Add camera mounting offset (camera position relative to robot base)
+                    # These values should be calibrated for your specific setup
+                    camera_offset_x = 0.0  # meters
+                    camera_offset_y = 0.0  # meters  
+                    camera_offset_z = 0.3  # Camera mounted 30cm above robot base
+                    
+                    x_world += camera_offset_x
+                    y_world += camera_offset_y
+                    z_world += camera_offset_z
+                    
+                    # Convert back to mm for consistency with rest of system
+                    xyz_world = [x_world * 1000, y_world * 1000, z_world * 1000]
+                    
                     # Calculate joint states using inverse kinematics
-                    joint_states = calculate_grasp_joint_states(xyz, rot)
+                    joint_states = calculate_grasp_joint_states(xyz_world, rot)
                     
                     return jsonify({
                         'success': True,
                         'grasp_pose': {
-                            'xyz': xyz,
+                            'xyz': xyz_world,  # World coordinates for visualization
+                            'xyz_camera': xyz_camera,  # Original camera coordinates
                             'rot': rot,
-                            'dep': dep
+                            'dep': dep,
+                            'coordinate_frame': 'world'  # Indicate we're using world frame
                         },
                         'joint_states': joint_states,
                         'message': 'Grasp pose detected successfully'
