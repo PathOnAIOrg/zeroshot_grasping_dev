@@ -1,1 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_interfaces/ament_cmake_export_include_directories/ament_cmake_export_include_directories-extras.cmake

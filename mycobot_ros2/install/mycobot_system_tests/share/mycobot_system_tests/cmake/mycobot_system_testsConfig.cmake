@@ -1,1 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_system_tests/ament_cmake_core/mycobot_system_testsConfig.cmake
