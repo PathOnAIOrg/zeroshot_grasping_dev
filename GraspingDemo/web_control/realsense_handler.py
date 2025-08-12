@@ -272,8 +272,15 @@ class RealSenseHandler:
                 metadata['files']['depth'] = "depth.npy"
                 metadata['depth_shape'] = self.current_frames['depth'].shape
                 
-                # Get depth statistics
+                # Also save depth as PNG for ThinkGrasp compatibility
+                depth_png_path = capture_folder / "depth.png"
                 depth_data = self.current_frames['depth']
+                # Convert depth to 16-bit PNG (maintaining millimeter precision)
+                depth_uint16 = np.clip(depth_data, 0, 65535).astype(np.uint16)
+                cv2.imwrite(str(depth_png_path), depth_uint16)
+                metadata['files']['depth_png'] = "depth.png"
+                
+                # Get depth statistics
                 metadata['depth_stats'] = {
                     'min': float(np.min(depth_data[depth_data > 0])) if np.any(depth_data > 0) else 0,
                     'max': float(np.max(depth_data)),

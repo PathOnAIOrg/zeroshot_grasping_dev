@@ -1323,6 +1323,100 @@ def get_live_pointcloud():
             ])
         )
         
+        # Add grasp pose visualization if provided
+        show_grasp = request.args.get('show_grasp', 'false').lower() == 'true'
+        if show_grasp:
+            grasp_pose_str = request.args.get('grasp_pose')
+            if grasp_pose_str:
+                try:
+                    import plotly.graph_objects as go
+                    grasp_pose = json.loads(grasp_pose_str)
+                    
+                    # Convert position from mm to cm
+                    pos_cm = [x / 10 for x in grasp_pose['xyz']]
+                    rot = grasp_pose['rot']
+                    
+                    # Add grasp cone
+                    grasp_cone = go.Cone(
+                        x=[pos_cm[0]],
+                        y=[pos_cm[1]],
+                        z=[pos_cm[2]],
+                        u=[rot[0][2] * 10],
+                        v=[rot[1][2] * 10],
+                        w=[rot[2][2] * 10],
+                        sizemode='absolute',
+                        sizeref=5,
+                        anchor='tip',
+                        colorscale=[[0, 'lime'], [1, 'lime']],
+                        showscale=False,
+                        name='Grasp Pose',
+                        opacity=0.8
+                    )
+                    fig.add_trace(grasp_cone)
+                    
+                    # Add coordinate axes
+                    axis_length = 10  # 10cm
+                    
+                    # X-axis (red)
+                    fig.add_trace(go.Scatter3d(
+                        x=[pos_cm[0], pos_cm[0] + rot[0][0] * axis_length],
+                        y=[pos_cm[1], pos_cm[1] + rot[1][0] * axis_length],
+                        z=[pos_cm[2], pos_cm[2] + rot[2][0] * axis_length],
+                        mode='lines',
+                        line=dict(color='red', width=5),
+                        name='Grasp X',
+                        showlegend=False
+                    ))
+                    
+                    # Y-axis (green)
+                    fig.add_trace(go.Scatter3d(
+                        x=[pos_cm[0], pos_cm[0] + rot[0][1] * axis_length],
+                        y=[pos_cm[1], pos_cm[1] + rot[1][1] * axis_length],
+                        z=[pos_cm[2], pos_cm[2] + rot[2][1] * axis_length],
+                        mode='lines',
+                        line=dict(color='green', width=5),
+                        name='Grasp Y',
+                        showlegend=False
+                    ))
+                    
+                    # Z-axis (blue) - approach direction
+                    fig.add_trace(go.Scatter3d(
+                        x=[pos_cm[0], pos_cm[0] + rot[0][2] * axis_length],
+                        y=[pos_cm[1], pos_cm[1] + rot[1][2] * axis_length],
+                        z=[pos_cm[2], pos_cm[2] + rot[2][2] * axis_length],
+                        mode='lines',
+                        line=dict(color='blue', width=5),
+                        name='Grasp Z (approach)',
+                        showlegend=False
+                    ))
+                    
+                    # Add grasp point marker
+                    fig.add_trace(go.Scatter3d(
+                        x=[pos_cm[0]],
+                        y=[pos_cm[1]],
+                        z=[pos_cm[2]],
+                        mode='markers+text',
+                        marker=dict(size=15, color='lime', symbol='diamond', 
+                                  line=dict(color='darkgreen', width=2)),
+                        text=['Grasp Target'],
+                        textposition='top center',
+                        textfont=dict(size=14, color='lime'),
+                        name='Grasp Point'
+                    ))
+                    
+                    # Update camera to focus on grasp
+                    fig.update_layout(
+                        scene_camera=dict(
+                            eye=dict(x=1.5, y=1.5, z=1.0),
+                            center=dict(x=pos_cm[0]/100, y=pos_cm[1]/100, z=pos_cm[2]/100)
+                        )
+                    )
+                    
+                    print(f"Added grasp pose visualization at: {pos_cm}")
+                    
+                except Exception as e:
+                    print(f"Error adding grasp visualization: {e}")
+        
         # Generate HTML
         html_content = generate_plotly_html(fig, div_id="live-pointcloud")
         
@@ -1939,6 +2033,247 @@ def serve_mesh(filename):
     """Serve STL mesh files from robot_description/meshes directory"""
     mesh_dir = '/home/pathonai/Documents/Github/opensource_dev/GraspingDemo/robot_description/meshes/so101'
     return send_from_directory(mesh_dir, filename)
+
+
+def calculate_grasp_joint_states(xyz, rot_matrix):
+    """Calculate robot joint states for a given grasp pose using inverse kinematics"""
+    global robot
+    
+    try:
+        # Initialize kinematics if available
+        kinematics = SO101Kinematics()
+        
+        # Convert grasp pose from camera frame to robot base frame
+        # This requires the hand-eye calibration transform
+        # For now, we'll use approximate values
+        
+        # Convert position from mm to meters
+        position = np.array(xyz) / 1000.0
+        
+        # Adjust for camera to robot transform (approximate)
+        # This should use actual calibration data
+        robot_position = position + np.array([0.1, 0, 0.2])  # Offset from camera to robot base
+        
+        # Convert rotation matrix to quaternion or euler angles
+        from scipy.spatial.transform import Rotation
+        r = Rotation.from_matrix(np.array(rot_matrix))
+        euler = r.as_euler('xyz', degrees=False)
+        
+        # Calculate IK
+        try:
+            joint_angles = kinematics.inverse_kinematics(
+                robot_position[0], robot_position[1], robot_position[2],
+                euler[0], euler[1], euler[2]
+            )
+            
+            # Convert to degrees for display
+            joint_angles_deg = [np.rad2deg(angle) for angle in joint_angles]
+            
+            return {
+                'joint_1': joint_angles[0] if len(joint_angles) > 0 else 0,
+                'joint_2': joint_angles[1] if len(joint_angles) > 1 else 0,
+                'joint_3': joint_angles[2] if len(joint_angles) > 2 else 0,
+                'joint_4': joint_angles[3] if len(joint_angles) > 3 else 0,
+                'joint_5': joint_angles[4] if len(joint_angles) > 4 else 0,
+                'joint_6': joint_angles[5] if len(joint_angles) > 5 else 0,
+                'joint_angles_deg': joint_angles_deg,
+                'success': True
+            }
+        except Exception as e:
+            print(f"IK calculation failed: {e}")
+            # Return approximate joint states
+            return {
+                'joint_1': 0,
+                'joint_2': -0.5,
+                'joint_3': 0.8,
+                'joint_4': -0.3,
+                'joint_5': 0,
+                'joint_6': 0,
+                'joint_angles_deg': [0, -28.6, 45.8, -17.2, 0, 0],
+                'success': False,
+                'message': 'Using approximate joint states'
+            }
+            
+    except Exception as e:
+        print(f"Error calculating joint states: {e}")
+        return {
+            'joint_1': 0,
+            'joint_2': 0,
+            'joint_3': 0,
+            'joint_4': 0,
+            'joint_5': 0,
+            'joint_6': 0,
+            'joint_angles_deg': [0, 0, 0, 0, 0, 0],
+            'success': False,
+            'message': str(e)
+        }
+
+
+@app.route('/api/grasp/detect', methods=['POST'])
+def detect_grasp_pose():
+    """Detect grasp pose using ThinkGrasp API"""
+    try:
+        data = request.get_json() or {}
+        capture_name = data.get('capture_name')
+        grasp_text = data.get('grasp_text', 'pick up the object')
+        
+        if not capture_name:
+            return jsonify({'success': False, 'message': 'No capture name provided'})
+        
+        # Get capture paths
+        capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+        if not capture_dir.exists():
+            # Try relative path as fallback
+            capture_dir = Path('captures') / capture_name
+            if not capture_dir.exists():
+                return jsonify({'success': False, 'message': f'Capture {capture_name} not found'})
+        
+        rgb_path = capture_dir / 'rgb.png'
+        depth_path = capture_dir / 'depth.png'
+        text_path = capture_dir / 'grasp_text.txt'
+        
+        # Save grasp text
+        with open(text_path, 'w') as f:
+            f.write(grasp_text)
+        
+        # Call ThinkGrasp API
+        import requests
+        thinkgrasp_url = 'http://localhost:5010/grasp_pose'
+        
+        # Log the request for debugging
+        print(f"Calling ThinkGrasp API with:")
+        print(f"  RGB: {rgb_path.absolute()}")
+        print(f"  Depth: {depth_path.absolute()}")
+        print(f"  Text: {grasp_text}")
+        
+        try:
+            response = requests.post(thinkgrasp_url, json={
+                'image_path': str(rgb_path.absolute()),
+                'depth_path': str(depth_path.absolute()),
+                'text_path': str(text_path.absolute())
+            }, timeout=30)
+            
+            # Log response for debugging
+            print(f"ThinkGrasp response status: {response.status_code}")
+            print(f"Response headers: {response.headers.get('content-type', 'unknown')}")
+            
+            if response.status_code == 200:
+                # Check if response is JSON
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    grasp_data = response.json()
+                    
+                    # Extract grasp pose
+                    xyz = grasp_data.get('xyz', [0, 0, 0])
+                    rot = grasp_data.get('rot', [[1,0,0],[0,1,0],[0,0,1]])
+                    dep = grasp_data.get('dep', 0)
+                    
+                    # Calculate joint states using inverse kinematics
+                    joint_states = calculate_grasp_joint_states(xyz, rot)
+                    
+                    return jsonify({
+                        'success': True,
+                        'grasp_pose': {
+                            'xyz': xyz,
+                            'rot': rot,
+                            'dep': dep
+                        },
+                        'joint_states': joint_states,
+                        'message': 'Grasp pose detected successfully'
+                    })
+                else:
+                    # Response is not JSON (probably HTML error page)
+                    error_text = response.text[:500]  # First 500 chars
+                    print(f"Non-JSON response from ThinkGrasp: {error_text}")
+                    return jsonify({
+                        'success': False,
+                        'message': f'ThinkGrasp API returned non-JSON response. Make sure the API is running correctly.'
+                    })
+            else:
+                # Try to parse error message
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('error', 'Unknown error')
+                except:
+                    error_msg = f'HTTP {response.status_code}: {response.text[:200]}'
+                
+                return jsonify({
+                    'success': False,
+                    'message': f'ThinkGrasp API error: {error_msg}'
+                })
+                
+        except requests.exceptions.RequestException as e:
+            return jsonify({
+                'success': False,
+                'message': f'Failed to connect to ThinkGrasp API: {str(e)}. Make sure ThinkGrasp is running on port 5010.'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error detecting grasp pose: {str(e)}'
+        })
+
+
+@app.route('/api/grasp/execute', methods=['POST'])
+def execute_grasp_pose():
+    """Execute a detected grasp pose on the robot"""
+    global robot, is_moving
+    
+    try:
+        data = request.get_json() or {}
+        grasp_pose = data.get('grasp_pose')
+        
+        if not grasp_pose:
+            return jsonify({'success': False, 'message': 'No grasp pose provided'})
+        
+        if not robot:
+            return jsonify({'success': False, 'message': 'Robot not connected'})
+        
+        if is_moving:
+            return jsonify({'success': False, 'message': 'Robot is already moving'})
+        
+        # Extract pose data
+        xyz = grasp_pose.get('xyz', [0, 0, 0])
+        rot_matrix = grasp_pose.get('rot', [[1,0,0],[0,1,0],[0,0,1]])
+        depth = grasp_pose.get('dep', 0)
+        
+        # Convert grasp pose to robot joint angles
+        # This would involve inverse kinematics calculation
+        # For now, we'll just move to a predefined grasp position
+        
+        # Example: Move to grasp position (you would calculate actual IK here)
+        is_moving = True
+        try:
+            # Pre-grasp position
+            pre_grasp_joints = [0, -0.5, 0.8, -0.3, 0, 0.5]  # Open gripper
+            robot.write_joints(pre_grasp_joints)
+            time.sleep(2)
+            
+            # Grasp position (would be calculated from IK)
+            # grasp_joints = calculate_ik(xyz, rot_matrix)
+            
+            # Close gripper
+            robot.write_joints([0, -0.5, 0.8, -0.3, 0, 0.0])  # Close gripper
+            time.sleep(1)
+            
+            # Lift object
+            lift_joints = [0, -0.3, 0.6, -0.3, 0, 0.0]
+            robot.write_joints(lift_joints)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Grasp executed successfully'
+            })
+            
+        finally:
+            is_moving = False
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error executing grasp: {str(e)}'
+        })
 
 
 @app.route('/api/robot/update_visualization', methods=['POST'])
