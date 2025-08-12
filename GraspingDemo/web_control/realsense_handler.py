@@ -70,6 +70,10 @@ class RealSenseHandler:
             depth_sensor = profile.get_device().first_depth_sensor()
             self.depth_scale = depth_sensor.get_depth_scale()
             
+            # Update CameraConfig to match RealSense for ThinkGrasp compatibility
+            from camera_config import CameraConfig
+            CameraConfig.from_realsense_intrinsics(self.intrinsics, self.depth_scale)
+            
             self.is_streaming = True
             
             # Start background thread to continuously update frames
@@ -175,7 +179,7 @@ class RealSenseHandler:
             print(f"Error getting depth frame: {e}")
             return None
     
-    def get_point_cloud(self, downsample=4):
+    def get_point_cloud(self, downsample=4, max_points=20000):
         """Get point cloud data for visualization"""
         if not self.current_frames or 'points' not in self.current_frames:
             return None
@@ -198,6 +202,12 @@ class RealSenseHandler:
             # Downsample for web visualization
             vertices = vertices[::downsample]
             tex_coords = tex_coords[::downsample]
+            
+            # Further limit if exceeding max_points
+            if len(vertices) > max_points:
+                indices = np.random.choice(len(vertices), max_points, replace=False)
+                vertices = vertices[indices]
+                tex_coords = tex_coords[indices]
             
             # Get colors from texture coordinates
             h, w = color_image.shape[:2]
@@ -287,18 +297,21 @@ class RealSenseHandler:
                 except Exception as e:
                     print(f"Warning: Could not save point cloud: {e}")
             
-            # Save camera intrinsics
+            # Save camera intrinsics in both RealSense and ThinkGrasp formats
             if self.intrinsics:
                 intrinsics_data = {
                     'width': self.intrinsics.width,
                     'height': self.intrinsics.height,
                     'fx': self.intrinsics.fx,
                     'fy': self.intrinsics.fy,
-                    'ppx': self.intrinsics.ppx,
-                    'ppy': self.intrinsics.ppy,
+                    'ppx': self.intrinsics.ppx,  # RealSense naming
+                    'ppy': self.intrinsics.ppy,  # RealSense naming
+                    'cx': self.intrinsics.ppx,   # ThinkGrasp naming
+                    'cy': self.intrinsics.ppy,   # ThinkGrasp naming
                     'model': str(self.intrinsics.model),
                     'coeffs': list(self.intrinsics.coeffs),
-                    'depth_scale': getattr(self, 'depth_scale', 0.001)  # Default to 1mm per unit
+                    'depth_scale': getattr(self, 'depth_scale', 0.001),  # RealSense format (m per unit)
+                    'scale': 1.0 / getattr(self, 'depth_scale', 0.001)   # ThinkGrasp format (units per m)
                 }
                 metadata['camera_intrinsics'] = intrinsics_data
             
