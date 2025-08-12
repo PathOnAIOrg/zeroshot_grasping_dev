@@ -895,6 +895,17 @@
                             <div id="grasp-result" style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 4px; display: none;">
                                 <strong style="color: #fff;">Grasp Pose Result:</strong>
                                 <pre id="grasp-result-text" style="color: #0f0; font-size: 12px; margin: 5px 0;"></pre>
+                                
+                                <!-- Arm Visualization Toggle -->
+                                <div style="margin: 10px 0;">
+                                    <label style="color: #fff; display: flex; align-items: center; gap: 10px;">
+                                        <input type="checkbox" id="show-arm-config" checked 
+                                               onchange="toggleArmVisualization(this.checked)">
+                                        Show Arm Configuration
+                                    </label>
+                                    <small style="color: #888;">Visualize how the arm will move to grasp</small>
+                                </div>
+                                
                                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                                     <button onclick="showGraspInPlotly()" class="btn btn-info" 
                                             style="flex: 1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
@@ -2788,6 +2799,19 @@
             gridHelper.material.transparent = true;
             pointCloudScene.add(gridHelper);
             
+            // Add lights for better visualization of gripper
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            pointCloudScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0.5, 1, 0.5);
+            directionalLight.castShadow = true;
+            pointCloudScene.add(directionalLight);
+            
+            const pointLight = new THREE.PointLight(0xffffff, 0.4);
+            pointLight.position.set(0, 0.5, 0);
+            pointCloudScene.add(pointLight);
+            
             // Initialize robot model
             initRobotModel();
             
@@ -3292,14 +3316,39 @@
                 }
                 
                 resultDiv.style.display = 'block';
-                resultText.textContent = JSON.stringify({
-                    position: detectedGraspPose.xyz,
+                
+                // Display both world and camera coordinates if available
+                let coordInfo = {
+                    position_world_mm: detectedGraspPose.xyz,
+                    position_world_m: [
+                        (detectedGraspPose.xyz[0] / 1000).toFixed(3),
+                        (detectedGraspPose.xyz[1] / 1000).toFixed(3),
+                        (detectedGraspPose.xyz[2] / 1000).toFixed(3)
+                    ],
                     rotation: detectedGraspPose.rot,
-                    depth: detectedGraspPose.dep
-                }, null, 2) + jointStatesText;
+                    depth: detectedGraspPose.dep,
+                    coordinate_frame: detectedGraspPose.coordinate_frame || 'world'
+                };
+                
+                if (detectedGraspPose.xyz_camera) {
+                    coordInfo.position_camera_mm = detectedGraspPose.xyz_camera;
+                    coordInfo.position_camera_m = [
+                        (detectedGraspPose.xyz_camera[0] / 1000).toFixed(3),
+                        (detectedGraspPose.xyz_camera[1] / 1000).toFixed(3),
+                        (detectedGraspPose.xyz_camera[2] / 1000).toFixed(3)
+                    ];
+                }
+                
+                resultText.textContent = JSON.stringify(coordInfo, null, 2) + jointStatesText;
                 
                 // Visualize grasp pose on point cloud
                 visualizeGraspPose(detectedGraspPose);
+                
+                // Visualize arm configuration for grasp (if checkbox is checked)
+                const showArm = document.getElementById('show-arm-config');
+                if (showArm && showArm.checked) {
+                    visualizeGraspArmConfiguration(jointStates);
+                }
                 
                 // Update Plotly visualization if it's active
                 if (currentViewerType === 'plotly') {
@@ -3328,40 +3377,141 @@
             graspVisualization = new THREE.Group();
             graspVisualization.name = 'graspVisualization';
             
-            // Convert grasp position (camera coordinates in mm to scene coordinates in m)
-            const position = graspPose.xyz;
+            // Use world coordinates (already transformed from camera frame)
+            // Position is in mm from the backend
+            const position = graspPose.xyz;  // World coordinates in mm
             const rotation = graspPose.rot;
             
-            // Create gripper representation
-            const gripperLength = 0.12;  // 12cm gripper length
-            const gripperWidth = 0.08;   // 8cm gripper width
-            const gripperThickness = 0.02; // 2cm thickness
+            console.log('Visualizing grasp at world position (mm):', position);
+            if (graspPose.xyz_camera) {
+                console.log('Original camera position (mm):', graspPose.xyz_camera);
+            }
             
-            // Create gripper fingers
-            const fingerGeometry = new THREE.BoxGeometry(gripperThickness, gripperLength / 2, gripperThickness);
-            const gripperMaterial = new THREE.MeshPhongMaterial({
-                color: 0x00ff00,
+            // Create realistic two-finger gripper representation
+            const gripperDepth = graspPose.dep || 0.05;  // Use grasp depth or default
+            const gripperOpenWidth = gripperDepth * 1000;  // Convert to mm for scale
+            const fingerLength = 0.08;  // 8cm finger length
+            const fingerWidth = 0.015;  // 1.5cm finger width
+            const fingerThickness = 0.01; // 1cm finger thickness
+            const palmHeight = 0.03;  // 3cm palm height
+            const palmWidth = 0.06;   // 6cm palm width
+            
+            // Materials for different parts
+            const fingerMaterial = new THREE.MeshPhongMaterial({
+                color: 0x4CAF50,  // Green for fingers
                 transparent: true,
-                opacity: 0.7
+                opacity: 0.8,
+                shininess: 100
             });
             
-            // Create gripper base
-            const baseGeometry = new THREE.BoxGeometry(gripperWidth, gripperThickness, gripperThickness * 2);
-            const baseMesh = new THREE.Mesh(baseGeometry, gripperMaterial);
-            graspVisualization.add(baseMesh);
+            const palmMaterial = new THREE.MeshPhongMaterial({
+                color: 0x757575,  // Gray for palm
+                transparent: true,
+                opacity: 0.9,
+                shininess: 50
+            });
             
-            // Create left finger
-            const leftFinger = new THREE.Mesh(fingerGeometry, gripperMaterial);
-            leftFinger.position.set(-gripperWidth/3, -gripperLength/4, 0);
-            graspVisualization.add(leftFinger);
+            const contactMaterial = new THREE.MeshPhongMaterial({
+                color: 0xFFD700,  // Gold for contact points
+                transparent: true,
+                opacity: 0.6,
+                emissive: 0xFFD700,
+                emissiveIntensity: 0.3
+            });
             
-            // Create right finger
-            const rightFinger = new THREE.Mesh(fingerGeometry, gripperMaterial);
-            rightFinger.position.set(gripperWidth/3, -gripperLength/4, 0);
-            graspVisualization.add(rightFinger);
+            // Create gripper palm/base
+            const palmGeometry = new THREE.BoxGeometry(palmWidth, palmHeight, fingerThickness * 2);
+            const palmMesh = new THREE.Mesh(palmGeometry, palmMaterial);
+            palmMesh.position.set(0, palmHeight / 2, 0);
+            graspVisualization.add(palmMesh);
             
-            // Apply position (convert mm to m for display)
-            graspVisualization.position.set(position[0] / 10, position[1] / 10, position[2] / 10);  // Convert to cm for display
+            // Create left finger with segments
+            const leftFingerGroup = new THREE.Group();
+            
+            // Left finger base segment
+            const leftFingerBase = new THREE.BoxGeometry(fingerWidth, fingerLength * 0.4, fingerThickness);
+            const leftFingerBaseMesh = new THREE.Mesh(leftFingerBase, fingerMaterial);
+            leftFingerBaseMesh.position.set(0, -fingerLength * 0.2, 0);
+            leftFingerGroup.add(leftFingerBaseMesh);
+            
+            // Left finger tip segment (angled for gripping)
+            const leftFingerTip = new THREE.BoxGeometry(fingerWidth * 0.8, fingerLength * 0.6, fingerThickness);
+            const leftFingerTipMesh = new THREE.Mesh(leftFingerTip, fingerMaterial);
+            leftFingerTipMesh.position.set(0, -fingerLength * 0.7, 0);
+            leftFingerTipMesh.rotation.z = Math.PI / 12;  // Slight angle
+            leftFingerGroup.add(leftFingerTipMesh);
+            
+            // Left finger contact pad
+            const leftContactPad = new THREE.BoxGeometry(fingerWidth * 0.6, fingerLength * 0.3, fingerThickness * 1.2);
+            const leftContactMesh = new THREE.Mesh(leftContactPad, contactMaterial);
+            leftContactMesh.position.set(fingerWidth * 0.2, -fingerLength * 0.6, 0);
+            leftFingerGroup.add(leftContactMesh);
+            
+            // Position left finger based on grasp width
+            leftFingerGroup.position.set(-gripperOpenWidth / 2000, 0, 0);  // Convert to meters
+            graspVisualization.add(leftFingerGroup);
+            
+            // Create right finger with segments (mirror of left)
+            const rightFingerGroup = new THREE.Group();
+            
+            // Right finger base segment
+            const rightFingerBaseMesh = new THREE.Mesh(leftFingerBase, fingerMaterial);
+            rightFingerBaseMesh.position.set(0, -fingerLength * 0.2, 0);
+            rightFingerGroup.add(rightFingerBaseMesh);
+            
+            // Right finger tip segment (angled for gripping)
+            const rightFingerTipMesh = new THREE.Mesh(leftFingerTip, fingerMaterial);
+            rightFingerTipMesh.position.set(0, -fingerLength * 0.7, 0);
+            rightFingerTipMesh.rotation.z = -Math.PI / 12;  // Opposite angle
+            rightFingerGroup.add(rightFingerTipMesh);
+            
+            // Right finger contact pad
+            const rightContactMesh = new THREE.Mesh(leftContactPad, contactMaterial);
+            rightContactMesh.position.set(-fingerWidth * 0.2, -fingerLength * 0.6, 0);
+            rightFingerGroup.add(rightContactMesh);
+            
+            // Position right finger based on grasp width
+            rightFingerGroup.position.set(gripperOpenWidth / 2000, 0, 0);  // Convert to meters
+            graspVisualization.add(rightFingerGroup);
+            
+            // Add visual grasp width indicator lines
+            const lineGeometry = new THREE.BufferGeometry();
+            const lineVertices = new Float32Array([
+                -gripperOpenWidth / 2000, -fingerLength * 0.5, 0,
+                gripperOpenWidth / 2000, -fingerLength * 0.5, 0
+            ]);
+            lineGeometry.setAttribute('position', new THREE.BufferAttribute(lineVertices, 3));
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x00FFFF, 
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.5
+            });
+            const graspWidthLine = new THREE.Line(lineGeometry, lineMaterial);
+            graspVisualization.add(graspWidthLine);
+            
+            // Add text label for grasp width
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            context.fillStyle = 'rgba(0, 255, 255, 0.8)';
+            context.font = 'Bold 24px Arial';
+            context.fillText(`Width: ${(gripperOpenWidth).toFixed(1)}mm`, 10, 40);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(0.05, 0.0125, 1);
+            sprite.position.set(0, -fingerLength * 0.3, 0);
+            graspVisualization.add(sprite);
+            
+            // Apply position (convert mm to m for Three.js scene)
+            graspVisualization.position.set(
+                position[0] / 1000,  // X: Convert mm to m (world frame)
+                position[1] / 1000,  // Y: Convert mm to m (world frame) 
+                position[2] / 1000   // Z: Convert mm to m (world frame)
+            );
             
             // Apply rotation matrix
             const rotMatrix = new THREE.Matrix3();
@@ -3394,7 +3544,298 @@
             
             pointCloudScene.add(graspVisualization);
             
-            console.log('Grasp pose visualized at:', position);
+            // Add pulsing animation to highlight the grasp
+            let pulseTime = 0;
+            const animateGrasp = () => {
+                if (!graspVisualization || !pointCloudScene.getObjectByName('graspVisualization')) {
+                    return;  // Stop animation if gripper removed
+                }
+                
+                pulseTime += 0.05;
+                const scale = 1 + Math.sin(pulseTime) * 0.1;  // Pulse between 0.9 and 1.1
+                graspVisualization.scale.set(scale, scale, scale);
+                
+                // Rotate slowly around Z axis
+                graspVisualization.rotation.z += 0.005;
+                
+                // Update material opacity for pulsing effect
+                graspVisualization.traverse((child) => {
+                    if (child.material && child.material.name !== 'contactMaterial') {
+                        child.material.opacity = 0.7 + Math.sin(pulseTime * 2) * 0.2;
+                    }
+                });
+                
+                if (pointCloudRenderer) {
+                    pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
+                }
+                
+                requestAnimationFrame(animateGrasp);
+            };
+            
+            // Start animation
+            animateGrasp();
+            
+            console.log('Grasp pose visualized at world position (m):', [
+                position[0] / 1000,
+                position[1] / 1000,
+                position[2] / 1000
+            ]);
+        }
+        
+        // Global variable for arm visualization
+        let armVisualization = null;
+        
+        // Function to visualize arm configuration for grasp
+        function visualizeGraspArmConfiguration(jointStates) {
+            if (!pointCloudScene || !jointStates) return;
+            
+            // Remove previous arm visualization
+            if (armVisualization) {
+                pointCloudScene.remove(armVisualization);
+                armVisualization = null;
+            }
+            
+            // Create arm visualization group
+            armVisualization = new THREE.Group();
+            armVisualization.name = 'armVisualization';
+            
+            // Robot arm parameters (simplified SO-ARM100 dimensions)
+            const linkLengths = [
+                0.1,   // Base to shoulder (10cm)
+                0.2,   // Shoulder to elbow (20cm upper arm)
+                0.2,   // Elbow to wrist (20cm forearm)
+                0.1,   // Wrist to gripper (10cm)
+            ];
+            
+            // Extract joint angles (convert to radians if needed)
+            const joints = [
+                jointStates.joint_1 || 0,  // Base rotation
+                jointStates.joint_2 || 0,  // Shoulder
+                jointStates.joint_3 || 0,  // Elbow
+                jointStates.joint_4 || 0,  // Wrist pitch
+                jointStates.joint_5 || 0,  // Wrist roll
+                jointStates.joint_6 || 0,  // Gripper
+            ];
+            
+            // Convert degrees to radians if joint_angles_deg exists
+            const jointAnglesRad = jointStates.joint_angles_deg ? 
+                jointStates.joint_angles_deg.map(deg => deg * Math.PI / 180) : 
+                joints;
+            
+            // Calculate forward kinematics to get joint positions
+            const jointPositions = [];
+            
+            // Base position (origin)
+            const basePos = new THREE.Vector3(0, 0, 0);
+            jointPositions.push(basePos.clone());
+            
+            // Create transformation matrices for each joint
+            const T = [];
+            
+            // T0: Base rotation around Z
+            T[0] = new THREE.Matrix4().makeRotationZ(jointAnglesRad[0]);
+            
+            // T1: Shoulder - vertical offset then rotation around Y
+            T[1] = new THREE.Matrix4().makeTranslation(0, 0, linkLengths[0]);
+            T[1].multiply(new THREE.Matrix4().makeRotationY(jointAnglesRad[1]));
+            
+            // T2: Elbow - horizontal offset then rotation around Y
+            T[2] = new THREE.Matrix4().makeTranslation(linkLengths[1], 0, 0);
+            T[2].multiply(new THREE.Matrix4().makeRotationY(jointAnglesRad[2]));
+            
+            // T3: Wrist - horizontal offset then rotation around Y
+            T[3] = new THREE.Matrix4().makeTranslation(linkLengths[2], 0, 0);
+            T[3].multiply(new THREE.Matrix4().makeRotationY(jointAnglesRad[3]));
+            
+            // T4: End effector - final offset
+            T[4] = new THREE.Matrix4().makeTranslation(linkLengths[3], 0, 0);
+            
+            // Calculate cumulative transformations
+            const cumulativeT = [new THREE.Matrix4()];
+            cumulativeT[1] = T[0].clone();
+            cumulativeT[2] = cumulativeT[1].clone().multiply(T[1]);
+            cumulativeT[3] = cumulativeT[2].clone().multiply(T[2]);
+            cumulativeT[4] = cumulativeT[3].clone().multiply(T[3]);
+            cumulativeT[5] = cumulativeT[4].clone().multiply(T[4]);
+            
+            // Extract positions from transformation matrices
+            const origin = new THREE.Vector3(0, 0, 0);
+            
+            const shoulderPos = origin.clone().applyMatrix4(cumulativeT[2]);
+            const elbowPos = origin.clone().applyMatrix4(cumulativeT[3]);
+            const wristPos = origin.clone().applyMatrix4(cumulativeT[4]);
+            const endEffectorPos = origin.clone().applyMatrix4(cumulativeT[5]);
+            
+            jointPositions.push(shoulderPos);
+            jointPositions.push(elbowPos);
+            jointPositions.push(wristPos);
+            jointPositions.push(endEffectorPos);
+            
+            // Create arm links as cylinders
+            const linkMaterial = new THREE.MeshPhongMaterial({
+                color: 0xFF6B35,  // Orange for arm
+                transparent: true,
+                opacity: 0.7,
+                shininess: 100
+            });
+            
+            const jointMaterial = new THREE.MeshPhongMaterial({
+                color: 0xFFD700,  // Gold for joints
+                transparent: true,
+                opacity: 0.9,
+                shininess: 150
+            });
+            
+            // Add links between joints
+            for (let i = 0; i < jointPositions.length - 1; i++) {
+                const start = jointPositions[i];
+                const end = jointPositions[i + 1];
+                
+                // Calculate link position and orientation
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const length = direction.length();
+                const center = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                
+                // Create cylinder for link
+                const linkGeometry = new THREE.CylinderGeometry(0.01, 0.01, length, 8);
+                const linkMesh = new THREE.Mesh(linkGeometry, linkMaterial);
+                
+                // Position and orient the cylinder
+                linkMesh.position.copy(center);
+                linkMesh.lookAt(end);
+                linkMesh.rotateX(Math.PI / 2);
+                
+                armVisualization.add(linkMesh);
+                
+                // Add joint sphere
+                const jointGeometry = new THREE.SphereGeometry(0.015, 16, 16);
+                const jointMesh = new THREE.Mesh(jointGeometry, jointMaterial);
+                jointMesh.position.copy(end);
+                armVisualization.add(jointMesh);
+            }
+            
+            // Add base joint
+            const baseJointGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+            const baseJointMesh = new THREE.Mesh(baseJointGeometry, jointMaterial);
+            baseJointMesh.position.copy(jointPositions[0]);
+            armVisualization.add(baseJointMesh);
+            
+            // Add coordinate frames at each joint
+            jointPositions.forEach((pos, index) => {
+                const axesHelper = new THREE.AxesHelper(0.03);
+                axesHelper.position.copy(pos);
+                armVisualization.add(axesHelper);
+                
+                // Add joint labels
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 128;
+                canvas.height = 64;
+                context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                context.font = 'Bold 20px Arial';
+                const jointNames = ['Base', 'Shoulder', 'Elbow', 'Wrist', 'End'];
+                context.fillText(jointNames[index], 10, 30);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture, 
+                    transparent: true,
+                    depthTest: false
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.scale.set(0.05, 0.025, 1);
+                sprite.position.copy(pos);
+                sprite.position.y += 0.03;
+                armVisualization.add(sprite);
+            });
+            
+            // Add trajectory line from current position to grasp target
+            if (window.currentGraspPose) {
+                const graspPos = new THREE.Vector3(
+                    window.currentGraspPose.xyz[0] / 1000,
+                    window.currentGraspPose.xyz[1] / 1000,
+                    window.currentGraspPose.xyz[2] / 1000
+                );
+                
+                // Create dashed line from end effector to grasp target
+                const points = [endEffectorPos, graspPos];
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineDashedMaterial({
+                    color: 0x00FF00,
+                    linewidth: 2,
+                    scale: 1,
+                    dashSize: 0.01,
+                    gapSize: 0.01,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const trajectoryLine = new THREE.Line(lineGeometry, lineMaterial);
+                trajectoryLine.computeLineDistances();
+                armVisualization.add(trajectoryLine);
+                
+                // Add arrow pointing to grasp
+                const direction = new THREE.Vector3().subVectors(graspPos, endEffectorPos).normalize();
+                const arrowHelper = new THREE.ArrowHelper(
+                    direction,
+                    endEffectorPos,
+                    endEffectorPos.distanceTo(graspPos) * 0.8,
+                    0x00FF00,
+                    0.05,
+                    0.03
+                );
+                armVisualization.add(arrowHelper);
+            }
+            
+            // Add transparency animation
+            let fadeTime = 0;
+            const animateArm = () => {
+                if (!armVisualization || !pointCloudScene.getObjectByName('armVisualization')) {
+                    return;  // Stop animation if arm removed
+                }
+                
+                fadeTime += 0.02;
+                const opacity = 0.5 + Math.sin(fadeTime) * 0.3;
+                
+                armVisualization.traverse((child) => {
+                    if (child.material && child.material.transparent) {
+                        child.material.opacity = opacity;
+                    }
+                });
+                
+                if (pointCloudRenderer) {
+                    pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
+                }
+                
+                requestAnimationFrame(animateArm);
+            };
+            
+            // Start animation
+            animateArm();
+            
+            pointCloudScene.add(armVisualization);
+            
+            console.log('Arm configuration visualized for grasp with joints:', jointAnglesRad);
+        }
+        
+        // Function to toggle arm visualization
+        function toggleArmVisualization(show) {
+            if (show && window.currentGraspJointStates) {
+                // Show arm visualization
+                visualizeGraspArmConfiguration(window.currentGraspJointStates);
+            } else if (!show && armVisualization) {
+                // Hide arm visualization
+                pointCloudScene.remove(armVisualization);
+                armVisualization = null;
+                if (pointCloudRenderer) {
+                    pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
+                }
+            }
+            
+            // Update Plotly if it's active
+            if (currentViewerType === 'plotly' && window.currentGraspPose) {
+                updatePlotlyWithGraspPose(window.currentGraspPose, 
+                    show ? window.currentGraspJointStates : null);
+            }
         }
         
         // Function to update Plotly visualization with grasp pose
