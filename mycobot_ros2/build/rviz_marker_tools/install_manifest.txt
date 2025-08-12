@@ -1,3 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/lib/librviz_marker_tools.so
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsTargetsExport.cmake
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/install/rviz_marker_tools/share/rviz_marker_tools/cmake/rviz_marker_toolsTargetsExport-release.cmake

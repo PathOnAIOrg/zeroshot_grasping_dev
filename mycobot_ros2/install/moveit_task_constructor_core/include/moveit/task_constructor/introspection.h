@@ -1,1 +1,0 @@
-/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/moveit_task_constructor/core/include/moveit/task_constructor/introspection.h

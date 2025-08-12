@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/pathonai/ros2_jazzy/src/opensource_dev/mycobot_ros2/build/mycobot_mtc_demos/fallbacks_move_to" "TARGETS" "mycobot_mtc_demos_fallbacks_move_to" "ARCHIVE_DESTINATION" "lib" "LIBRARY_DESTINATION" "lib" "RUNTIME_DESTINATION" "lib/mycobot_mtc_demos")
