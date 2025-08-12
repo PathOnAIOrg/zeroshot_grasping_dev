@@ -6,7 +6,7 @@
     <title>SO-101 Robot Control Panel</title>
     
     <!-- Plotly for point cloud visualization -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -606,7 +606,10 @@
     </style>
     
     <!-- Three.js for 3D point cloud visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
+        window.THREE = THREE;
+    </script>
 </head>
 <body>
     <!-- Motor Warning Banner -->
@@ -798,6 +801,64 @@
                                 <button class="btn btn-success btn-sm" onclick="viewLivePointCloud()" style="padding: 5px 10px; font-size: 12px;">📡 Live</button>
                             </div>
                         </div>
+                        
+                        <!-- Point Cloud Controls (Plotly Only) -->
+                        <div style="display: flex; gap: 15px; margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                            <div style="flex: 1;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    <input type="checkbox" id="show-camera-viz" checked onchange="toggleCameraVisualization()">
+                                    <span style="font-size: 12px;">Show Camera</span>
+                                </label>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    <input type="checkbox" id="show-robot-viz" checked onchange="toggleRobotVisualization()">
+                                    <span style="font-size: 12px;">Show Robot</span>
+                                </label>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    <input type="checkbox" id="auto-refresh-plotly" onchange="togglePlotlyAutoRefresh()">
+                                    <span style="font-size: 12px;">Auto-refresh (1s)</span>
+                                </label>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; color: #666;">Density (Plotly):</label>
+                                <input type="range" id="pointcloud-density" min="1" max="16" value="8" 
+                                       oninput="document.getElementById('density-value').textContent = this.value" 
+                                       style="width: 100%; margin-top: 3px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #999;">
+                                    <span>Dense</span>
+                                    <span id="density-value">8</span>
+                                    <span>Sparse</span>
+                                </div>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; color: #666;">Point Size (Plotly):</label>
+                                <input type="range" id="pointcloud-size" min="0.5" max="5" value="1" step="0.5"
+                                       oninput="document.getElementById('size-value').textContent = this.value" 
+                                       style="width: 100%; margin-top: 3px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #999;">
+                                    <span>Small</span>
+                                    <span id="size-value">1.0</span>
+                                    <span>Large</span>
+                                </div>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; color: #666;">Max Points:</label>
+                                <select id="max-points" 
+                                        style="width: 100%; margin-top: 3px; padding: 3px; font-size: 12px;">
+                                    <option value="10000">10K</option>
+                                    <option value="20000" selected>20K</option>
+                                    <option value="50000">50K</option>
+                                    <option value="100000">100K</option>
+                                </select>
+                            </div>
+                            <button onclick="applyPointCloudSettings()" 
+                                    style="padding: 5px 15px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; align-self: flex-end;">
+                                Apply Settings
+                            </button>
+                        </div>
                         <!-- Plotly container -->
                         <div id="pointcloud-container-plotly" style="display: block;">
                             <div id="pointcloud-container" style="width: 100%; height: 500px; background: #f8f9fa; border-radius: 10px; border: 1px solid #ddd; position: relative;">
@@ -827,6 +888,177 @@
                                 <div class="camera-view-label">Depth</div>
                                 <img id="depth-view" src="" alt="Depth Stream">
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coordinate Transformation Info -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <span>🔄</span>
+                    <h2 class="card-title">Coordinate System & Transformations</h2>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
+                    <!-- Left: Camera Intrinsics -->
+                    <div>
+                        <h3 style="margin-bottom: 15px; color: var(--primary);">Camera Intrinsics</h3>
+                        <div id="camera-intrinsics" style="background: #f8f9fa; padding: 15px; border-radius: 10px; font-family: monospace;">
+                            <div style="margin-bottom: 10px;">
+                                <strong>Resolution:</strong> <span id="cam-resolution">640 × 480</span>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>Focal Length:</strong> fx=<span id="cam-fx">615.0</span>, fy=<span id="cam-fy">615.0</span>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>Principal Point:</strong> cx=<span id="cam-cx">320.0</span>, cy=<span id="cam-cy">240.0</span>
+                            </div>
+                            <div>
+                                <strong>Depth Scale:</strong> <span id="cam-depth-scale">0.001</span> m/unit
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-top: 15px; margin-bottom: 10px;">Intrinsic Matrix K:</h4>
+                        <div id="intrinsic-matrix" style="background: #2d3748; color: #00ff41; padding: 15px; border-radius: 10px; font-family: 'Courier New', monospace; overflow-x: auto;">
+                            <pre style="margin: 0;">Loading...</pre>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Coordinate Frames -->
+                    <div>
+                        <h3 style="margin-bottom: 15px; color: var(--primary);">Coordinate Frames</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #f5365c;">📷 Camera Frame:</strong>
+                                <div style="margin-left: 20px; margin-top: 5px; font-size: 14px;">
+                                    • X: Right (→), Y: Down (↓), Z: Forward (⟶)
+                                    <br>• Origin: Camera optical center
+                                    <br>• Units: meters
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #2dce89;">🤖 World/Robot Frame:</strong>
+                                <div style="margin-left: 20px; margin-top: 5px; font-size: 14px;">
+                                    • Aligned with robot base
+                                    <br>• Units: meters
+                                    <br>• <span id="world-frame-status">Not calibrated</span>
+                                </div>
+                            </div>
+                            <div>
+                                <strong style="color: #5e72e4;">🎯 ThinkGrasp Compatibility:</strong>
+                                <div style="margin-left: 20px; margin-top: 5px; font-size: 14px;">
+                                    • Coordinate system: ✅ Aligned
+                                    <br>• Depth in millimeters, scale=1000
+                                    <br>• Grasp poses in camera frame
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-bottom: 10px;">Camera to World Transform:</h4>
+                        <div id="camera-world-transform" style="background: #2d3748; color: #00ff41; padding: 15px; border-radius: 10px; font-family: 'Courier New', monospace; overflow-x: auto;">
+                            <pre style="margin: 0;">Loading...</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Transformation Chain Visualization -->
+                <div style="padding: 0 20px 20px 20px;">
+                    <h3 style="margin-bottom: 15px; color: var(--primary);">Transformation Pipeline</h3>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white;">
+                        <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div style="background: white; color: var(--dark); padding: 10px 20px; border-radius: 8px; font-weight: bold;">
+                                    Pixel (u, v)
+                                </div>
+                                <div style="margin-top: 5px; font-size: 12px;">Image coordinates</div>
+                            </div>
+                            <div style="font-size: 24px;">→</div>
+                            <div style="text-align: center;">
+                                <div style="background: white; color: var(--dark); padding: 10px 20px; border-radius: 8px; font-weight: bold;">
+                                    + Depth
+                                </div>
+                                <div style="margin-top: 5px; font-size: 12px;">Z value (mm)</div>
+                            </div>
+                            <div style="font-size: 24px;">→</div>
+                            <div style="text-align: center;">
+                                <div style="background: white; color: var(--dark); padding: 10px 20px; border-radius: 8px; font-weight: bold;">
+                                    Camera (x, y, z)
+                                </div>
+                                <div style="margin-top: 5px; font-size: 12px;">3D camera frame</div>
+                            </div>
+                            <div style="font-size: 24px;">→</div>
+                            <div style="text-align: center;">
+                                <div style="background: white; color: var(--dark); padding: 10px 20px; border-radius: 8px; font-weight: bold;">
+                                    World (X, Y, Z)
+                                </div>
+                                <div style="margin-top: 5px; font-size: 12px;">Robot frame</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; text-align: center; font-size: 14px;">
+                            <code style="background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 5px;">
+                                P_world = [R|t] × K⁻¹ × [u, v, 1]ᵀ × depth
+                            </code>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Refresh Button -->
+                <div style="padding: 0 20px 20px 20px; text-align: center;">
+                    <button class="btn btn-info" onclick="refreshCoordinateInfo()">
+                        🔄 Refresh Coordinate Info
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Live Robot Visualization -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <span>🤖</span>
+                    <h2 class="card-title">Live Robot Visualization</h2>
+                </div>
+                
+                <div style="padding: 20px;">
+                    <!-- Control buttons -->
+                    <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="startLiveRobotViz()">
+                            ▶️ Start Live Update
+                        </button>
+                        <button class="btn btn-danger" onclick="stopLiveRobotViz()">
+                            ⏹️ Stop
+                        </button>
+                        <button class="btn btn-info" onclick="updateRobotVizOnce()">
+                            🔄 Update Once
+                        </button>
+                        <button class="btn btn-warning" onclick="testRobotMovement()">
+                            🔧 Test Movement
+                        </button>
+                        <label style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="auto-update-robot" checked>
+                            <span>Auto-update (500ms)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Visualization iframe -->
+                    <div style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
+                        <iframe id="robot-viz-iframe" 
+                                src="" 
+                                style="width: 100%; height: 100%; border: none; background: white;">
+                        </iframe>
+                        <div id="robot-viz-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8f9fa;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">🤖</div>
+                                <div>Click "Start Live Update" to visualize robot</div>
+                                <div style="font-size: 12px; margin-top: 5px; color: #666;">Robot will be displayed with current joint states</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Joint state display -->
+                    <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <strong>Current Joint States (radians):</strong>
+                        <div id="live-joint-states" style="font-family: monospace; margin-top: 5px;">
+                            Waiting for data...
                         </div>
                     </div>
                 </div>
@@ -1172,6 +1404,7 @@
         let playbackSpeed = 100;
         let isMoving = false;
         let motorsEnabled = true;  // Track actual motor state from backend
+        let robotConnected = false;  // Track robot connection status
         
         // Camera variables
         let isCameraStreaming = false;
@@ -1185,6 +1418,126 @@
         let pointCloudCamera = null;
         let pointCloudRenderer = null;
         let pointCloud = null;
+        let pointCloudPoints = null;  // Reference to the THREE.Points object
+        
+        // Point cloud control variables
+        let pointCloudDensity = 8;  // Downsampling factor (1=dense, 16=sparse)
+        let pointCloudSize = 1;      // Point size for display
+        let maxPointsLimit = 20000;  // Maximum points to display
+        
+        // Track last capture for Plotly updates
+        let lastCaptureForPlotly = null;
+        
+        // Point cloud control function - only applies to Plotly when button is clicked
+        let showCameraInPlotly = true;
+        let showRobotInPlotly = true;
+        
+        function toggleCameraVisualization() {
+            showCameraInPlotly = document.getElementById('show-camera-viz').checked;
+            // Refresh the current Plotly view if it's active
+            if (currentViewerType === 'plotly' && lastCaptureName) {
+                updatePlotlyPointCloud(lastCaptureName);
+            }
+        }
+        
+        function toggleRobotVisualization() {
+            showRobotInPlotly = document.getElementById('show-robot-viz').checked;
+            // Refresh the current Plotly view if it's active
+            if (currentViewerType === 'plotly' && lastCaptureName) {
+                updatePlotlyPointCloud(lastCaptureName);
+            }
+        }
+        
+        let plotlyAutoRefreshInterval = null;
+        
+        function togglePlotlyAutoRefresh() {
+            const enabled = document.getElementById('auto-refresh-plotly').checked;
+            
+            if (enabled) {
+                // Start auto-refresh
+                if (plotlyAutoRefreshInterval) {
+                    clearInterval(plotlyAutoRefreshInterval);
+                }
+                
+                plotlyAutoRefreshInterval = setInterval(() => {
+                    if (currentViewerType === 'plotly') {
+                        if (isCameraStreaming) {
+                            // If streaming, update live view
+                            startPlotlyLiveUpdate();
+                        } else if (lastCaptureName) {
+                            // If viewing a capture, refresh it with current robot state
+                            updatePlotlyPointCloud(lastCaptureName);
+                        }
+                    }
+                }, 1000); // Refresh every 1 second
+                
+                showMessage('Plotly auto-refresh enabled', 'success');
+            } else {
+                // Stop auto-refresh
+                if (plotlyAutoRefreshInterval) {
+                    clearInterval(plotlyAutoRefreshInterval);
+                    plotlyAutoRefreshInterval = null;
+                }
+                // Also stop the live update interval if it exists
+                stopPlotlyLiveUpdate();
+                showMessage('Plotly auto-refresh disabled', 'info');
+            }
+        }
+        
+        function applyPointCloudSettings() {
+            // Get current values from controls
+            pointCloudDensity = parseInt(document.getElementById('pointcloud-density').value);
+            pointCloudSize = parseFloat(document.getElementById('pointcloud-size').value);
+            maxPointsLimit = parseInt(document.getElementById('max-points').value);
+            
+            // Only update Plotly visualization
+            if (currentViewerType === 'plotly' && lastCaptureForPlotly) {
+                updatePlotlyPointCloud(lastCaptureForPlotly);
+                showMessage(`Applied Plotly settings: Density=${pointCloudDensity}, Size=${pointCloudSize}, MaxPoints=${maxPointsLimit}`, 'success');
+            } else if (currentViewerType === 'plotly') {
+                showMessage('Load a capture first to apply Plotly settings', 'warning');
+            } else {
+                showMessage('Switch to Plotly view to apply settings', 'info');
+            }
+        }
+        
+        // Update Plotly point cloud with new parameters
+        async function updatePlotlyPointCloud(captureName) {
+            const iframe = document.getElementById('pointcloud-iframe');
+            const placeholder = document.getElementById('pointcloud-placeholder');
+            
+            // Get current joint states if robot is connected and we want to show it
+            let jointStates = null;
+            if (showRobotInPlotly && robotConnected) {
+                try {
+                    const response = await fetch('/api/robot/joint_states');
+                    const data = await response.json();
+                    if (data.success) {
+                        jointStates = data.joint_states;
+                    }
+                } catch (error) {
+                    console.error('Failed to get joint states:', error);
+                }
+            }
+            
+            // Build URL with parameters
+            const params = new URLSearchParams({
+                density: pointCloudDensity,
+                max_points: maxPointsLimit,
+                size: pointCloudSize,
+                show_camera: showCameraInPlotly,
+                show_robot: showRobotInPlotly
+            });
+            
+            // Add joint states if available
+            if (jointStates) {
+                params.append('joint_states', JSON.stringify(jointStates));
+            }
+            
+            iframe.src = `/api/camera/capture/${captureName}/pointcloud?${params.toString()}`;
+            iframe.style.display = 'block';
+            placeholder.style.display = 'none';
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -1232,6 +1585,7 @@
                     const text = document.getElementById('status-text');
                     
                     if (data.connected) {
+                        robotConnected = true;  // Update global variable
                         dot.classList.add('connected');
                         text.textContent = 'Connected';
                         
@@ -1304,6 +1658,7 @@
                             document.getElementById('gripper-value').textContent = data.positions[5]?.toFixed(3) || '0.000';
                         }
                     } else {
+                        robotConnected = false;  // Update global variable
                         dot.classList.remove('connected');
                         text.textContent = 'Disconnected';
                         document.getElementById('gripper-status').textContent = '-';
@@ -1789,6 +2144,8 @@
                 initPointCloud();
                 // Start updating Three.js point cloud with direct stream data
                 pointCloudUpdateInterval = setInterval(updateThreeJSPointCloud, 200); // Faster updates for Three.js
+                // Trigger immediate update
+                updateThreeJSPointCloud();
             } else {
                 // Start live Plotly updates
                 startPlotlyLiveUpdate();
@@ -1805,6 +2162,9 @@
                 clearInterval(pointCloudUpdateInterval);
                 pointCloudUpdateInterval = null;
             }
+            
+            // Stop Plotly live updates
+            stopPlotlyLiveUpdate();
             
             isCameraStreaming = false;
             showMessage('Camera stream stopped', 'info');
@@ -2061,16 +2421,13 @@
         }
         
         function loadPointCloudForCapture(captureName) {
+            lastCaptureForPlotly = captureName;  // Save for later updates
+            
             if (currentViewerType === 'plotly') {
-                const iframe = document.getElementById('pointcloud-iframe');
-                const placeholder = document.getElementById('pointcloud-placeholder');
-                
-                iframe.src = `/api/camera/capture/${captureName}/pointcloud`;
-                iframe.style.display = 'block';
-                placeholder.style.display = 'none';
+                updatePlotlyPointCloud(captureName);
                 currentCaptureName = captureName;
             } else {
-                // Load capture data for Three.js
+                // Load capture data for Three.js without parameters (use defaults)
                 fetch(`/api/camera/capture/${captureName}/pointcloud_data`)
                     .then(response => response.json())
                     .then(data => {
@@ -2109,26 +2466,86 @@
             currentCaptureName = null;
         }
         
+        let plotlyLiveInterval = null;
+        
         function startPlotlyLiveUpdate() {
             const iframe = document.getElementById('pointcloud-iframe');
             const placeholder = document.getElementById('pointcloud-placeholder');
             
-            // For Plotly, just load once and keep stable
-            // Only update when user explicitly clicks refresh or capture
-            iframe.src = '/api/camera/pointcloud/live?t=' + Date.now();
-            iframe.style.display = 'block';
-            placeholder.style.display = 'none';
-            showMessage('Plotly point cloud loaded (static view)', 'info');
+            // Clear any existing interval
+            if (plotlyLiveInterval) {
+                clearInterval(plotlyLiveInterval);
+            }
+            
+            // Function to update Plotly with live data
+            async function updatePlotlyLive() {
+                try {
+                    // Get current joint states if robot is connected
+                    let jointStates = null;
+                    if (robotConnected) {
+                        const jointResponse = await fetch('/api/robot/joint_states');
+                        const jointData = await jointResponse.json();
+                        if (jointData.success) {
+                            jointStates = jointData.joint_states;
+                        }
+                    }
+                    
+                    // Build URL with parameters including robot joint states
+                    const params = new URLSearchParams({
+                        density: pointCloudDensity,
+                        max_points: maxPointsLimit,
+                        size: pointCloudSize,
+                        show_camera: showCameraInPlotly,
+                        show_robot: showRobotInPlotly,
+                        t: Date.now()  // Cache buster
+                    });
+                    
+                    // Add joint states if available
+                    if (jointStates) {
+                        params.append('joint_states', JSON.stringify(jointStates));
+                    }
+                    
+                    iframe.src = `/api/camera/pointcloud/live?${params.toString()}`;
+                    iframe.style.display = 'block';
+                    placeholder.style.display = 'none';
+                } catch (error) {
+                    console.error('Error updating Plotly live view:', error);
+                }
+            }
+            
+            // Initial update
+            updatePlotlyLive();
+            
+            // Set up interval for live updates (every 1 second for Plotly)
+            plotlyLiveInterval = setInterval(updatePlotlyLive, 1000);
+            
+            showMessage('Plotly live point cloud started (updates every 1s)', 'success');
+        }
+        
+        function stopPlotlyLiveUpdate() {
+            if (plotlyLiveInterval) {
+                clearInterval(plotlyLiveInterval);
+                plotlyLiveInterval = null;
+            }
         }
         
         async function updateThreeJSPointCloud() {
-            if (!isCameraStreaming || currentViewerType !== 'threejs') return;
+            if (!isCameraStreaming || currentViewerType !== 'threejs') {
+                console.log('Skipping Three.js update:', {isCameraStreaming, currentViewerType});
+                return;
+            }
             
             try {
-                const response = await fetch('/api/camera/pointcloud_data');
+                // Three.js uses default settings, not affected by Plotly controls
+                const url = `/api/camera/pointcloud?downsample=4&max_points=20000`;
+                console.log('Fetching Three.js point cloud from:', url);
+                const response = await fetch(url);
                 const data = await response.json();
-                if (data.success) {
-                    updatePointCloud(data);
+                console.log('Three.js point cloud response:', {success: data.success, hasPointcloud: !!data.pointcloud, numPoints: data.pointcloud?.num_points});
+                if (data.success && data.pointcloud) {
+                    updatePointCloud(data.pointcloud);
+                } else {
+                    console.warn('No point cloud data in response:', data);
                 }
             } catch (error) {
                 console.error('Error updating Three.js point cloud:', error);
@@ -2198,6 +2615,18 @@
             pointCloudScene = new THREE.Scene();
             pointCloudScene.background = new THREE.Color(0x1a1a1a);
             
+            // Add coordinate axes helper (size in meters, so 0.1 = 10cm)
+            const axesHelper = new THREE.AxesHelper(0.1);
+            axesHelper.name = 'axesHelper';
+            pointCloudScene.add(axesHelper);
+            
+            // Add grid helper for ground reference (size, divisions)
+            const gridHelper = new THREE.GridHelper(1, 10);
+            gridHelper.name = 'gridHelper';
+            gridHelper.material.opacity = 0.25;
+            gridHelper.material.transparent = true;
+            pointCloudScene.add(gridHelper);
+            
             // Camera
             pointCloudCamera = new THREE.PerspectiveCamera(
                 60,
@@ -2263,14 +2692,7 @@
                 pointCloudCamera.lookAt(0, 0, 0);
             });
             
-            // Add axes helper
-            const axesHelper = new THREE.AxesHelper(0.5);
-            pointCloudScene.add(axesHelper);
-            
-            // Add grid
-            const gridHelper = new THREE.GridHelper(2, 20);
-            gridHelper.rotation.x = Math.PI / 2;
-            pointCloudScene.add(gridHelper);
+            // Axes and grid helpers already added above
             
             // Animation loop
             function animate() {
@@ -2282,6 +2704,14 @@
         
         // Update point cloud visualization
         function updatePointCloud(data) {
+            console.log('updatePointCloud called with:', {
+                hasData: !!data, 
+                hasVertices: !!(data && data.vertices), 
+                numVertices: data?.vertices?.length,
+                hasColors: !!(data && data.colors),
+                numColors: data?.colors?.length
+            });
+            
             if (!data || !data.vertices || data.vertices.length === 0) {
                 console.log('No point cloud data available');
                 return;
@@ -2294,8 +2724,12 @@
             }
             
             if (!pointCloudScene) {
+                console.log('Initializing point cloud scene...');
                 initPointCloud();
-                if (!pointCloudScene) return; // Failed to initialize
+                if (!pointCloudScene) {
+                    console.error('Failed to initialize point cloud scene');
+                    return;
+                }
             }
             
             // Remove old point cloud
@@ -2310,6 +2744,45 @@
                 const geometry = new THREE.BufferGeometry();
                 const vertices = new Float32Array(data.vertices.flat());
                 
+                // Calculate bounding box to scale axes appropriately
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                let minZ = Infinity, maxZ = -Infinity;
+                
+                for (let i = 0; i < vertices.length; i += 3) {
+                    minX = Math.min(minX, vertices[i]);
+                    maxX = Math.max(maxX, vertices[i]);
+                    minY = Math.min(minY, vertices[i + 1]);
+                    maxY = Math.max(maxY, vertices[i + 1]);
+                    minZ = Math.min(minZ, vertices[i + 2]);
+                    maxZ = Math.max(maxZ, vertices[i + 2]);
+                }
+                
+                // Update axes and grid size based on point cloud range
+                const maxRange = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+                const axesSize = maxRange * 0.15;
+                const gridSize = maxRange * 1.2;
+                
+                // Remove old axes and add new one with appropriate size
+                const oldAxes = pointCloudScene.getObjectByName('axesHelper');
+                if (oldAxes) {
+                    pointCloudScene.remove(oldAxes);
+                }
+                const newAxesHelper = new THREE.AxesHelper(axesSize);
+                newAxesHelper.name = 'axesHelper';
+                pointCloudScene.add(newAxesHelper);
+                
+                // Update grid helper
+                const oldGrid = pointCloudScene.getObjectByName('gridHelper');
+                if (oldGrid) {
+                    pointCloudScene.remove(oldGrid);
+                }
+                const newGridHelper = new THREE.GridHelper(gridSize, 20);
+                newGridHelper.name = 'gridHelper';
+                newGridHelper.material.opacity = 0.25;
+                newGridHelper.material.transparent = true;
+                pointCloudScene.add(newGridHelper);
+                
                 // Normalize colors to 0-1 range if needed
                 const colorArray = data.colors.flat();
                 const maxColor = Math.max(...colorArray);
@@ -2320,18 +2793,297 @@
                 geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
                 geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
                 
-                // Create material
+                // Create material with fixed size for Three.js
                 const material = new THREE.PointsMaterial({
-                    size: 0.003,
+                    size: 0.003,  // Fixed size for Three.js
                     vertexColors: true,
                     sizeAttenuation: true
                 });
                 
-                // Create points
+                // Create points and save reference
                 pointCloud = new THREE.Points(geometry, material);
+                pointCloudPoints = pointCloud;  // Save reference for dynamic updates
                 pointCloudScene.add(pointCloud);
+                
+                console.log('Three.js point cloud created successfully:', {
+                    numVertices: data.vertices.length,
+                    geometryVertices: geometry.attributes.position.count,
+                    sceneChildren: pointCloudScene.children.length
+                });
+                
+                // Render the scene
+                if (pointCloudRenderer) {
+                    pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
+                    console.log('Three.js scene rendered');
+                } else {
+                    console.error('No renderer available to render scene');
+                }
             } catch (error) {
                 console.error('Error updating point cloud:', error);
+            }
+        }
+        
+        // Coordinate Transformation Info Functions
+        async function refreshCoordinateInfo() {
+            try {
+                const response = await fetch('/api/coordinate/info');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const info = data.data;
+                    
+                    // Update camera intrinsics display
+                    document.getElementById('cam-resolution').textContent = 
+                        `${info.camera_intrinsics.width} × ${info.camera_intrinsics.height}`;
+                    document.getElementById('cam-fx').textContent = info.camera_intrinsics.fx.toFixed(1);
+                    document.getElementById('cam-fy').textContent = info.camera_intrinsics.fy.toFixed(1);
+                    document.getElementById('cam-cx').textContent = info.camera_intrinsics.cx.toFixed(1);
+                    document.getElementById('cam-cy').textContent = info.camera_intrinsics.cy.toFixed(1);
+                    document.getElementById('cam-depth-scale').textContent = info.camera_intrinsics.depth_scale.toFixed(4);
+                    
+                    // Format and display intrinsic matrix K
+                    const K = info.intrinsic_matrix_K;
+                    const intrinsicMatrixStr = formatMatrix(K, 'K');
+                    document.querySelector('#intrinsic-matrix pre').innerHTML = intrinsicMatrixStr;
+                    
+                    // Format and display camera to world transform
+                    const T = info.camera_to_world_transform;
+                    const transformMatrixStr = formatMatrix(T, 'T_camera_to_world');
+                    document.querySelector('#camera-world-transform pre').innerHTML = transformMatrixStr;
+                    
+                    // Update world frame status
+                    const isIdentity = checkIdentityMatrix(T);
+                    document.getElementById('world-frame-status').textContent = 
+                        isIdentity ? 'Not calibrated (using identity)' : '✅ Calibrated';
+                    
+                    showMessage('Coordinate info refreshed', 'info');
+                } else {
+                    showMessage('Failed to get coordinate info: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error fetching coordinate info:', error);
+                showMessage('Error fetching coordinate info', 'error');
+            }
+        }
+        
+        function formatMatrix(matrix, name) {
+            if (!matrix || matrix.length === 0) return 'No data';
+            
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+            let result = `${name} = \n`;
+            
+            // Find max width for each column for alignment
+            const colWidths = [];
+            for (let j = 0; j < cols; j++) {
+                let maxWidth = 0;
+                for (let i = 0; i < rows; i++) {
+                    const val = matrix[i][j].toFixed(3);
+                    maxWidth = Math.max(maxWidth, val.length);
+                }
+                colWidths.push(maxWidth);
+            }
+            
+            // Format the matrix
+            for (let i = 0; i < rows; i++) {
+                result += '│ ';
+                for (let j = 0; j < cols; j++) {
+                    const val = matrix[i][j].toFixed(3);
+                    result += val.padStart(colWidths[j]) + '  ';
+                }
+                result += '│\n';
+            }
+            
+            return result;
+        }
+        
+        function checkIdentityMatrix(matrix) {
+            if (!matrix || matrix.length !== 4 || matrix[0].length !== 4) return true;
+            
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const expected = (i === j) ? 1 : 0;
+                    if (Math.abs(matrix[i][j] - expected) > 0.001) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        
+        // Load coordinate info on page load
+        window.addEventListener('load', () => {
+            refreshCoordinateInfo();
+        });
+        
+        // Live Robot Visualization Functions
+        let liveRobotInterval = null;
+        
+        async function updateRobotVizOnce() {
+            try {
+                // Get current joint states from robot
+                const response = await fetch('/api/robot/joint_states');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Display joint states
+                    const statesDiv = document.getElementById('live-joint-states');
+                    const states = data.joint_states;
+                    statesDiv.innerHTML = Object.entries(states)
+                        .map(([joint, angle]) => `Joint ${joint}: ${angle.toFixed(4)} rad`)
+                        .join('<br>');
+                    
+                    // Update visualization
+                    const vizFrame = document.getElementById('robot-viz-iframe');
+                    const placeholder = document.getElementById('robot-viz-placeholder');
+                    
+                    // Create POST request for visualization
+                    const vizResponse = await fetch('/api/robot/update_visualization', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            joint_states: states,
+                            show_camera: false,  // Don't show camera in robot-only view
+                            show_robot: true
+                        })
+                    });
+                    
+                    if (vizResponse.ok) {
+                        const html = await vizResponse.text();
+                        // Write HTML to iframe
+                        vizFrame.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        
+                        const iframeDoc = vizFrame.contentDocument || vizFrame.contentWindow.document;
+                        iframeDoc.open();
+                        iframeDoc.write(html);
+                        iframeDoc.close();
+                    }
+                } else {
+                    showMessage('Failed to get joint states: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error updating robot visualization:', error);
+                showMessage('Error updating robot visualization', 'error');
+            }
+        }
+        
+        function startLiveRobotViz() {
+            // Clear any existing interval
+            stopLiveRobotViz();
+            
+            // Update immediately
+            updateRobotVizOnce();
+            
+            // Set up interval for continuous updates
+            liveRobotInterval = setInterval(() => {
+                // Only update if auto-update is checked
+                if (document.getElementById('auto-update-robot').checked) {
+                    updateRobotVizOnce();
+                }
+            }, 500);  // Update every 500ms
+            
+            showMessage('Started live robot visualization', 'success');
+        }
+        
+        function stopLiveRobotViz() {
+            if (liveRobotInterval) {
+                clearInterval(liveRobotInterval);
+                liveRobotInterval = null;
+            }
+            showMessage('Stopped live robot visualization', 'info');
+        }
+        
+        async function testRobotMovement() {
+            try {
+                showMessage('Testing robot movement...', 'info');
+                
+                const response = await fetch('/api/robot/test_movement', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.movement_detected) {
+                        showMessage('✅ Test successful! Robot moved and returned to position.', 'success');
+                    } else {
+                        showMessage('⚠️ Test completed but no movement detected. Check motor torque.', 'warning');
+                    }
+                    console.log('Test result:', data);
+                    
+                    // Display detailed results
+                    const details = `
+                        Initial: [${data.initial.map(p => p.toFixed(3)).join(', ')}]
+                        Target:  [${data.target.map(p => p.toFixed(3)).join(', ')}]
+                        Final:   [${data.final.map(p => p.toFixed(3)).join(', ')}]
+                        Delta:   [${data.actual_delta.map(p => p.toFixed(3)).join(', ')}]
+                    `;
+                    console.log('Movement details:\n' + details);
+                } else {
+                    showMessage('❌ Test failed: ' + data.message, 'error');
+                    if (data.error_details) {
+                        console.error('Error details:', data.error_details);
+                    }
+                }
+            } catch (error) {
+                console.error('Test movement error:', error);
+                showMessage('Error testing movement: ' + error.message, 'error');
+            }
+        }
+        
+        
+        async function moveRobotToJoints(joints) {
+            try {
+                const response = await fetch('/api/robot/move_joints', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        joints: joints,
+                        steps: 50,
+                        timestep: 0.02
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Robot moved to target position', 'success');
+                    // Update visualization
+                    if (liveRobotInterval) {
+                        updateRobotVizOnce();
+                    }
+                } else {
+                    showMessage('Movement failed: ' + data.message, 'error');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Movement error:', error);
+                showMessage('Error moving robot: ' + error.message, 'error');
+                return {success: false, message: error.message};
+            }
+        }
+        
+        // Also update joint states display when manually moving robot
+        async function updateJointStatesDisplay() {
+            try {
+                const response = await fetch('/api/robot/joint_states');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update individual joint displays
+                    const positions = data.joint_positions;
+                    for (let i = 0; i < positions.length && i < 6; i++) {
+                        const elem = document.getElementById(`joint-${i}`);
+                        if (elem) {
+                            elem.textContent = positions[i].toFixed(3);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching joint states:', error);
             }
         }
     </script>

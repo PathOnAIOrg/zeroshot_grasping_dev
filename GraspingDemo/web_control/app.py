@@ -25,8 +25,12 @@ except ImportError:
     cv2_available = False
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import the improved main client with built-in reliability features
 from so101_grasp.robot.so101_client_raw_simple import SO101ClientRawSimple
 from so101_grasp.robot.so101_kinematics import SO101Kinematics
+
+print("Using SO-101 client with enhanced reliability features")
 
 # Import camera handlers
 from realsense_handler import RealSenseHandler, SimpleWebcamHandler
@@ -36,6 +40,7 @@ from pointcloud_viewer import (
     vis_pcd_plotly,
     generate_plotly_html
 )
+from coordinate_transform import CoordinateTransform
 
 app = Flask(__name__)
 
@@ -906,10 +911,11 @@ def get_pointcloud():
         return jsonify({'success': False, 'message': 'Point cloud only available with RealSense'})
     
     try:
-        # Get downsample factor from request
+        # Get downsample factor from request (Three.js default settings)
         downsample = request.args.get('downsample', 4, type=int)
+        max_points = request.args.get('max_points', 20000, type=int)
         
-        pc_data = realsense_camera.get_point_cloud(downsample=downsample)
+        pc_data = realsense_camera.get_point_cloud(downsample=downsample, max_points=max_points)
         if pc_data:
             return jsonify({'success': True, 'pointcloud': pc_data})
         else:
@@ -1096,18 +1102,45 @@ def get_capture_pointcloud(capture_name):
         return jsonify({'success': False, 'message': 'Capture not found'})
     
     try:
+        # Get parameters from request
+        density = request.args.get('density', 8, type=int)  # Higher density = less points
+        max_points = request.args.get('max_points', 20000, type=int)
+        point_size = request.args.get('size', 1, type=float)
+        show_camera = request.args.get('show_camera', 'true').lower() == 'true'
+        show_robot = request.args.get('show_robot', 'true').lower() == 'true'
+        
         # Load point cloud data
         pcd_data, metadata = load_point_cloud_from_capture(str(capture_dir))
         
         if pcd_data is None:
             return jsonify({'success': False, 'message': 'No point cloud data available'})
         
-        vertices = pcd_data['vertices']
-        colors = pcd_data['colors']
+        vertices = np.array(pcd_data['vertices'])
+        colors = np.array(pcd_data['colors'])
         
-        # Downsample for web visualization
-        if len(vertices) > 50000:
-            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=0.005)
+        # Convert from meters to centimeters
+        vertices = vertices * 100  # Convert to cm
+        
+        # Only filter out extremely far points
+        if len(vertices) > 0:
+            # Remove points that are unreasonably far
+            distances = np.linalg.norm(vertices, axis=1)
+            valid_mask = distances < 500  # Keep points within 5 meters
+            vertices = vertices[valid_mask]
+            colors = colors[valid_mask]
+        
+        # Apply density-based downsampling
+        if density > 1 and len(vertices) > 0:
+            # Use stride-based sampling for predictable density control
+            indices = np.arange(0, len(vertices), density)
+            vertices = vertices[indices]
+            colors = colors[indices]
+        
+        # Further limit points if exceeding max_points
+        if len(vertices) > max_points:
+            indices = np.random.choice(len(vertices), max_points, replace=False)
+            vertices = vertices[indices]
+            colors = colors[indices]
         
         # Add robot state if available
         robot_joints = None
@@ -1131,7 +1164,43 @@ def get_capture_pointcloud(capture_name):
                 'name': 'Robot Position'
             })
         
-        fig = vis_pcd_plotly(pointclouds, size_ls=[2, 8], title=f"Point Cloud - {capture_name}")
+        # Get camera info from metadata or use defaults
+        camera_info = None
+        if metadata and 'camera_intrinsics' in metadata:
+            intrinsics = metadata['camera_intrinsics']
+            camera_info = {
+                'fx': intrinsics.get('fx', 615.0),
+                'fy': intrinsics.get('fy', 615.0),
+                'cx': intrinsics.get('cx', intrinsics.get('ppx', 320.0)),
+                'cy': intrinsics.get('cy', intrinsics.get('ppy', 240.0)),
+                'width': intrinsics.get('width', 640),
+                'height': intrinsics.get('height', 480),
+                'scale': intrinsics.get('scale', 1000.0)
+            }
+        
+        # Get robot joint angles from metadata if available
+        robot_joint_angles = None
+        robot_position = None
+        if metadata and 'robot_state' in metadata:
+            robot_state = metadata['robot_state']
+            if 'joint_positions' in robot_state:
+                # Convert joint positions to dict with proper names (SO101 uses numbers)
+                positions = robot_state['joint_positions']
+                robot_joint_angles = {
+                    '1': positions[0] if len(positions) > 0 else 0,
+                    '2': positions[1] if len(positions) > 1 else 0,
+                    '3': positions[2] if len(positions) > 2 else 0,
+                    '4': positions[3] if len(positions) > 3 else 0,
+                    '5': positions[4] if len(positions) > 4 else 0,
+                    '6': positions[5] if len(positions) > 5 else 0
+                }
+        
+        # Use point_size from request
+        fig = vis_pcd_plotly(pointclouds, size_ls=[point_size, 5], 
+                           title=f"Point Cloud - {capture_name}",
+                           show_camera=show_camera, camera_info=camera_info,
+                           show_robot=show_robot, robot_joint_angles=robot_joint_angles,
+                           robot_position=robot_position)
         
         # Generate HTML
         html_content = generate_plotly_html(fig)
@@ -1145,13 +1214,17 @@ def get_capture_pointcloud(capture_name):
 
 @app.route('/api/camera/pointcloud/live')
 def get_live_pointcloud():
-    """Get live point cloud visualization from RealSense"""
-    global realsense_camera
+    """Get live point cloud visualization from RealSense with robot"""
+    global realsense_camera, robot
     
     if not realsense_camera or not realsense_camera.is_streaming:
         return jsonify({'success': False, 'message': 'RealSense not streaming'})
     
     try:
+        # Get parameters
+        show_camera = request.args.get('show_camera', 'true').lower() == 'true'
+        show_robot = request.args.get('show_robot', 'true').lower() == 'true'
+        
         # Get current point cloud
         pcd_data = realsense_camera.get_point_cloud(downsample=4)
         
@@ -1161,9 +1234,25 @@ def get_live_pointcloud():
         vertices = np.array(pcd_data['vertices'])
         colors = np.array(pcd_data['colors']) / 255.0  # Normalize colors
         
-        # Further downsample if needed
-        if len(vertices) > 30000:
-            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=0.01)
+        # Convert from meters to centimeters for better visualization
+        vertices = vertices * 100  # Convert to cm
+        
+        # Only filter out extremely far points (noise)
+        # Remove points that are unreasonably far (more than 500 cm away)
+        distances = np.linalg.norm(vertices, axis=1)
+        valid_mask = distances < 500  # Keep points within 5 meters
+        vertices = vertices[valid_mask]
+        colors = colors[valid_mask]
+        
+        # Remove statistical outliers if there are enough points
+        if len(vertices) > 100:
+            # Remove points that are too isolated
+            from pointcloud_viewer import remove_statistical_outliers
+            vertices, colors = remove_statistical_outliers(vertices, colors, n_neighbors=10, std_ratio=1.5)
+        
+        # Further downsample if needed (voxel size in cm now)
+        if len(vertices) > 20000:
+            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=1.0)  # 1cm voxel size
         
         # Create Plotly visualization
         pointclouds = [{
@@ -1172,7 +1261,58 @@ def get_live_pointcloud():
             'name': 'Live Point Cloud'
         }]
         
-        fig = vis_pcd_plotly(pointclouds, size_ls=[2], title="Live Point Cloud Stream")
+        # Get camera info if available
+        camera_info = None
+        if active_camera == 'realsense' and realsense_camera and realsense_camera.intrinsics:
+            intrinsics = realsense_camera.intrinsics
+            camera_info = {
+                'fx': intrinsics.fx,
+                'fy': intrinsics.fy,
+                'cx': intrinsics.ppx,
+                'cy': intrinsics.ppy,
+                'width': intrinsics.width,
+                'height': intrinsics.height,
+                'scale': getattr(realsense_camera, 'depth_scale', 0.001) * 1000  # Convert to scale
+            }
+        
+        # Get robot joint states
+        robot_joint_angles = None
+        if show_robot and robot:
+            # Check if joint states were passed as parameter
+            joint_states_str = request.args.get('joint_states')
+            if joint_states_str:
+                try:
+                    import json
+                    robot_joint_angles = json.loads(joint_states_str)
+                except:
+                    pass
+            
+            # If not passed or invalid, try to read from robot
+            if robot_joint_angles is None:
+                try:
+                    joint_positions = robot.read_joints(validate=False)
+                    robot_joint_angles = {
+                        '1': joint_positions[0] if len(joint_positions) > 0 else 0,
+                        '2': joint_positions[1] if len(joint_positions) > 1 else 0,
+                        '3': joint_positions[2] if len(joint_positions) > 2 else 0,
+                        '4': joint_positions[3] if len(joint_positions) > 3 else 0,
+                        '5': joint_positions[4] if len(joint_positions) > 4 else 0,
+                        '6': joint_positions[5] if len(joint_positions) > 5 else 0
+                    }
+                except:
+                    pass  # Use default angles if can't get from robot
+        
+        # Create visualization with both point cloud and robot
+        fig = vis_pcd_plotly(
+            pointclouds, 
+            size_ls=[1], 
+            title="Live Scene",
+            show_camera=show_camera, 
+            camera_info=camera_info,
+            show_robot=show_robot,
+            robot_joint_angles=robot_joint_angles,
+            robot_position=np.array([0, 0, 0])
+        )
         
         # Generate HTML
         html_content = generate_plotly_html(fig, div_id="live-pointcloud")
@@ -1335,6 +1475,548 @@ def replay_capture(capture_name):
             
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/coordinate/info')
+def get_coordinate_info():
+    """Get coordinate transformation information"""
+    global realsense_camera, active_camera
+    
+    # Initialize coordinate transformer
+    transform = CoordinateTransform()
+    
+    # Get camera intrinsics if available
+    if active_camera == 'realsense' and realsense_camera and realsense_camera.intrinsics:
+        intrinsics = realsense_camera.intrinsics
+        transform.camera_intrinsics = {
+            'fx': intrinsics.fx,
+            'fy': intrinsics.fy,
+            'cx': intrinsics.ppx,
+            'cy': intrinsics.ppy,
+            'width': intrinsics.width,
+            'height': intrinsics.height,
+            'depth_scale': getattr(realsense_camera, 'depth_scale', 0.001)
+        }
+    else:
+        # Use default values
+        transform.camera_intrinsics = {
+            'fx': 615.0,
+            'fy': 615.0,
+            'cx': 320.0,
+            'cy': 240.0,
+            'width': 640,
+            'height': 480,
+            'depth_scale': 0.001
+        }
+    
+    # Get transformation info
+    info = transform.get_transform_info()
+    
+    return jsonify({'status': 'success', 'data': info})
+
+
+@app.route('/api/coordinate/transform', methods=['POST'])
+def set_coordinate_transform():
+    """Set camera to world transformation"""
+    data = request.get_json() or {}
+    
+    # Initialize transformer
+    transform = CoordinateTransform()
+    
+    # Get transformation parameters
+    rotation = data.get('rotation', None)
+    translation = data.get('translation', None)
+    
+    try:
+        if rotation:
+            rotation = np.array(rotation)
+        if translation:
+            translation = np.array(translation)
+        
+        transform.set_camera_to_world_transform(rotation, translation)
+        
+        return jsonify({
+            'success': True,
+            'transform_matrix': transform.camera_to_world.tolist()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/coordinate/visualize')
+def get_coordinate_visualization():
+    """Get coordinate frame visualization data"""
+    global realsense_camera, active_camera
+    
+    # Initialize coordinate transformer
+    transform = CoordinateTransform()
+    
+    # Set camera intrinsics
+    if active_camera == 'realsense' and realsense_camera and realsense_camera.intrinsics:
+        intrinsics = realsense_camera.intrinsics
+        transform.camera_intrinsics = {
+            'fx': intrinsics.fx,
+            'fy': intrinsics.fy,
+            'cx': intrinsics.ppx,
+            'cy': intrinsics.ppy,
+            'width': intrinsics.width,
+            'height': intrinsics.height,
+            'depth_scale': getattr(realsense_camera, 'depth_scale', 0.001)
+        }
+    
+    # Get visualization data
+    viz_data = transform.visualize_coordinate_frames()
+    
+    return jsonify(viz_data)
+
+
+@app.route('/api/robot/move_joints', methods=['POST'])
+def move_robot_joints():
+    """Move robot to specific joint positions"""
+    global robot, is_moving, motors_enabled
+    
+    if not robot:
+        return jsonify({'success': False, 'message': 'Robot not connected'})
+    
+    if is_moving:
+        return jsonify({'success': False, 'message': 'Robot is already moving'})
+    
+    data = request.get_json() or {}
+    target_joints = data.get('joints', None)
+    
+    if not target_joints or len(target_joints) != 6:
+        return jsonify({'success': False, 'message': 'Must provide 6 joint angles'})
+    
+    try:
+        # Enable motors if not already enabled
+        if not motors_enabled:
+            for i in range(6):
+                robot.enable_torque(i + 1, True)
+                time.sleep(0.01)
+            motors_enabled = True
+            time.sleep(0.1)  # Give motors time to enable
+        
+        # Get current positions
+        current_joints = robot.read_joints()
+        
+        # Set moving flag
+        is_moving = True
+        
+        try:
+            # Move to target positions
+            steps = data.get('steps', 50)
+            timestep = data.get('timestep', 0.02)
+            
+            # Interpolate movement
+            robot.interpolate_waypoint(current_joints, target_joints, steps=steps, timestep=timestep)
+            
+            # Read final position
+            final_joints = robot.read_joints()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Moved to target joint positions',
+                'initial_joints': current_joints,
+                'target_joints': target_joints,
+                'final_joints': final_joints,
+                'motors_enabled': motors_enabled
+            })
+            
+        finally:
+            is_moving = False
+            
+    except Exception as e:
+        is_moving = False
+        motors_enabled = False
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/robot/test_movement', methods=['POST'])
+def test_robot_movement():
+    """Test robot movement with small motion"""
+    global robot, motors_enabled
+    
+    if not robot:
+        return jsonify({'success': False, 'message': 'Robot not connected'})
+    
+    try:
+        # Step 1: Enable all motors with detailed feedback
+        print("=" * 50)
+        print("TEST MOVEMENT SEQUENCE STARTING")
+        print("=" * 50)
+        
+        print("Step 1: Enabling motors...")
+        enable_results = []
+        for i in range(6):
+            servo_id = i + 1
+            success = robot.enable_torque(servo_id, True)
+            enable_results.append(success)
+            print(f"  Servo {servo_id}: {'✅ Enabled' if success else '❌ Failed'}")
+            time.sleep(0.05)
+        
+        if not all(enable_results):
+            failed_servos = [i+1 for i, success in enumerate(enable_results) if not success]
+            return jsonify({
+                'success': False, 
+                'message': f'Failed to enable servos: {failed_servos}',
+                'details': {
+                    'enable_results': enable_results,
+                    'failed_servos': failed_servos
+                }
+            })
+        
+        motors_enabled = True
+        print("  All motors enabled successfully")
+        
+        # Step 2: Wait for motors to stabilize
+        print("Step 2: Waiting for motors to stabilize...")
+        time.sleep(0.5)
+        
+        # Step 3: Read current position with validation
+        print("Step 3: Reading current position...")
+        try:
+            current = robot.read_joints(validate=False)
+            print(f"  Position (rad): {[f'{p:.3f}' for p in current]}")
+            print(f"  Position (deg): {[f'{p*57.3:.1f}' for p in current]}")
+            
+            # Check if position seems valid
+            zero_count = sum(1 for p in current if abs(p) < 0.001)
+            if zero_count >= 4:
+                print("  ⚠️  Warning: Many joints read as zero, position may be invalid")
+                
+        except Exception as e:
+            print(f"  ❌ Failed to read position: {e}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to read current position: {str(e)}'
+            })
+        
+        # Step 4: Calculate test movement
+        print("Step 4: Calculating test movement...")
+        test_target = current.copy()
+        test_target[1] += 0.15  # Move shoulder joint by 0.15 radians (~8.6 degrees)
+        
+        print(f"  Current: {[f'{p:.3f}' for p in current]}")
+        print(f"  Target:  {[f'{p:.3f}' for p in test_target]}")
+        print(f"  Delta:   {[f'{t-c:.3f}' for c, t in zip(current, test_target)]}")
+        
+        # Step 5: Execute movement
+        print("Step 5: Executing movement...")
+        print("  Moving forward (30 steps, 1.5 seconds)...")
+        
+        # Move forward
+        robot.interpolate_waypoint(current, test_target, steps=30, timestep=0.05)
+        
+        # Step 6: Verify movement
+        print("Step 6: Verifying movement...")
+        time.sleep(0.5)
+        final = robot.read_joints(validate=False)
+        print(f"  Final:   {[f'{p:.3f}' for p in final]}")
+        
+        actual_delta = [f-c for f, c in zip(final, current)]
+        print(f"  Actual delta: {[f'{d:.3f}' for d in actual_delta]}")
+        
+        # Check if movement occurred
+        movement_detected = abs(actual_delta[1]) > 0.05
+        print(f"  Movement detected: {'✅ Yes' if movement_detected else '❌ No'}")
+        
+        # Step 7: Return to original position
+        print("Step 7: Returning to original position...")
+        robot.interpolate_waypoint(final, current, steps=30, timestep=0.05)
+        
+        print("=" * 50)
+        print("TEST COMPLETE")
+        print("=" * 50)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Test movement completed' if movement_detected else 'Test completed but no movement detected',
+            'movement_detected': movement_detected,
+            'initial': [float(p) for p in current],
+            'target': [float(p) for p in test_target],
+            'final': [float(p) for p in final],
+            'actual_delta': [float(d) for d in actual_delta],
+            'motors_enabled': motors_enabled
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ Test failed with error: {e}")
+        print(error_details)
+        return jsonify({
+            'success': False, 
+            'message': f'Test failed: {str(e)}',
+            'error_details': error_details
+        })
+
+
+@app.route('/api/robot/reliability', methods=['GET'])
+def get_reliability_stats():
+    """Get data reliability statistics"""
+    global robot
+    
+    if not robot:
+        return jsonify({'error': 'Robot not connected'})
+    
+    try:
+        # Get statistics from client
+        stats = robot.get_stats() if hasattr(robot, 'get_stats') else {}
+        
+        # Get position history info
+        history_info = {}
+        if hasattr(robot, 'position_history'):
+            for servo_id in range(1, 7):
+                hist = robot.position_history.get(servo_id, [])
+                if hist:
+                    # Convert ticks to radians for statistics
+                    radians = [robot.ticks_to_radians(t) for t in hist]
+                    history_info[f'servo_{servo_id}'] = {
+                        'samples': len(hist),
+                        'mean_rad': float(np.mean(radians)),
+                        'std_rad': float(np.std(radians)),
+                        'min_rad': float(np.min(radians)),
+                        'max_rad': float(np.max(radians))
+                    }
+        
+        return jsonify({
+            'stats': stats,
+            'position_history': history_info,
+            'last_valid_positions': [float(p) for p in robot.last_valid_positions] if hasattr(robot, 'last_valid_positions') else None,
+            'reliability_features': True
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/api/robot/joint_states')
+def get_current_joint_states():
+    """Get current robot joint states"""
+    global robot
+    
+    if not robot:
+        return jsonify({'success': False, 'message': 'Robot not connected'})
+    
+    try:
+        # Get current joint positions using read_joints
+        joint_positions = robot.read_joints()
+        
+        # Convert to dictionary format for URDF visualization
+        joint_states = {
+            '1': joint_positions[0] if len(joint_positions) > 0 else 0,
+            '2': joint_positions[1] if len(joint_positions) > 1 else 0,
+            '3': joint_positions[2] if len(joint_positions) > 2 else 0,
+            '4': joint_positions[3] if len(joint_positions) > 3 else 0,
+            '5': joint_positions[4] if len(joint_positions) > 4 else 0,
+            '6': joint_positions[5] if len(joint_positions) > 5 else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'joint_states': joint_states,
+            'joint_positions': joint_positions,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/robot/update_visualization', methods=['POST'])
+def update_robot_visualization():
+    """Update robot visualization with specific joint states"""
+    data = request.get_json() or {}
+    
+    # Get joint states from request
+    joint_states = data.get('joint_states', None)
+    
+    if joint_states is None:
+        # If no states provided, get current states from robot
+        if robot:
+            joint_positions = robot.read_joints()
+            joint_states = {
+                '1': joint_positions[0] if len(joint_positions) > 0 else 0,
+                '2': joint_positions[1] if len(joint_positions) > 1 else 0,
+                '3': joint_positions[2] if len(joint_positions) > 2 else 0,
+                '4': joint_positions[3] if len(joint_positions) > 3 else 0,
+                '5': joint_positions[4] if len(joint_positions) > 4 else 0,
+                '6': joint_positions[5] if len(joint_positions) > 5 else 0
+            }
+        else:
+            # Use default states
+            joint_states = {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0}
+    
+    # Get visualization parameters
+    show_camera = data.get('show_camera', True)
+    show_robot = data.get('show_robot', True)
+    robot_position = data.get('robot_position', [0, 0, 0])
+    
+    try:
+        # Create visualization with current joint states
+        from pointcloud_viewer import vis_pcd_plotly, generate_plotly_html
+        
+        # Create empty point cloud if needed
+        pointclouds = []
+        
+        # Get camera info if available
+        camera_info = None
+        if active_camera == 'realsense' and realsense_camera and realsense_camera.intrinsics:
+            intrinsics = realsense_camera.intrinsics
+            camera_info = {
+                'fx': intrinsics.fx,
+                'fy': intrinsics.fy,
+                'cx': intrinsics.ppx,
+                'cy': intrinsics.ppy,
+                'width': intrinsics.width,
+                'height': intrinsics.height,
+                'scale': getattr(realsense_camera, 'depth_scale', 0.001) * 1000
+            }
+        
+        # Create figure with robot at current joint states
+        fig = vis_pcd_plotly(
+            pointclouds, 
+            size_ls=[1],
+            title="Robot Visualization",
+            show_camera=show_camera,
+            camera_info=camera_info,
+            show_robot=show_robot,
+            robot_joint_angles=joint_states,
+            robot_position=np.array(robot_position)
+        )
+        
+        # Generate HTML
+        html_content = generate_plotly_html(fig)
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/plotly/live_with_robot')
+def get_live_plotly_with_robot():
+    """Get live point cloud with robot visualization"""
+    global realsense_camera, active_camera, robot
+    
+    if active_camera != 'realsense' or not realsense_camera:
+        # Return robot-only visualization if no camera
+        return update_robot_visualization()
+    
+    try:
+        # Get point cloud
+        pcd_data = realsense_camera.get_point_cloud(downsample=8, max_points=10000)
+        
+        if pcd_data:
+            vertices = np.array(pcd_data['vertices'])
+            colors = np.array(pcd_data['colors'])
+            
+            # Convert to centimeters
+            vertices = vertices * 100
+            
+            pointclouds = [{
+                'vertices': vertices,
+                'colors': colors,
+                'name': 'Live Point Cloud'
+            }]
+        else:
+            pointclouds = []
+        
+        # Get camera info
+        camera_info = None
+        if realsense_camera and realsense_camera.intrinsics:
+            intrinsics = realsense_camera.intrinsics
+            camera_info = {
+                'fx': intrinsics.fx,
+                'fy': intrinsics.fy,
+                'cx': intrinsics.ppx,
+                'cy': intrinsics.ppy,
+                'width': intrinsics.width,
+                'height': intrinsics.height,
+                'scale': getattr(realsense_camera, 'depth_scale', 0.001) * 1000
+            }
+        
+        # Get current robot joint states
+        robot_joint_angles = None
+        if robot:
+            try:
+                joint_positions = robot.read_joints()
+                robot_joint_angles = {
+                    '1': joint_positions[0] if len(joint_positions) > 0 else 0,
+                    '2': joint_positions[1] if len(joint_positions) > 1 else 0,
+                    '3': joint_positions[2] if len(joint_positions) > 2 else 0,
+                    '4': joint_positions[3] if len(joint_positions) > 3 else 0,
+                    '5': joint_positions[4] if len(joint_positions) > 4 else 0,
+                    '6': joint_positions[5] if len(joint_positions) > 5 else 0
+                }
+            except:
+                pass  # Use default angles if can't get from robot
+        
+        # Create visualization with both point cloud and robot
+        fig = vis_pcd_plotly(
+            pointclouds, 
+            size_ls=[1],
+            title="Live Scene with Robot",
+            show_camera=True,
+            camera_info=camera_info,
+            show_robot=True,
+            robot_joint_angles=robot_joint_angles,
+            robot_position=np.array([0, 0, 0])
+        )
+        
+        # Generate HTML
+        html_content = generate_plotly_html(fig, div_id="live-scene")
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/coordinate/pixel_to_3d', methods=['POST'])
+def pixel_to_3d():
+    """Convert pixel coordinates to 3D coordinates"""
+    data = request.get_json() or {}
+    
+    u = data.get('u', 320)
+    v = data.get('v', 240)
+    depth = data.get('depth', 1000)  # Default 1 meter
+    
+    # Initialize transformer
+    transform = CoordinateTransform()
+    
+    # Set camera intrinsics if available
+    global realsense_camera, active_camera
+    if active_camera == 'realsense' and realsense_camera and realsense_camera.intrinsics:
+        intrinsics = realsense_camera.intrinsics
+        transform.camera_intrinsics = {
+            'fx': intrinsics.fx,
+            'fy': intrinsics.fy,
+            'cx': intrinsics.ppx,
+            'cy': intrinsics.ppy,
+            'depth_scale': getattr(realsense_camera, 'depth_scale', 0.001)
+        }
+    
+    # Convert to camera coordinates
+    camera_point = transform.pixel_to_camera(u, v, depth)
+    
+    # Convert to world coordinates
+    world_point = transform.transform_point_to_world(camera_point)
+    
+    return jsonify({
+        'pixel': {'u': u, 'v': v},
+        'depth_mm': depth,
+        'camera_coords': {
+            'x': float(camera_point[0]),
+            'y': float(camera_point[1]),
+            'z': float(camera_point[2]),
+            'units': 'meters'
+        },
+        'world_coords': {
+            'X': float(world_point[0]),
+            'Y': float(world_point[1]),
+            'Z': float(world_point[2]),
+            'units': 'meters'
+        }
+    })
 
 
 if __name__ == '__main__':
