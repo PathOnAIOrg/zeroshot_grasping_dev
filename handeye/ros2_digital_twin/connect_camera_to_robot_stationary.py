@@ -36,8 +36,8 @@ class ConnectStationaryCamera(Node):
         
         # Gripper to checkerboard offset (if checkerboard is not at gripper center)
         self.declare_parameter('checkerboard_offset_x', 0.)  # Offset in meters
-        self.declare_parameter('checkerboard_offset_y', 0.5)
-        self.declare_parameter('checkerboard_offset_z', -0.5)
+        self.declare_parameter('checkerboard_offset_y', 0.33)
+        self.declare_parameter('checkerboard_offset_z', -0.47)
         
         calibration_file = self.get_parameter('calibration_file').value
         self.base_frame = self.get_parameter('base_frame').value
