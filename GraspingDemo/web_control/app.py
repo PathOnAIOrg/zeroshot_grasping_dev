@@ -1311,7 +1311,16 @@ def get_live_pointcloud():
             camera_info=camera_info,
             show_robot=show_robot,
             robot_joint_angles=robot_joint_angles,
-            robot_position=np.array([0, 0, 0])
+            robot_position=np.array([
+                float(request.args.get('robot_pos_x', 0)),
+                float(request.args.get('robot_pos_y', 0)),
+                float(request.args.get('robot_pos_z', 0))
+            ]),
+            robot_rotation=np.array([
+                float(request.args.get('robot_rot_roll', 0)),
+                float(request.args.get('robot_rot_pitch', 0)),
+                float(request.args.get('robot_rot_yaw', 0))
+            ])
         )
         
         # Generate HTML
@@ -1821,6 +1830,117 @@ def get_current_joint_states():
         return jsonify({'success': False, 'message': str(e)})
 
 
+@app.route('/api/robot/urdf_data')
+def get_urdf_data():
+    """Get URDF data for Three.js visualization"""
+    try:
+        # Parse URDF directly to get full mesh information
+        import xml.etree.ElementTree as ET
+        urdf_path = "/home/pathonai/Documents/Github/opensource_dev/GraspingDemo/robot_description/urdf/so101_base.xacro"
+        
+        tree = ET.parse(urdf_path)
+        root = tree.getroot()
+        
+        urdf_data = {
+            'links': {},
+            'joints': {}
+        }
+        
+        # Extract links with visual information
+        for link in root.findall('.//link'):
+            link_name = link.get('name')
+            link_data = {'name': link_name, 'visual': None}
+            
+            # Get visual element
+            visual = link.find('visual')
+            if visual:
+                visual_data = {'geometry': {}, 'origin': {}}
+                
+                # Get origin
+                origin = visual.find('origin')
+                if origin:
+                    visual_data['origin'] = {
+                        'xyz': [float(x) for x in origin.get('xyz', '0 0 0').split()],
+                        'rpy': [float(x) for x in origin.get('rpy', '0 0 0').split()]
+                    }
+                else:
+                    visual_data['origin'] = {'xyz': [0, 0, 0], 'rpy': [0, 0, 0]}
+                
+                # Get geometry
+                geometry = visual.find('geometry')
+                if geometry:
+                    mesh = geometry.find('mesh')
+                    if mesh:
+                        # Get original filename
+                        original_filename = mesh.get('filename', '')
+                        # Extract just the STL filename
+                        stl_filename = original_filename.split('/')[-1] if '/' in original_filename else original_filename
+                        
+                        visual_data['geometry']['mesh'] = {
+                            'filename': stl_filename,  # Just the filename
+                            'scale': [float(x) for x in mesh.get('scale', '1 1 1').split()]
+                        }
+                
+                link_data['visual'] = visual_data
+            
+            urdf_data['links'][link_name] = link_data
+        
+        # Extract joints
+        for joint in root.findall('.//joint'):
+            joint_name = joint.get('name')
+            joint_type = joint.get('type')
+            
+            parent = joint.find('parent')
+            child = joint.find('child')
+            
+            if parent is not None and child is not None:
+                joint_data = {
+                    'name': joint_name,
+                    'type': joint_type,
+                    'parent': parent.get('link'),
+                    'child': child.get('link'),
+                    'axis': [0, 0, 1]  # Default Z-axis like Plotly
+                }
+                
+                # Get joint origin
+                origin = joint.find('origin')
+                if origin:
+                    joint_data['origin'] = {
+                        'xyz': [float(x) for x in origin.get('xyz', '0 0 0').split()],
+                        'rpy': [float(x) for x in origin.get('rpy', '0 0 0').split()]
+                    }
+                else:
+                    joint_data['origin'] = {'xyz': [0, 0, 0], 'rpy': [0, 0, 0]}
+                
+                # Get joint limits if available
+                limit = joint.find('limit')
+                if limit:
+                    joint_data['limits'] = {
+                        'lower': float(limit.get('lower', '-3.14')),
+                        'upper': float(limit.get('upper', '3.14'))
+                    }
+                
+                urdf_data['joints'][joint_name] = joint_data
+        
+        return jsonify({
+            'success': True,
+            'urdf_data': urdf_data
+        })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Failed to load URDF: {e}'
+        })
+
+
+@app.route('/static/meshes/<path:filename>')
+def serve_mesh(filename):
+    """Serve STL mesh files from robot_description/meshes directory"""
+    mesh_dir = '/home/pathonai/Documents/Github/opensource_dev/GraspingDemo/robot_description/meshes/so101'
+    return send_from_directory(mesh_dir, filename)
+
+
 @app.route('/api/robot/update_visualization', methods=['POST'])
 def update_robot_visualization():
     """Update robot visualization with specific joint states"""
@@ -1849,6 +1969,7 @@ def update_robot_visualization():
     show_camera = data.get('show_camera', True)
     show_robot = data.get('show_robot', True)
     robot_position = data.get('robot_position', [0, 0, 0])
+    robot_rotation = data.get('robot_rotation', [0, 0, 0])  # Roll, Pitch, Yaw in degrees
     
     try:
         # Create visualization with current joint states
@@ -1880,7 +2001,8 @@ def update_robot_visualization():
             camera_info=camera_info,
             show_robot=show_robot,
             robot_joint_angles=joint_states,
-            robot_position=np.array(robot_position)
+            robot_position=np.array(robot_position),
+            robot_rotation=np.array(robot_rotation)
         )
         
         # Generate HTML
@@ -1896,6 +2018,16 @@ def update_robot_visualization():
 def get_live_plotly_with_robot():
     """Get live point cloud with robot visualization"""
     global realsense_camera, active_camera, robot
+    
+    # Get robot position from request parameters
+    robot_pos_x = float(request.args.get('robot_pos_x', 0))
+    robot_pos_y = float(request.args.get('robot_pos_y', 0)) 
+    robot_pos_z = float(request.args.get('robot_pos_z', 0))
+    
+    # Get robot rotation from request parameters (in degrees)
+    robot_rot_roll = float(request.args.get('robot_rot_roll', 0))
+    robot_rot_pitch = float(request.args.get('robot_rot_pitch', 0))
+    robot_rot_yaw = float(request.args.get('robot_rot_yaw', 0))
     
     if active_camera != 'realsense' or not realsense_camera:
         # Return robot-only visualization if no camera
@@ -1959,7 +2091,8 @@ def get_live_plotly_with_robot():
             camera_info=camera_info,
             show_robot=True,
             robot_joint_angles=robot_joint_angles,
-            robot_position=np.array([0, 0, 0])
+            robot_position=np.array([robot_pos_x, robot_pos_y, robot_pos_z]),
+            robot_rotation=np.array([robot_rot_roll, robot_rot_pitch, robot_rot_yaw])
         )
         
         # Generate HTML

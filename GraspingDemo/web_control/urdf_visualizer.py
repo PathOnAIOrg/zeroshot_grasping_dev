@@ -366,6 +366,7 @@ class URDFVisualizer:
     
     def create_plotly_traces(self, joint_angles: Dict[str, float] = None, 
                             robot_position: np.ndarray = None,
+                            robot_rotation: np.ndarray = None,
                             scale: float = 100.0,
                             simplified: bool = True):
         """
@@ -374,6 +375,7 @@ class URDFVisualizer:
         Args:
             joint_angles: Dictionary of joint angles in radians
             robot_position: Robot base position [x, y, z] in meters
+            robot_rotation: Robot base rotation [roll, pitch, yaw] in degrees
             scale: Scale factor to convert to display units (100 for cm)
         
         Returns:
@@ -388,12 +390,44 @@ class URDFVisualizer:
         # Get transforms for all links
         transforms = self.get_link_transforms()
         
-        # Apply robot base position if provided
+        # Create base transform with position and rotation
+        base_transform = np.eye(4)
+        
+        # Apply rotation if provided (convert degrees to radians)
+        if robot_rotation is not None:
+            roll_rad = np.deg2rad(robot_rotation[0]) if len(robot_rotation) > 0 else 0
+            pitch_rad = np.deg2rad(robot_rotation[1]) if len(robot_rotation) > 1 else 0
+            yaw_rad = np.deg2rad(robot_rotation[2]) if len(robot_rotation) > 2 else 0
+            
+            # Create rotation matrix (ZYX Euler order)
+            Rx = np.array([
+                [1, 0, 0],
+                [0, np.cos(roll_rad), -np.sin(roll_rad)],
+                [0, np.sin(roll_rad), np.cos(roll_rad)]
+            ])
+            
+            Ry = np.array([
+                [np.cos(pitch_rad), 0, np.sin(pitch_rad)],
+                [0, 1, 0],
+                [-np.sin(pitch_rad), 0, np.cos(pitch_rad)]
+            ])
+            
+            Rz = np.array([
+                [np.cos(yaw_rad), -np.sin(yaw_rad), 0],
+                [np.sin(yaw_rad), np.cos(yaw_rad), 0],
+                [0, 0, 1]
+            ])
+            
+            # Combined rotation
+            base_transform[:3, :3] = Rz @ Ry @ Rx
+        
+        # Apply position if provided
         if robot_position is not None:
-            base_offset = np.eye(4)
-            base_offset[:3, 3] = robot_position
-            for link_name in transforms:
-                transforms[link_name] = base_offset @ transforms[link_name]
+            base_transform[:3, 3] = robot_position
+        
+        # Apply base transform to all links
+        for link_name in transforms:
+            transforms[link_name] = base_transform @ transforms[link_name]
         
         # If simplified mode, just show joint positions and connections
         if simplified:
