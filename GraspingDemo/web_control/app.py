@@ -4,7 +4,7 @@ Web UI for SO-101 Robot Control
 A simple web interface with buttons to control the robot
 """
 
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, send_file
 import subprocess
 import json
 import os
@@ -14,10 +14,28 @@ from pathlib import Path
 from datetime import datetime
 import sys
 import numpy as np
+import base64
+
+# Try to import cv2 for image handling
+try:
+    import cv2
+    cv2_available = True
+except ImportError:
+    print("Warning: OpenCV not installed. Some features may be limited.")
+    cv2_available = False
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from so101_grasp.robot.so101_client_raw_simple import SO101ClientRawSimple
 from so101_grasp.robot.so101_kinematics import SO101Kinematics
+
+# Import camera handlers
+from realsense_handler import RealSenseHandler, SimpleWebcamHandler
+from pointcloud_viewer import (
+    load_point_cloud_from_capture, 
+    downsample_pointcloud, 
+    vis_pcd_plotly,
+    generate_plotly_html
+)
 
 app = Flask(__name__)
 
@@ -30,6 +48,12 @@ current_status = "Disconnected"
 is_moving = False
 current_thread = None
 motors_enabled = False  # Track motor state
+
+# Global camera handlers
+realsense_camera = None
+webcam = None
+active_camera = None  # 'realsense', 'webcam', or None
+camera_streaming = False
 
 # Trajectories directory
 TRAJ_DIR = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/trajectories"
@@ -50,10 +74,11 @@ def connect_robot():
 
 def disconnect_robot():
     """Disconnect from robot"""
-    global robot, current_status
+    global robot, current_status, motors_enabled
     if robot:
         robot.disconnect()
         robot = None
+    motors_enabled = False
     current_status = "Disconnected"
 
 
@@ -61,6 +86,12 @@ def disconnect_robot():
 def index():
     """Main page"""
     return render_template('index.html')
+
+
+@app.route('/camera')
+def camera_interface():
+    """Camera interface page"""
+    return render_template('index_with_camera.html')
 
 
 @app.route('/api/status')
@@ -478,10 +509,22 @@ def control_gripper(action):
         # Only write to gripper servo (servo ID 6)
         # Using direct servo control to avoid moving other joints
         servo_id = 6
+        
+        # Always enable torque for gripper before moving it
+        # This allows gripper to work even in release mode
+        robot.enable_torque(servo_id, True)
+        time.sleep(0.01)
+        
         ticks = robot.radians_to_ticks(gripper_pos)
         
         # Use the write_servo_position method to control only the gripper
         robot.write_servo_position(servo_id, ticks, speed=500)
+        
+        # If in release mode (motors_enabled=False), disable gripper torque after movement
+        # Give time for movement to complete
+        if not motors_enabled:
+            time.sleep(0.5)  # Wait for gripper to reach position
+            robot.enable_torque(servo_id, False)
         
         return jsonify({'success': True, 'message': f'Gripper {action}'})
         
@@ -727,7 +770,592 @@ def move_to_position():
         return jsonify({'success': False, 'message': str(e)})
 
 
+# Camera control routes
+@app.route('/api/camera/connect', methods=['POST'])
+def connect_camera():
+    """Connect to camera (RealSense or webcam)"""
+    global realsense_camera, webcam, active_camera, camera_streaming
+    
+    data = request.get_json() or {}
+    camera_type = data.get('type', 'auto')  # 'realsense', 'webcam', or 'auto'
+    
+    # Disconnect any existing camera
+    if active_camera:
+        disconnect_camera()
+    
+    # Try RealSense first if auto or specifically requested
+    if camera_type in ['auto', 'realsense']:
+        try:
+            realsense_camera = RealSenseHandler()
+            success, message = realsense_camera.connect()
+            if success:
+                active_camera = 'realsense'
+                camera_streaming = True
+                return jsonify({'success': True, 'message': message, 'type': 'realsense'})
+        except Exception as e:
+            if camera_type == 'realsense':
+                return jsonify({'success': False, 'message': f'RealSense error: {str(e)}'})
+    
+    # Fall back to webcam if auto or specifically requested
+    if camera_type in ['auto', 'webcam']:
+        try:
+            webcam = SimpleWebcamHandler()
+            success, message = webcam.connect()
+            if success:
+                active_camera = 'webcam'
+                camera_streaming = True
+                return jsonify({'success': True, 'message': message, 'type': 'webcam'})
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Webcam error: {str(e)}'})
+    
+    return jsonify({'success': False, 'message': 'No camera available'})
+
+
+@app.route('/api/camera/disconnect', methods=['POST'])
+def disconnect_camera():
+    """Disconnect camera"""
+    global realsense_camera, webcam, active_camera, camera_streaming
+    
+    try:
+        if active_camera == 'realsense' and realsense_camera:
+            success, message = realsense_camera.disconnect()
+            realsense_camera = None
+        elif active_camera == 'webcam' and webcam:
+            success, message = webcam.disconnect()
+            webcam = None
+        else:
+            return jsonify({'success': False, 'message': 'No camera connected'})
+        
+        active_camera = None
+        camera_streaming = False
+        return jsonify({'success': success, 'message': message})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/status')
+def camera_status():
+    """Get camera status"""
+    global active_camera, camera_streaming
+    
+    status = {
+        'connected': active_camera is not None,
+        'type': active_camera,
+        'streaming': camera_streaming
+    }
+    
+    if active_camera == 'realsense' and realsense_camera:
+        info = realsense_camera.get_camera_info()
+        if info:
+            status['info'] = info
+    
+    return jsonify(status)
+
+
+@app.route('/api/camera/rgb')
+def get_rgb_stream():
+    """Get RGB image stream"""
+    global active_camera, realsense_camera, webcam
+    
+    if not active_camera:
+        return jsonify({'success': False, 'message': 'No camera connected'})
+    
+    try:
+        if active_camera == 'realsense' and realsense_camera:
+            frame_data = realsense_camera.get_rgb_frame()
+        elif active_camera == 'webcam' and webcam:
+            frame_data = webcam.get_rgb_frame()
+        else:
+            return jsonify({'success': False, 'message': 'Camera not available'})
+        
+        if frame_data:
+            return jsonify({'success': True, 'image': frame_data})
+        else:
+            return jsonify({'success': False, 'message': 'No frame available'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/depth')
+def get_depth_stream():
+    """Get depth image stream (RealSense only)"""
+    global active_camera, realsense_camera
+    
+    if active_camera != 'realsense' or not realsense_camera:
+        return jsonify({'success': False, 'message': 'Depth only available with RealSense'})
+    
+    try:
+        frame_data = realsense_camera.get_depth_frame()
+        if frame_data:
+            return jsonify({'success': True, 'image': frame_data})
+        else:
+            return jsonify({'success': False, 'message': 'No depth frame available'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/pointcloud')
+def get_pointcloud():
+    """Get point cloud data (RealSense only)"""
+    global active_camera, realsense_camera
+    
+    if active_camera != 'realsense' or not realsense_camera:
+        return jsonify({'success': False, 'message': 'Point cloud only available with RealSense'})
+    
+    try:
+        # Get downsample factor from request
+        downsample = request.args.get('downsample', 4, type=int)
+        
+        pc_data = realsense_camera.get_point_cloud(downsample=downsample)
+        if pc_data:
+            return jsonify({'success': True, 'pointcloud': pc_data})
+        else:
+            return jsonify({'success': False, 'message': 'No point cloud available'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/capture', methods=['POST'])
+def capture_camera():
+    """Capture current camera frame(s) with robot state"""
+    global active_camera, realsense_camera, webcam, robot
+    
+    if not active_camera:
+        return jsonify({'success': False, 'message': 'No camera connected'})
+    
+    data = request.get_json() or {}
+    include_pointcloud = data.get('pointcloud', True)
+    
+    # Get robot state if connected
+    robot_state = None
+    if robot:
+        try:
+            joints = robot.read_joints(validate=False)
+            robot_state = {
+                'joint_positions': [float(j) for j in joints],
+                'joint_names': ['base', 'shoulder', 'elbow', 'wrist_pitch', 'wrist_roll', 'gripper'],
+                'gripper_state': 'open' if joints[5] > 1.0 else 'closed' if joints[5] < -1.0 else 'middle',
+                'timestamp': time.time()
+            }
+        except:
+            robot_state = None
+    
+    try:
+        if active_camera == 'realsense' and realsense_camera:
+            success, capture_info = realsense_camera.capture(include_pointcloud=include_pointcloud, robot_state=robot_state)
+        elif active_camera == 'webcam' and webcam:
+            success, capture_info = webcam.capture(robot_state=robot_state)
+        else:
+            return jsonify({'success': False, 'message': 'Camera not available'})
+        
+        return jsonify({'success': success, 'message': capture_info, 'capture_info': capture_info})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/list_captures')
+def list_captures():
+    """List captured images with metadata"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures"
+    if not capture_dir.exists():
+        return jsonify([])
+    
+    # First filter to get only directories, then sort
+    folders = [f for f in capture_dir.iterdir() if f.is_dir()]
+    folders.sort(reverse=True)  # Sort by name (newest first for timestamp format)
+    
+    captures = []
+    for folder in folders[:20]:  # Get latest 20 captures
+        # Only process folders that match the timestamp format (YYYYMMDD_HHMMSS)
+        if len(folder.name) == 15 and folder.name[8] == '_':
+            capture_info = {
+                'name': folder.name,
+                'path': str(folder),
+                'has_rgb': (folder / 'rgb.png').exists(),
+                'has_depth': (folder / 'depth.npy').exists(),
+                'has_pointcloud': (folder / 'pointcloud.ply').exists(),
+                'has_metadata': (folder / 'metadata.json').exists()
+            }
+            
+            # Load metadata if available
+            metadata_path = folder / 'metadata.json'
+            if metadata_path.exists():
+                try:
+                    with open(metadata_path, 'r') as f:
+                        metadata = json.load(f)
+                        capture_info['timestamp'] = metadata.get('timestamp')
+                        capture_info['camera_type'] = metadata.get('camera_type')
+                        if 'robot_state' in metadata:
+                            capture_info['has_robot_state'] = True
+                            capture_info['gripper_state'] = metadata['robot_state'].get('gripper_state')
+                except:
+                    pass
+            
+            captures.append(capture_info)
+    
+    return jsonify(captures)
+
+
+@app.route('/api/camera/capture/<capture_name>')
+def get_capture_details(capture_name):
+    """Get detailed information about a specific capture"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    
+    if not capture_dir.exists():
+        return jsonify({'success': False, 'message': 'Capture not found'})
+    
+    result = {
+        'success': True,
+        'name': capture_name,
+        'files': {}
+    }
+    
+    # Load metadata
+    metadata_path = capture_dir / 'metadata.json'
+    if metadata_path.exists():
+        with open(metadata_path, 'r') as f:
+            result['metadata'] = json.load(f)
+    
+    # Get images as base64 if cv2 is available
+    if cv2_available:
+        # Get RGB image as base64
+        rgb_path = capture_dir / 'rgb.png'
+        if rgb_path.exists():
+            try:
+                img = cv2.imread(str(rgb_path))
+                if img is not None:
+                    _, buffer = cv2.imencode('.jpg', img)
+                    img_base64 = base64.b64encode(buffer).decode('utf-8')
+                    result['files']['rgb'] = img_base64
+            except Exception as e:
+                print(f"Error reading RGB image: {e}")
+        
+        # Get depth colorized as base64
+        depth_vis_path = capture_dir / 'depth_colorized.png'
+        if depth_vis_path.exists():
+            try:
+                img = cv2.imread(str(depth_vis_path))
+                if img is not None:
+                    _, buffer = cv2.imencode('.jpg', img)
+                    img_base64 = base64.b64encode(buffer).decode('utf-8')
+                    result['files']['depth_colorized'] = img_base64
+            except Exception as e:
+                print(f"Error reading depth image: {e}")
+    else:
+        # Alternative: read files directly as base64 without cv2
+        rgb_path = capture_dir / 'rgb.png'
+        if rgb_path.exists():
+            try:
+                with open(rgb_path, 'rb') as f:
+                    img_base64 = base64.b64encode(f.read()).decode('utf-8')
+                    result['files']['rgb'] = img_base64
+            except Exception as e:
+                print(f"Error reading RGB image: {e}")
+        
+        depth_vis_path = capture_dir / 'depth_colorized.png'
+        if depth_vis_path.exists():
+            try:
+                with open(depth_vis_path, 'rb') as f:
+                    img_base64 = base64.b64encode(f.read()).decode('utf-8')
+                    result['files']['depth_colorized'] = img_base64
+            except Exception as e:
+                print(f"Error reading depth image: {e}")
+    
+    return jsonify(result)
+
+
+@app.route('/api/camera/capture/<capture_name>/<file_type>')
+def get_capture_file(capture_name, file_type):
+    """Serve capture file directly"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    
+    if file_type == 'rgb':
+        file_path = capture_dir / 'rgb.png'
+    elif file_type == 'depth':
+        file_path = capture_dir / 'depth_colorized.png'
+    else:
+        return jsonify({'success': False, 'message': 'Invalid file type'})
+    
+    if file_path.exists():
+        return send_file(str(file_path), mimetype='image/png')
+    else:
+        return jsonify({'success': False, 'message': 'File not found'})
+
+
+@app.route('/api/camera/capture/<capture_name>/pointcloud')
+def get_capture_pointcloud(capture_name):
+    """Get point cloud visualization for a capture"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    
+    if not capture_dir.exists():
+        return jsonify({'success': False, 'message': 'Capture not found'})
+    
+    try:
+        # Load point cloud data
+        pcd_data, metadata = load_point_cloud_from_capture(str(capture_dir))
+        
+        if pcd_data is None:
+            return jsonify({'success': False, 'message': 'No point cloud data available'})
+        
+        vertices = pcd_data['vertices']
+        colors = pcd_data['colors']
+        
+        # Downsample for web visualization
+        if len(vertices) > 50000:
+            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=0.005)
+        
+        # Add robot state if available
+        robot_joints = None
+        if metadata and 'robot_state' in metadata:
+            robot_joints = metadata['robot_state']['joint_positions']
+        
+        # Create Plotly visualization
+        pointclouds = [{
+            'vertices': vertices,
+            'colors': colors,
+            'name': f'Capture: {capture_name}'
+        }]
+        
+        # Add robot visualization if available
+        if robot_joints:
+            # Simple robot end-effector position (would need FK for full robot)
+            ee_pos = np.array(robot_joints[:3]).reshape(1, 3)
+            pointclouds.append({
+                'vertices': ee_pos,
+                'colors': np.array([[1, 0, 0]]),  # Red for robot
+                'name': 'Robot Position'
+            })
+        
+        fig = vis_pcd_plotly(pointclouds, size_ls=[2, 8], title=f"Point Cloud - {capture_name}")
+        
+        # Generate HTML
+        html_content = generate_plotly_html(fig)
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        print(f"Error generating point cloud visualization: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/pointcloud/live')
+def get_live_pointcloud():
+    """Get live point cloud visualization from RealSense"""
+    global realsense_camera
+    
+    if not realsense_camera or not realsense_camera.is_streaming:
+        return jsonify({'success': False, 'message': 'RealSense not streaming'})
+    
+    try:
+        # Get current point cloud
+        pcd_data = realsense_camera.get_point_cloud(downsample=4)
+        
+        if pcd_data is None:
+            return jsonify({'success': False, 'message': 'No point cloud data'})
+        
+        vertices = np.array(pcd_data['vertices'])
+        colors = np.array(pcd_data['colors']) / 255.0  # Normalize colors
+        
+        # Further downsample if needed
+        if len(vertices) > 30000:
+            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=0.01)
+        
+        # Create Plotly visualization
+        pointclouds = [{
+            'vertices': vertices,
+            'colors': colors,
+            'name': 'Live Point Cloud'
+        }]
+        
+        fig = vis_pcd_plotly(pointclouds, size_ls=[2], title="Live Point Cloud Stream")
+        
+        # Generate HTML
+        html_content = generate_plotly_html(fig, div_id="live-pointcloud")
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        print(f"Error generating live point cloud: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/pointcloud_data')
+def get_pointcloud_data():
+    """Get raw point cloud data for Three.js visualization - direct stream"""
+    global realsense_camera
+    
+    if not realsense_camera or not realsense_camera.is_streaming:
+        return jsonify({'success': False, 'message': 'Camera not streaming'})
+    
+    try:
+        # Get point cloud directly from RealSense stream with built-in downsampling
+        pcd_data = realsense_camera.get_point_cloud(downsample=8)  # More aggressive downsampling
+        
+        if pcd_data is None:
+            return jsonify({'success': False, 'message': 'No point cloud data'})
+        
+        # Data is already in the right format from get_point_cloud
+        return jsonify({
+            'success': True,
+            'vertices': pcd_data['vertices'],  # Already a list
+            'colors': pcd_data['colors'],      # Already a list
+            'num_points': pcd_data.get('num_points', len(pcd_data['vertices']))
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/capture/<capture_name>/rgb')
+def get_capture_rgb(capture_name):
+    """Serve RGB image from a capture"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    rgb_path = capture_dir / 'rgb.png'
+    
+    if rgb_path.exists():
+        from flask import send_file
+        return send_file(str(rgb_path), mimetype='image/png')
+    else:
+        return jsonify({'success': False, 'message': 'RGB image not found'}), 404
+
+
+@app.route('/api/camera/capture/<capture_name>/depth')
+def get_capture_depth(capture_name):
+    """Serve depth visualization from a capture"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    depth_vis_path = capture_dir / 'depth_colorized.png'
+    
+    if depth_vis_path.exists():
+        from flask import send_file
+        return send_file(str(depth_vis_path), mimetype='image/png')
+    else:
+        # Try to generate from depth.npy
+        depth_path = capture_dir / 'depth.npy'
+        if depth_path.exists():
+            try:
+                depth = np.load(str(depth_path))
+                # Normalize and colorize
+                depth_norm = depth.copy()
+                depth_norm[depth_norm == 0] = np.nan
+                depth_norm = (depth_norm - np.nanmin(depth_norm)) / (np.nanmax(depth_norm) - np.nanmin(depth_norm))
+                depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_norm * 255, alpha=1), cv2.COLORMAP_JET)
+                
+                # Convert to PNG
+                _, buffer = cv2.imencode('.png', depth_colormap)
+                from io import BytesIO
+                return send_file(BytesIO(buffer), mimetype='image/png')
+            except:
+                pass
+        
+        return jsonify({'success': False, 'message': 'Depth image not found'}), 404
+
+
+@app.route('/api/camera/capture/<capture_name>/pointcloud_data')
+def get_capture_pointcloud_data(capture_name):
+    """Get point cloud data from a capture for Three.js"""
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    
+    if not capture_dir.exists():
+        return jsonify({'success': False, 'message': 'Capture not found'})
+    
+    try:
+        # Load point cloud data
+        pcd_data, metadata = load_point_cloud_from_capture(str(capture_dir))
+        
+        if pcd_data is None:
+            return jsonify({'success': False, 'message': 'No point cloud data'})
+        
+        vertices = pcd_data['vertices']
+        colors = pcd_data['colors']
+        
+        # Ensure colors are in 0-255 range for Three.js
+        if colors.max() <= 1.0:
+            colors = (colors * 255).astype(int)
+        
+        # Downsample for web
+        if len(vertices) > 10000:
+            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=0.005)
+        
+        return jsonify({
+            'success': True,
+            'vertices': vertices.tolist(),
+            'colors': colors.tolist()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/camera/replay/<capture_name>', methods=['POST'])
+def replay_capture(capture_name):
+    """Replay robot position from a capture"""
+    global robot, is_moving, motors_enabled
+    
+    if not robot:
+        return jsonify({'success': False, 'message': 'Robot not connected'})
+    
+    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+    metadata_path = capture_dir / 'metadata.json'
+    
+    if not metadata_path.exists():
+        return jsonify({'success': False, 'message': 'No metadata found for this capture'})
+    
+    try:
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+        
+        if 'robot_state' not in metadata:
+            return jsonify({'success': False, 'message': 'No robot state in this capture'})
+        
+        robot_state = metadata['robot_state']
+        target_joints = robot_state['joint_positions']
+        
+        # Enable motors if not already enabled
+        if not motors_enabled:
+            for i in range(6):
+                robot.enable_torque(i + 1, True)
+                time.sleep(0.01)
+            motors_enabled = True
+        
+        # Move to captured position
+        current = robot.read_joints()
+        is_moving = True
+        try:
+            robot.interpolate_waypoint(current, target_joints, steps=50, timestep=0.02)
+            return jsonify({
+                'success': True, 
+                'message': f'Moved to position from {capture_name}',
+                'robot_state': robot_state
+            })
+        finally:
+            is_moving = False
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
 if __name__ == '__main__':
-    print("Starting SO-101 Web Control...")
-    print("Open browser at: http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    import sys
+    
+    # Allow port to be specified as command line argument
+    port = 5000
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid port number: {sys.argv[1]}, using default port 5000")
+    
+    print(f"Starting SO-101 Web Control on port {port}...")
+    print(f"Open browser at: http://localhost:{port}")
+    
+    try:
+        app.run(host='0.0.0.0', port=port, debug=False)
+    except OSError as e:
+        if "Address already in use" in str(e):
+            print(f"\nError: Port {port} is already in use!")
+            print(f"Try a different port: python app.py 5001")
+        else:
+            raise

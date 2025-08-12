@@ -230,7 +230,10 @@ class RealSenseCalibrator:
                     if cv.waitKey(100) == 27:  # ESC
                         break
             
-            cv.destroyWindow('Pattern Detection')
+            try:
+                cv.destroyWindow('Pattern Detection')
+            except:
+                pass  # Window might not exist
             
             if not detected:
                 print("❌ Could not detect pattern. Using default 7×4")
@@ -369,9 +372,16 @@ class RealSenseCalibrator:
                     
         finally:
             # Clean up
-            cv.destroyAllWindows()
+            try:
+                cv.destroyAllWindows()
+            except:
+                pass  # Windows might not exist
+            
             if self.pipeline:
-                self.pipeline.stop()
+                try:
+                    self.pipeline.stop()
+                except:
+                    pass
         
         print(f"\n📊 Captured {captured} calibration positions")
         return captured
@@ -420,6 +430,21 @@ class RealSenseCalibrator:
     
     def save_calibration(self, T_cam2gripper, filename='output/handeye_realsense.npz'):
         """Save hand-eye calibration results."""
+        # Create output directory if it doesn't exist
+        output_dir = os.path.dirname(filename)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            print(f"📁 Created output directory: {output_dir}")
+        
+        # Add timestamp to filename to avoid overwriting
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base_name = os.path.basename(filename).replace('.npz', '')
+        filename_with_timestamp = os.path.join(output_dir if output_dir else '.', 
+                                               f"{base_name}_{timestamp}.npz")
+        
+        # Also save without timestamp for easy access
+        filename_latest = filename
+        
         # Save joint positions for reference
         joint_positions = {
             f'position_{i+1}': joints 
@@ -439,12 +464,27 @@ class RealSenseCalibrator:
             'camera_type': 'RealSense'
         }
         
-        json_filename = filename.replace('.npz', '.json')
-        with open(json_filename, 'w') as f:
+        # Save with timestamp
+        json_filename_timestamp = filename_with_timestamp.replace('.npz', '.json')
+        with open(json_filename_timestamp, 'w') as f:
             json.dump(json_data, f, indent=2)
         
-        # Save numpy data
-        np.savez(filename,
+        # Save numpy data with timestamp
+        np.savez(filename_with_timestamp,
+                T_cam2gripper=T_cam2gripper,
+                robot_poses=self.robot_poses,
+                rvecs=self.rvecs,
+                tvecs=self.tvecs,
+                camera_matrix=self.camera_matrix,
+                dist_coeffs=self.dist_coeffs,
+                robot_joints=self.robot_joints_history)
+        
+        # Also save as latest (overwrite)
+        json_filename_latest = filename_latest.replace('.npz', '.json')
+        with open(json_filename_latest, 'w') as f:
+            json.dump(json_data, f, indent=2)
+        
+        np.savez(filename_latest,
                 T_cam2gripper=T_cam2gripper,
                 robot_poses=self.robot_poses,
                 rvecs=self.rvecs,
@@ -454,8 +494,10 @@ class RealSenseCalibrator:
                 robot_joints=self.robot_joints_history)
         
         print(f"\n💾 Calibration saved to:")
-        print(f"   - {filename} (numpy format)")
-        print(f"   - {json_filename} (human-readable)")
+        print(f"   - {filename_with_timestamp} (timestamped)")
+        print(f"   - {filename_latest} (latest/overwrite)")
+        print(f"   - {json_filename_timestamp} (JSON timestamped)")
+        print(f"   - {json_filename_latest} (JSON latest)")
 
 
 def main():
@@ -601,8 +643,10 @@ def main():
             print("✅ REALSENSE CALIBRATION COMPLETE!")
             print("=" * 60)
             print("\nTo use the calibration:")
-            print("  data = np.load('handeye_realsense.npz')")
+            print("  data = np.load('output/handeye_realsense.npz')")
             print("  T_cam2gripper = data['T_cam2gripper']")
+            print("\nTo connect to ROS2:")
+            print("  ros2 run ros2_digital_twin connect_camera_to_robot.py")
             
         else:
             print(f"\n❌ Insufficient data ({num_captured} < {args.min_positions})")

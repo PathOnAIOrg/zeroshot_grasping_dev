@@ -235,7 +235,10 @@ class StationaryRealSenseCalibrator:
                     if cv.waitKey(100) == 27:  # ESC
                         break
             
-            cv.destroyWindow('Pattern Detection')
+            try:
+                cv.destroyWindow('Pattern Detection')
+            except:
+                pass  # Window might not exist
             
             if not detected:
                 print("❌ Could not detect pattern. Using default 7×4")
@@ -376,9 +379,16 @@ class StationaryRealSenseCalibrator:
                     
         finally:
             # Clean up
-            cv.destroyAllWindows()
+            try:
+                cv.destroyAllWindows()
+            except:
+                pass  # Windows might not exist
+            
             if self.pipeline:
-                self.pipeline.stop()
+                try:
+                    self.pipeline.stop()
+                except:
+                    pass
         
         print(f"\n📊 Captured {captured} calibration positions")
         return captured
@@ -442,8 +452,23 @@ class StationaryRealSenseCalibrator:
         
         return T_cam2base, T_base2cam
     
-    def save_calibration(self, T_cam2base, T_base2cam, filename='handeye_realsense_stationary.npz'):
+    def save_calibration(self, T_cam2base, T_base2cam, filename='../output/handeye_realsense_stationary.npz'):
         """Save eye-to-hand calibration results."""
+        # Create output directory if it doesn't exist
+        output_dir = os.path.dirname(filename)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            print(f"📁 Created output directory: {output_dir}")
+        
+        # Add timestamp to filename to avoid overwriting
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base_name = os.path.basename(filename).replace('.npz', '')
+        filename_with_timestamp = os.path.join(output_dir if output_dir else '.', 
+                                               f"{base_name}_{timestamp}.npz")
+        
+        # Also save without timestamp for easy access
+        filename_latest = filename
+        
         # Save joint positions for reference
         joint_positions = {
             f'position_{i+1}': joints 
@@ -465,12 +490,30 @@ class StationaryRealSenseCalibrator:
             'camera_type': 'RealSense (Stationary)'
         }
         
-        json_filename = filename.replace('.npz', '.json')
-        with open(json_filename, 'w') as f:
+        # Save with timestamp
+        json_filename_timestamp = filename_with_timestamp.replace('.npz', '.json')
+        with open(json_filename_timestamp, 'w') as f:
             json.dump(json_data, f, indent=2)
         
-        # Save numpy data
-        np.savez(filename,
+        # Save numpy data with timestamp
+        np.savez(filename_with_timestamp,
+                T_cam2base=T_cam2base,
+                T_base2cam=T_base2cam,
+                T_cam2gripper=None,  # Not applicable for stationary camera
+                robot_poses=self.robot_poses,
+                rvecs=self.rvecs,
+                tvecs=self.tvecs,
+                camera_matrix=self.camera_matrix,
+                dist_coeffs=self.dist_coeffs,
+                robot_joints=self.robot_joints_history,
+                calibration_type='eye-to-hand')
+        
+        # Also save as latest (overwrite)
+        json_filename_latest = filename_latest.replace('.npz', '.json')
+        with open(json_filename_latest, 'w') as f:
+            json.dump(json_data, f, indent=2)
+        
+        np.savez(filename_latest,
                 T_cam2base=T_cam2base,
                 T_base2cam=T_base2cam,
                 T_cam2gripper=None,  # Not applicable for stationary camera
@@ -483,8 +526,10 @@ class StationaryRealSenseCalibrator:
                 calibration_type='eye-to-hand')
         
         print(f"\n💾 Stationary camera calibration saved to:")
-        print(f"   - {filename} (numpy format)")
-        print(f"   - {json_filename} (human-readable)")
+        print(f"   - {filename_with_timestamp} (timestamped)")
+        print(f"   - {filename_latest} (latest/overwrite)")
+        print(f"   - {json_filename_timestamp} (JSON timestamped)")
+        print(f"   - {json_filename_latest} (JSON latest)")
 
 
 def main():
@@ -533,7 +578,7 @@ def main():
     
     try:
         # Try to load camera calibration (optional for RealSense)
-        calibrator.load_camera_calibration('../output/calibration_data.npz')
+        calibrator.load_camera_calibration('calibration_data.npz')
         
         # Connect to robot
         client = None
@@ -633,6 +678,8 @@ def main():
             print("  T_cam2base = data['T_cam2base']  # Camera to base transform")
             print("  T_base2cam = data['T_base2cam']  # Base to camera transform")
             print("\nCalibration type: Eye-to-Hand (Stationary Camera)")
+            print("\nTo connect to ROS2:")
+            print("  ros2 run ros2_digital_twin connect_camera_to_robot_stationary.py")
             
         else:
             print(f"\n❌ Insufficient data ({num_captured} < {args.min_positions})")

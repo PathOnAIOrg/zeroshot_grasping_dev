@@ -1,0 +1,15 @@
+# Web Control Requirements
+flask>=2.0.0
+numpy>=1.20.0
+plotly>=5.0.0  # For 3D point cloud visualization
+
+# Optional: For camera support
+opencv-python>=4.5.0
+pyrealsense2>=2.50.0  # For Intel RealSense cameras
+open3d>=0.17.0  # Optional: For advanced point cloud processing
+
+# Installation:
+# pip install -r requirements.txt
+#
+# Note: pyrealsense2 requires Intel RealSense SDK to be installed
+# See: https://github.com/IntelRealSense/librealsense
