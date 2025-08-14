@@ -606,9 +606,33 @@
     </style>
     
     <!-- Three.js for 3D point cloud visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/loaders/STLLoader.js"></script>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        
+        // Make them available globally
+        window.THREE = THREE;
+        window.OrbitControls = OrbitControls;
+        window.STLLoader = STLLoader;
+        
+        // Set a flag that modules are loaded
+        window.threeJSReady = true;
+        
+        console.log('Three.js modules loaded successfully');
+        
+        // Dispatch a custom event to notify when modules are ready
+        window.dispatchEvent(new CustomEvent('threeJSLoaded'));
+    </script>
 </head>
 <body>
     <!-- Motor Warning Banner -->
@@ -917,6 +941,365 @@
                     <div class="joint-item">
                         <span class="joint-label tooltip" data-tooltip="Gripper open/close">Joint 6 (Gripper)</span>
                         <span class="joint-value" id="joint-5">0.000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Motion Planning -->
+            <div class="card" id="motion-planning-card">
+                <div class="card-header">
+                    <span>🚀</span>
+                    <h2 class="card-title">Motion Planning (MoveIt-like)</h2>
+                </div>
+                
+                <div style="padding: 15px;">
+                    <!-- Planning Mode Selection -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: bold; margin-bottom: 5px; display: block;">Planning Mode:</label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <button class="btn btn-secondary planning-mode-btn" data-mode="joint" 
+                                    onclick="selectPlanningMode('joint')"
+                                    style="padding: 8px; font-size: 12px;">
+                                Joint Space
+                            </button>
+                            <button class="btn btn-secondary planning-mode-btn" data-mode="cartesian"
+                                    onclick="selectPlanningMode('cartesian')"
+                                    style="padding: 8px; font-size: 12px;">
+                                Cartesian Path
+                            </button>
+                            <button class="btn btn-secondary planning-mode-btn" data-mode="rrt"
+                                    onclick="selectPlanningMode('rrt')"
+                                    style="padding: 8px; font-size: 12px;">
+                                RRT (Obstacles)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Goal Setting -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">Goal Position:</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <div>
+                                <label style="font-size: 12px;">X (m):</label>
+                                <input type="number" id="goal-x" value="0.2" step="0.01" 
+                                       style="width: 100%; padding: 5px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px;">Y (m):</label>
+                                <input type="number" id="goal-y" value="0.0" step="0.01"
+                                       style="width: 100%; padding: 5px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px;">Z (m):</label>
+                                <input type="number" id="goal-z" value="0.2" step="0.01"
+                                       style="width: 100%; padding: 5px;">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="setCurrentAsGoal()"
+                                style="width: 100%; margin-top: 10px;">
+                            Use Current Position as Goal
+                        </button>
+                    </div>
+                    
+                    <!-- Planning Controls -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                        <button class="btn btn-success" onclick="planTrajectory()"
+                                style="padding: 12px; font-weight: bold;">
+                            📐 Plan Trajectory
+                        </button>
+                        <button class="btn btn-warning" onclick="executeTrajectory()"
+                                id="execute-trajectory-btn" disabled
+                                style="padding: 12px; font-weight: bold;">
+                            ▶️ Execute Plan
+                        </button>
+                    </div>
+                    
+                    <!-- Trajectory Info -->
+                    <div id="trajectory-info" style="display: none; padding: 15px; background: #e8f5e9; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">Planned Trajectory:</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                            <div>Waypoints: <span id="waypoint-count">--</span></div>
+                            <div>Duration: <span id="trajectory-duration">--</span>s</div>
+                        </div>
+                        <button class="btn btn-info" onclick="optimizeTrajectory()"
+                                style="width: 100%; margin-top: 10px;">
+                            ⚡ Optimize Trajectory
+                        </button>
+                    </div>
+                    
+                    <!-- Obstacle Management -->
+                    <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">Obstacle Environment:</div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <button class="btn btn-secondary" onclick="addObstacle('sphere')"
+                                    style="padding: 8px; font-size: 12px;">
+                                Add Sphere
+                            </button>
+                            <button class="btn btn-secondary" onclick="addObstacle('box')"
+                                    style="padding: 8px; font-size: 12px;">
+                                Add Box
+                            </button>
+                            <button class="btn btn-danger" onclick="clearObstacles()"
+                                    style="padding: 8px; font-size: 12px; grid-column: span 2;">
+                                Clear All Obstacles
+                            </button>
+                        </div>
+                        <div id="obstacle-list" style="margin-top: 10px; font-size: 12px; color: #666;">
+                            No obstacles defined
+                        </div>
+                    </div>
+                    
+                    <!-- Planning Status -->
+                    <div id="planning-status" style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px; color: #666; text-align: center;">
+                        Ready to plan
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Motion Planning 3D Visualization -->
+            <div class="card" id="motion-viz-card">
+                <div class="card-header">
+                    <span>🎮</span>
+                    <h2 class="card-title">3D Trajectory Visualization</h2>
+                </div>
+                
+                <div style="padding: 15px;">
+                    <!-- 3D Visualization Container -->
+                    <div id="motion-viz-container" style="width: 100%; height: 400px; background: #1a1a1a; border-radius: 8px; position: relative;">
+                        <canvas id="motion-viz-canvas"></canvas>
+                        <!-- Overlay Controls -->
+                        <div style="position: absolute; top: 10px; left: 10px; z-index: 10;">
+                            <button class="btn btn-sm btn-secondary" onclick="resetMotionView()" 
+                                    style="padding: 5px 10px; font-size: 12px;">
+                                🔄 Reset View
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="toggleTrajectoryAnimation()"
+                                    style="padding: 5px 10px; font-size: 12px;">
+                                ▶️ Animate
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="toggleObstacleView()"
+                                    style="padding: 5px 10px; font-size: 12px;">
+                                👁️ Obstacles
+                            </button>
+                        </div>
+                        <!-- Visualization Info -->
+                        <div id="viz-info" style="position: absolute; bottom: 10px; left: 10px; color: #fff; font-size: 12px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 5px;">
+                            <div>FPS: <span id="viz-fps">60</span></div>
+                            <div>Waypoints: <span id="viz-waypoints">0</span></div>
+                            <div>Time: <span id="viz-time">0.0</span>s</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Visualization Controls -->
+                    <div style="margin-top: 15px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 12px;">Display Mode:</label>
+                                <select id="viz-mode" onchange="updateVizMode()" 
+                                        style="width: 100%; padding: 5px;">
+                                    <option value="wireframe">Wireframe</option>
+                                    <option value="solid" selected>Solid</option>
+                                    <option value="transparent">Transparent</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px;">Trail Density:</label>
+                                <input type="range" id="trail-density" min="1" max="10" value="5"
+                                       onchange="updateTrailDensity()" style="width: 100%;">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px;">Animation Speed:</label>
+                                <input type="range" id="anim-speed" min="0.1" max="2" step="0.1" value="1"
+                                       onchange="updateAnimSpeed()" style="width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trajectory Color Legend -->
+                    <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+                        <div style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">Visualization Legend:</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
+                            <div><span style="color: #4CAF50;">●</span> Start Position</div>
+                            <div><span style="color: #FF5722;">●</span> Goal Position</div>
+                            <div><span style="color: #2196F3;">●</span> Waypoints</div>
+                            <div><span style="color: #FFC107;">●</span> Current Robot</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 11px; margin-top: 5px;">
+                            <div><span style="color: #9C27B0;">━</span> Planned Path</div>
+                            <div><span style="color: #FF9800;">⬤</span> Obstacles</div>
+                            <div><span style="color: #00BCD4;">▭</span> Workspace</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Motion Queue (MoveIt-like) -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📝</span>
+                    <h2 class="card-title">Motion Queue</h2>
+                </div>
+                
+                <div style="padding: 15px;">
+                    <!-- Add Instruction Controls -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">Add Instruction:</div>
+                        
+                        <!-- Instruction Type Selection -->
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; margin-bottom: 5px; display: block;">Type:</label>
+                            <select id="queue-instruction-type" onchange="updateQueueInputs()" style="width: 100%; padding: 8px;">
+                                <option value="pose">Move to Pose</option>
+                                <option value="joint">Move Joints</option>
+                                <option value="relative">Relative Move</option>
+                                <option value="gripper">Gripper Action</option>
+                                <option value="wait">Wait/Pause</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Dynamic Input Fields -->
+                        <div id="queue-inputs">
+                            <!-- Pose inputs (default) -->
+                            <div id="pose-inputs" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 12px;">X (m):</label>
+                                    <input type="number" id="queue-x" value="0.2" step="0.01" style="width: 100%; padding: 5px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px;">Y (m):</label>
+                                    <input type="number" id="queue-y" value="0.0" step="0.01" style="width: 100%; padding: 5px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px;">Z (m):</label>
+                                    <input type="number" id="queue-z" value="0.2" step="0.01" style="width: 100%; padding: 5px;">
+                                </div>
+                            </div>
+                            
+                            <!-- Speed/Duration input -->
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 12px;" id="speed-label">Speed (m/s):</label>
+                                <input type="number" id="queue-speed" value="0.1" step="0.01" min="0.01" max="1.0" style="width: 100%; padding: 5px;">
+                            </div>
+                            
+                            <!-- Description input -->
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-size: 12px;">Description:</label>
+                                <input type="text" id="queue-description" placeholder="Auto-generated" style="width: 100%; padding: 5px;">
+                            </div>
+                        </div>
+                        
+                        <!-- Quick action buttons -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px;">
+                            <button class="btn btn-info" onclick="addCurrentPoseToQueue()" style="font-size: 11px; padding: 6px;">
+                                📍 Current Pose
+                            </button>
+                            <button class="btn btn-info" onclick="addCurrentJointsToQueue()" style="font-size: 11px; padding: 6px;">
+                                🔗 Current Joints
+                            </button>
+                            <button class="btn btn-info" onclick="addHomePoseToQueue()" style="font-size: 11px; padding: 6px;">
+                                🏠 Home Position
+                            </button>
+                        </div>
+                        
+                        <!-- Add button -->
+                        <button class="btn btn-primary" onclick="addInstructionToQueue()" style="width: 100%;">
+                            ➕ Add to Queue
+                        </button>
+                    </div>
+                    
+                    <!-- Queue Display -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div style="font-weight: bold;">Queue (<span id="queue-count">0</span> instructions):</div>
+                            <button class="btn btn-secondary" onclick="clearQueue()" style="font-size: 11px; padding: 4px 8px;">
+                                🗑️ Clear All
+                            </button>
+                        </div>
+                        
+                        <div id="motion-queue-display" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; background: white;">
+                            <div style="padding: 20px; text-align: center; color: #666;">
+                                No instructions in queue. Add some above!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto-Queue Toggle -->
+                    <div style="margin-bottom: 15px; padding: 10px; background: #e8f4fd; border-radius: 5px; border: 1px solid #b3d9ff;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer;">
+                            <input type="checkbox" id="auto-queue-enabled" checked style="transform: scale(1.2);">
+                            <span>🔄 Auto-add control actions to queue</span>
+                        </label>
+                        <div style="font-size: 11px; color: #666; margin-top: 4px; margin-left: 28px;">
+                            When enabled, every button click (move, rotate, gripper) automatically adds to the motion queue
+                        </div>
+                    </div>
+                    
+                    <!-- Queue Controls -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-success" onclick="executeQueue()" id="execute-btn">
+                            ▶️ Execute Queue
+                        </button>
+                        <button class="btn btn-warning" onclick="pauseQueue()" id="pause-btn" disabled>
+                            ⏸️ Pause
+                        </button>
+                        <button class="btn btn-danger" onclick="stopQueue()" id="stop-btn" disabled>
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                    
+                    <!-- Queue Status -->
+                    <div id="queue-status" style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; font-size: 12px;">
+                        <div><strong>Status:</strong> <span id="queue-status-text">Ready</span></div>
+                        <div><strong>Progress:</strong> <span id="queue-progress">0/0</span></div>
+                        <div><strong>Current:</strong> <span id="queue-current">None</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Motion History -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📚</span>
+                    <h2 class="card-title">Motion History</h2>
+                </div>
+                
+                <div style="padding: 15px;">
+                    <!-- History Controls -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div style="font-weight: bold;">
+                            History (<span id="history-count">0</span> actions completed)
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-info" onclick="exportHistory()" style="font-size: 11px; padding: 4px 8px;">
+                                📥 Export
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearHistory()" style="font-size: 11px; padding: 4px 8px;">
+                                🗑️ Clear
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- History Display -->
+                    <div id="motion-history-display" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; background: white;">
+                        <div style="padding: 20px; text-align: center; color: #666;">
+                            No completed actions yet. Execute some motions to see them here!
+                        </div>
+                    </div>
+                    
+                    <!-- History Stats -->
+                    <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 11px;">
+                        <div style="text-align: center; padding: 8px; background: #e8f5e9; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #2e7d32;">Successful</div>
+                            <div id="history-success-count">0</div>
+                        </div>
+                        <div style="text-align: center; padding: 8px; background: #ffebee; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #c62828;">Failed</div>
+                            <div id="history-error-count">0</div>
+                        </div>
+                        <div style="text-align: center; padding: 8px; background: #e3f2fd; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #1565c0;">Total Time</div>
+                            <div id="history-total-time">0.0s</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1702,6 +2085,8 @@
         let isMoving = false;
         let motorsEnabled = true;  // Track actual motor state from backend
         let robotConnected = false;  // Track robot connection status
+        let currentJoints = [0, 0, 0, 0, 0, 0];  // Current joint positions [j1, j2, j3, j4, j5, gripper]
+        let currentVelocities = [0, 0, 0, 0, 0, 0];  // Current joint velocities
         
         // Camera variables
         let isCameraStreaming = false;
@@ -1892,6 +2277,17 @@
                 .then(data => {
                     if (data.success && data.joint_states) {
                         const states = data.joint_states;
+                        
+                        // Update global currentJoints array from joint_states format
+                        const tempJoints = [0, 0, 0, 0, 0, 0];
+                        if (states['1'] !== undefined) tempJoints[0] = states['1'];
+                        if (states['2'] !== undefined) tempJoints[1] = states['2'];
+                        if (states['3'] !== undefined) tempJoints[2] = states['3'];
+                        if (states['4'] !== undefined) tempJoints[3] = states['4'];
+                        if (states['5'] !== undefined) tempJoints[4] = states['5'];
+                        if (states['6'] !== undefined) tempJoints[5] = states['6'];
+                        currentJoints = tempJoints;
+                        
                         // Update joint display
                         if (states['1'] !== undefined) document.getElementById('joint-0').textContent = states['1'].toFixed(3);
                         if (states['2'] !== undefined) document.getElementById('joint-1').textContent = states['2'].toFixed(3);
@@ -1988,6 +2384,9 @@
                         
                         // Update gripper pose when connected
                         updateGripperPose();
+                        
+                        // Update joint states when connected
+                        updateJointStatesDisplay();
                         
                         // Update motion indicator
                         isMoving = data.is_moving || false;
@@ -2220,10 +2619,23 @@
         }
         
         function gripperControl(action) {
+            // Add to motion queue first
+            addGripperActionToQueue(action);
+            
             fetch(`/api/gripper/${action}`, { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     showMessage(data.message, data.success ? 'success' : 'error');
+                    if (data.success) {
+                        // Add to history
+                        let actionValue = action === 'open' ? 1.0 : action === 'close' ? 0.0 : 0.5;
+                        addToHistory({
+                            type: 'gripper',
+                            gripper_action: action,
+                            gripper_value: actionValue,
+                            description: `${action === 'open' ? 'Open' : action === 'close' ? 'Close' : 'Set'} gripper`
+                        }, data.execution_time || 0.5, true);
+                    }
                     setTimeout(updateStatus, 500);
                 });
         }
@@ -2324,6 +2736,9 @@
                 return;
             }
             
+            // Add to motion queue first
+            addRotationToQueue(axis, actualAngle);
+            
             // Show loading indicator
             showMessage(`Rotating ${axis} by ${actualAngle}°...`, 'info');
             
@@ -2376,6 +2791,9 @@
                 return;
             }
             
+            // Add to motion queue first
+            addCartesianMoveToQueue(direction, distance);
+            
             // Show loading indicator
             showMessage(`Moving ${direction} ${distance}cm...`, 'info');
             
@@ -2399,6 +2817,24 @@
                         document.getElementById('pos-y').textContent = (pose.position[1] * 100).toFixed(1);
                         document.getElementById('pos-z').textContent = (pose.position[2] * 100).toFixed(1);
                     }
+                    // Add to history
+                    const distanceM = distance / 100;
+                    let relative = [0, 0, 0];
+                    switch(direction) {
+                        case 'forward': relative[0] = distanceM; break;
+                        case 'back': relative[0] = -distanceM; break;
+                        case 'right': relative[1] = distanceM; break;
+                        case 'left': relative[1] = -distanceM; break;
+                        case 'up': relative[2] = distanceM; break;
+                        case 'down': relative[2] = -distanceM; break;
+                    }
+                    addToHistory({
+                        type: 'relative',
+                        relative_move: relative,
+                        description: `Move ${direction} ${distance}cm`,
+                        speed: 0.1
+                    }, data.execution_time || 1.0, true);
+                    
                     // Update full gripper pose with FK
                     setTimeout(updateGripperPose, 200);
                     // Update motor state if it changed
@@ -2423,6 +2859,9 @@
                 showMessage('Please enter valid X, Y, Z coordinates', 'error');
                 return;
             }
+            
+            // Add to motion queue first
+            addPositionMoveToQueue(x, y, z);
             
             // Show loading indicator
             showMessage(`Calculating IK for position (${x}, ${y}, ${z})cm...`, 'info');
@@ -2453,6 +2892,14 @@
                             document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
                         }
                     }
+                    
+                    // Add to history
+                    addToHistory({
+                        type: 'pose',
+                        target_pose: [x/100, y/100, z/100],
+                        description: `Move to position (${x}, ${y}, ${z})cm`,
+                        speed: 0.1
+                    }, data.execution_time || 2.0, true);
                     
                     // Display IK solution
                     if (data.joint_solution) {
@@ -3133,8 +3580,8 @@
             // Camera controls
             try {
                 // Try to use OrbitControls if available
-                if (typeof THREE.OrbitControls !== 'undefined') {
-                    const controls = new THREE.OrbitControls(pointCloudCamera, pointCloudRenderer.domElement);
+                if (typeof window.OrbitControls !== 'undefined') {
+                    const controls = new window.OrbitControls(pointCloudCamera, pointCloudRenderer.domElement);
                     controls.enableDamping = true;
                     controls.dampingFactor = 0.05;
                     controls.rotateSpeed = 0.5;
@@ -3280,7 +3727,11 @@
             });
             
             // STL Loader
-            const loader = new THREE.STLLoader();
+            if (!window.STLLoader) {
+                console.warn('STLLoader not available');
+                return;
+            }
+            const loader = new window.STLLoader();
             
             // Create link groups
             const linkGroups = {};
@@ -4969,11 +5420,23 @@
                 if (data.success) {
                     // Update individual joint displays
                     const positions = data.joint_positions;
+                    
+                    // Update global currentJoints variable
+                    if (positions && positions.length >= 6) {
+                        currentJoints = [...positions];
+                    }
+                    
+                    // Update individual joint displays
                     for (let i = 0; i < positions.length && i < 6; i++) {
                         const elem = document.getElementById(`joint-${i}`);
                         if (elem) {
                             elem.textContent = positions[i].toFixed(3);
                         }
+                    }
+                    
+                    // Update joint velocities if available
+                    if (data.joint_velocities && data.joint_velocities.length >= 6) {
+                        currentVelocities = [...data.joint_velocities];
                     }
                 }
             } catch (error) {
@@ -5299,6 +5762,1666 @@
                 showMessage('Error: ' + error.message, 'error');
             }
         }
+        
+        // ===== Motion Planning Functions =====
+        
+        let currentPlanningMode = 'cartesian';
+        let currentTrajectory = null;
+        let obstacles = [];
+        
+        function selectPlanningMode(mode) {
+            currentPlanningMode = mode;
+            
+            // Update button styles
+            document.querySelectorAll('.planning-mode-btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            });
+            
+            const selectedBtn = document.querySelector(`.planning-mode-btn[data-mode="${mode}"]`);
+            if (selectedBtn) {
+                selectedBtn.classList.remove('btn-secondary');
+                selectedBtn.classList.add('btn-primary');
+            }
+            
+            updatePlanningStatus(`Selected ${mode} planning mode`);
+        }
+        
+        function setCurrentAsGoal() {
+            // Get current gripper position from display
+            const posX = document.getElementById('pos-x').textContent;
+            const posY = document.getElementById('pos-y').textContent;
+            const posZ = document.getElementById('pos-z').textContent;
+            
+            if (posX !== '--' && posY !== '--' && posZ !== '--') {
+                document.getElementById('goal-x').value = parseFloat(posX);
+                document.getElementById('goal-y').value = parseFloat(posY);
+                document.getElementById('goal-z').value = parseFloat(posZ);
+                showMessage('Goal set to current position', 'success');
+            } else {
+                showMessage('Current position not available', 'warning');
+            }
+        }
+        
+        async function planTrajectory() {
+            const goalX = parseFloat(document.getElementById('goal-x').value);
+            const goalY = parseFloat(document.getElementById('goal-y').value);
+            const goalZ = parseFloat(document.getElementById('goal-z').value);
+            
+            if (isNaN(goalX) || isNaN(goalY) || isNaN(goalZ)) {
+                showMessage('Invalid goal position', 'error');
+                return;
+            }
+            
+            updatePlanningStatus('Planning trajectory...');
+            
+            // Get current joint states from UI display (fallback method)
+            const displayJoints = [];
+            for (let i = 0; i < 6; i++) {
+                const jointValue = document.getElementById(`joint-${i}`).textContent;
+                displayJoints.push(parseFloat(jointValue) || 0);
+            }
+            
+            // Use global currentJoints if available, otherwise fall back to display values
+            const jointsToUse = (currentJoints && currentJoints.length >= 6) ? currentJoints : displayJoints;
+            
+            console.log('Planning mode:', currentPlanningMode);
+            console.log('Goal position:', [goalX, goalY, goalZ]);
+            console.log('Current joints (global):', currentJoints);
+            console.log('Display joints (fallback):', displayJoints);
+            console.log('Using joints:', jointsToUse);
+            
+            // Get current position
+            const currentX = parseFloat(document.getElementById('pos-x').textContent) || 0.2;
+            const currentY = parseFloat(document.getElementById('pos-y').textContent) || 0.0;
+            const currentZ = parseFloat(document.getElementById('pos-z').textContent) || 0.2;
+            
+            let endpoint = '/api/motion/plan/cartesian';
+            let requestData = {
+                start_position: [currentX, currentY, currentZ],
+                goal_position: [goalX, goalY, goalZ],
+                current_joints: jointsToUse,
+                velocity: 0.1
+            };
+            
+            if (currentPlanningMode === 'joint') {
+                // For joint space, we need to convert goal position to joint angles
+                endpoint = '/api/motion/plan/joint';
+                // First do IK to get goal joints
+                const ikResponse = await fetch('/api/inverse_kinematics', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        position: [goalX, goalY, goalZ],
+                        current_joints: jointsToUse
+                    })
+                });
+                const ikData = await ikResponse.json();
+                if (!ikData.success) {
+                    showMessage('Failed to compute goal joints: ' + (ikData.message || 'IK failed'), 'error');
+                    return;
+                }
+                // Use only first 5 joints for motion planning (exclude gripper)
+                requestData = {
+                    start_joints: jointsToUse.slice(0, 5),
+                    goal_joints: ikData.joints.slice(0, 5)
+                };
+            } else if (currentPlanningMode === 'rrt') {
+                endpoint = '/api/motion/plan/rrt';
+                // Similar to joint space but uses RRT
+                const ikResponse = await fetch('/api/inverse_kinematics', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        position: [goalX, goalY, goalZ],
+                        current_joints: jointsToUse
+                    })
+                });
+                const ikData = await ikResponse.json();
+                if (!ikData.success) {
+                    showMessage('Failed to compute goal joints: ' + (ikData.message || 'IK failed'), 'error');
+                    return;
+                }
+                // Use only first 5 joints for motion planning (exclude gripper)
+                requestData = {
+                    start_joints: jointsToUse.slice(0, 5),
+                    goal_joints: ikData.joints.slice(0, 5),
+                    max_iterations: 1000
+                };
+            }
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentTrajectory = data.trajectory;
+                    
+                    // Show trajectory info
+                    document.getElementById('trajectory-info').style.display = 'block';
+                    document.getElementById('waypoint-count').textContent = data.trajectory.num_waypoints;
+                    document.getElementById('trajectory-duration').textContent = data.trajectory.total_time.toFixed(2);
+                    
+                    // Enable execute button
+                    document.getElementById('execute-trajectory-btn').disabled = false;
+                    
+                    updatePlanningStatus(data.message);
+                    showMessage('Trajectory planned successfully', 'success');
+                    
+                    // Visualize trajectory if possible
+                    if (data.trajectory.cartesian_waypoints) {
+                        visualizeTrajectory(data.trajectory.cartesian_waypoints);
+                    }
+                } else {
+                    showMessage(data.message || 'Planning failed', 'error');
+                    updatePlanningStatus('Planning failed');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+                updatePlanningStatus('Error occurred');
+            }
+        }
+        
+        async function executeTrajectory() {
+            if (!currentTrajectory) {
+                showMessage('No trajectory to execute', 'warning');
+                return;
+            }
+            
+            updatePlanningStatus('Executing trajectory...');
+            document.getElementById('execute-trajectory-btn').disabled = true;
+            
+            try {
+                const response = await fetch('/api/motion/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        real_time: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Trajectory executed successfully', 'success');
+                    updatePlanningStatus('Execution complete');
+                } else {
+                    showMessage(data.message || 'Execution failed', 'error');
+                    updatePlanningStatus('Execution failed');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+                updatePlanningStatus('Error occurred');
+            }
+            
+            document.getElementById('execute-trajectory-btn').disabled = false;
+        }
+        
+        async function optimizeTrajectory() {
+            if (!currentTrajectory) {
+                showMessage('No trajectory to optimize', 'warning');
+                return;
+            }
+            
+            updatePlanningStatus('Optimizing trajectory...');
+            
+            try {
+                const response = await fetch('/api/motion/optimize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentTrajectory = data.trajectory;
+                    
+                    // Update info
+                    document.getElementById('waypoint-count').textContent = data.trajectory.num_waypoints;
+                    document.getElementById('trajectory-duration').textContent = data.trajectory.total_time.toFixed(2);
+                    
+                    showMessage(data.message, 'success');
+                    updatePlanningStatus('Optimization complete');
+                } else {
+                    showMessage(data.message || 'Optimization failed', 'error');
+                    updatePlanningStatus('Optimization failed');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+                updatePlanningStatus('Error occurred');
+            }
+        }
+        
+        async function addObstacle(type) {
+            // Default obstacle parameters
+            let obstacleData = {
+                type: type,
+                name: `${type}_${obstacles.length + 1}`
+            };
+            
+            // Get current gripper position as default center
+            const posX = parseFloat(document.getElementById('pos-x').textContent) || 0.15;
+            const posY = parseFloat(document.getElementById('pos-y').textContent) || 0.0;
+            const posZ = parseFloat(document.getElementById('pos-z').textContent) || 0.15;
+            
+            if (type === 'sphere') {
+                obstacleData.center = [posX + 0.1, posY, posZ];
+                obstacleData.radius = 0.05;
+            } else if (type === 'box') {
+                obstacleData.center = [posX + 0.1, posY, posZ];
+                obstacleData.size = [0.1, 0.1, 0.1];
+            }
+            
+            try {
+                const response = await fetch('/api/motion/obstacles/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(obstacleData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    obstacles.push(obstacleData);
+                    updateObstacleList();
+                    updateObstacleVisualization();  // Update 3D visualization
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message || 'Failed to add obstacle', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+        
+        async function clearObstacles() {
+            try {
+                const response = await fetch('/api/motion/obstacles/clear', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    obstacles = [];
+                    updateObstacleList();
+                    updateObstacleVisualization();  // Clear 3D visualization
+                    showMessage('Obstacles cleared', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to clear obstacles', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+        
+        function updateObstacleList() {
+            const listElement = document.getElementById('obstacle-list');
+            if (obstacles.length === 0) {
+                listElement.textContent = 'No obstacles defined';
+            } else {
+                listElement.innerHTML = `<strong>${obstacles.length} obstacle(s):</strong><br>` +
+                    obstacles.map(obs => `• ${obs.name} (${obs.type})`).join('<br>');
+            }
+        }
+        
+        function updatePlanningStatus(message) {
+            document.getElementById('planning-status').textContent = message;
+        }
+        
+        function visualizeTrajectory(waypoints) {
+            // Update 3D visualization with trajectory
+            if (motionVizScene) {
+                updateTrajectoryVisualization(waypoints);
+            }
+            console.log('Trajectory waypoints:', waypoints);
+        }
+        
+        // ===== 3D Motion Planning Visualization =====
+        
+        let motionVizScene, motionVizCamera, motionVizRenderer;
+        let motionVizControls;
+        let trajectoryLine, waypointSpheres = [];
+        let obstacleObjects = [];
+        let motionRobotModel;  // Renamed to avoid conflict
+        let animationId;
+        let isAnimating = false;
+        let showObstacles = true;
+        let animationSpeed = 1.0;
+        let trajectoryAnimation = null;
+        
+        function initMotionVisualization() {
+            const container = document.getElementById('motion-viz-container');
+            const canvas = document.getElementById('motion-viz-canvas');
+            
+            // Scene setup
+            motionVizScene = new THREE.Scene();
+            motionVizScene.background = new THREE.Color(0x1a1a1a);
+            motionVizScene.fog = new THREE.Fog(0x1a1a1a, 0.5, 2);
+            
+            // Camera setup
+            motionVizCamera = new THREE.PerspectiveCamera(
+                60, 
+                container.clientWidth / container.clientHeight,
+                0.01, 
+                10
+            );
+            motionVizCamera.position.set(0.5, 0.5, 0.5);
+            motionVizCamera.lookAt(0, 0.2, 0);
+            
+            // Renderer setup
+            motionVizRenderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                antialias: true,
+                alpha: true
+            });
+            motionVizRenderer.setSize(container.clientWidth, container.clientHeight);
+            motionVizRenderer.shadowMap.enabled = true;
+            motionVizRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Controls - check if OrbitControls is available
+            if (typeof window.OrbitControls !== 'undefined') {
+                motionVizControls = new window.OrbitControls(motionVizCamera, canvas);
+                motionVizControls.enableDamping = true;
+                motionVizControls.dampingFactor = 0.05;
+                motionVizControls.target.set(0, 0.2, 0);
+                motionVizControls.update();
+            } else if (typeof THREE.OrbitControls !== 'undefined') {
+                motionVizControls = new THREE.OrbitControls(motionVizCamera, canvas);
+                motionVizControls.enableDamping = true;
+                motionVizControls.dampingFactor = 0.05;
+                motionVizControls.target.set(0, 0.2, 0);
+                motionVizControls.update();
+            } else {
+                console.warn('OrbitControls not available, using basic controls');
+                // Fallback: simple mouse rotation
+                let mouseX = 0, mouseY = 0;
+                canvas.addEventListener('mousemove', function(event) {
+                    if (event.buttons === 1) {
+                        mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                        mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+                        motionVizCamera.position.x = Math.sin(mouseX * Math.PI) * 0.5;
+                        motionVizCamera.position.z = Math.cos(mouseX * Math.PI) * 0.5;
+                        motionVizCamera.position.y = 0.5 + mouseY * 0.3;
+                        motionVizCamera.lookAt(0, 0.2, 0);
+                    }
+                });
+            }
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            motionVizScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(0.5, 1, 0.5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.near = 0.1;
+            directionalLight.shadow.camera.far = 2;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            motionVizScene.add(directionalLight);
+            
+            // Add workspace grid
+            const gridHelper = new THREE.GridHelper(0.6, 20, 0x00BCD4, 0x003d4d);
+            motionVizScene.add(gridHelper);
+            
+            // Add workspace boundaries
+            const workspaceGeometry = new THREE.BoxGeometry(0.5, 0.6, 0.5);
+            const workspaceEdges = new THREE.EdgesGeometry(workspaceGeometry);
+            const workspaceLine = new THREE.LineSegments(
+                workspaceEdges,
+                new THREE.LineBasicMaterial({ color: 0x00BCD4, opacity: 0.3, transparent: true })
+            );
+            workspaceLine.position.y = 0.3;
+            motionVizScene.add(workspaceLine);
+            
+            // Add coordinate axes
+            const axesHelper = new THREE.AxesHelper(0.2);
+            motionVizScene.add(axesHelper);
+            
+            // Add base platform
+            const platformGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.01, 32);
+            const platformMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+            const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform.position.y = 0.005;
+            platform.receiveShadow = true;
+            motionVizScene.add(platform);
+            
+            // Create simple robot model
+            createRobotModel();
+            
+            // Start animation loop
+            animateMotionViz();
+        }
+        
+        function createRobotModel() {
+            // Try to load actual URDF model first
+            loadURDFModel();
+            
+            // Fallback: create simplified model if URDF loading fails
+            if (!motionRobotModel) {
+                createSimplifiedRobotModel();
+            }
+        }
+        
+        function loadURDFModel() {
+            if (!window.STLLoader) {
+                console.warn('STLLoader not available, using simplified model');
+                createSimplifiedRobotModel();
+                return;
+            }
+            
+            const loader = new window.STLLoader();
+            const manager = new THREE.LoadingManager();
+            
+            motionRobotModel = new THREE.Group();
+            
+            // Materials for different parts
+            const materials = {
+                '3d_printed': new THREE.MeshPhongMaterial({ 
+                    color: 0xFFC107,  // Yellow/orange for 3D printed parts
+                    metalness: 0.2,
+                    roughness: 0.8
+                }),
+                'sts3215': new THREE.MeshPhongMaterial({ 
+                    color: 0x1a1a1a,  // Dark gray for motors
+                    metalness: 0.7,
+                    roughness: 0.3
+                })
+            };
+            
+            // Load each STL file for the robot
+            const stlFiles = [
+                { file: 'base_motor_holder_so101_v1.stl', material: '3d_printed', position: [0.0206915, 0.0300817, 0.0221255], rotation: [1.5708, 0, 0] },
+                { file: 'base_so101_v2.stl', material: '3d_printed', position: [0.0207909, 0.0300817, 0.0221255], rotation: [1.5708, 0, 0] },
+                { file: 'sts3215_03a_v1.stl', material: 'sts3215', position: [0.0207909, 0.0761817, -0.0105745], rotation: [0, 0, -1.5708] },
+                { file: 'waveshare_mounting_plate_so101_v2.stl', material: '3d_printed', position: [0.0205915, 0.0798817, 0.0467435], rotation: [1.5708, 0, 0] }
+            ];
+            
+            // Load base components
+            stlFiles.forEach(stlInfo => {
+                loader.load(
+                    `/static/robot_model/meshes/${stlInfo.file}`,
+                    (geometry) => {
+                        geometry.computeVertexNormals();
+                        const mesh = new THREE.Mesh(geometry, materials[stlInfo.material]);
+                        mesh.position.set(...stlInfo.position);
+                        mesh.rotation.set(...stlInfo.rotation);
+                        mesh.scale.set(0.001, 0.001, 0.001); // Convert from mm to m
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        motionRobotModel.add(mesh);
+                    },
+                    (xhr) => {
+                        // Progress callback
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        console.log(`Loading ${stlInfo.file}: ${percentComplete.toFixed(0)}%`);
+                    },
+                    (error) => {
+                        console.warn(`Failed to load ${stlInfo.file}, using simplified model`);
+                        // If loading fails, use simplified model
+                        if (motionRobotModel.children.length === 0) {
+                            createSimplifiedRobotModel();
+                        }
+                    }
+                );
+            });
+            
+            motionVizScene.add(motionRobotModel);
+        }
+        
+        function createSimplifiedRobotModel() {
+            // Fallback simplified model
+            if (!motionRobotModel) {
+                motionRobotModel = new THREE.Group();
+            }
+            
+            // Base
+            const baseGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.095, 16);
+            const baseMaterial = new THREE.MeshPhongMaterial({ color: 0xFFC107 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 0.095 / 2;
+            motionRobotModel.add(base);
+            
+            // Links (simplified)
+            const linkMaterial = new THREE.MeshPhongMaterial({ color: 0xFFC107, opacity: 0.8, transparent: true });
+            
+            // Link 1 (upper arm)
+            const link1Geometry = new THREE.BoxGeometry(0.02, 0.113, 0.02);
+            const link1 = new THREE.Mesh(link1Geometry, linkMaterial);
+            link1.position.set(0, 0.095 + 0.113/2, 0);
+            motionRobotModel.add(link1);
+            
+            // Link 2 (lower arm)
+            const link2Geometry = new THREE.BoxGeometry(0.02, 0.135, 0.02);
+            const link2 = new THREE.Mesh(link2Geometry, linkMaterial);
+            link2.position.set(0, 0.095 + 0.113 + 0.135/2, 0);
+            motionRobotModel.add(link2);
+            
+            // End effector
+            const eeGeometry = new THREE.SphereGeometry(0.015, 16, 16);
+            const eeMaterial = new THREE.MeshPhongMaterial({ color: 0xFF5722, emissive: 0xFF5722, emissiveIntensity: 0.2 });
+            const endEffector = new THREE.Mesh(eeGeometry, eeMaterial);
+            endEffector.position.set(0, 0.095 + 0.113 + 0.135, 0);
+            motionRobotModel.add(endEffector);
+            
+            motionRobotModel.castShadow = true;
+            
+            if (!motionRobotModel.parent) {
+                motionVizScene.add(motionRobotModel);
+            }
+        }
+        
+        function updateTrajectoryVisualization(waypoints) {
+            // Clear previous trajectory
+            if (trajectoryLine) {
+                motionVizScene.remove(trajectoryLine);
+            }
+            waypointSpheres.forEach(sphere => motionVizScene.remove(sphere));
+            waypointSpheres = [];
+            
+            if (!waypoints || waypoints.length < 2) return;
+            
+            // Create trajectory line
+            const points = waypoints.map(wp => new THREE.Vector3(wp[0], wp[2], -wp[1]));
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Create gradient material for trajectory
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0x9C27B0,
+                linewidth: 2,
+                opacity: 0.8,
+                transparent: true
+            });
+            
+            trajectoryLine = new THREE.Line(geometry, material);
+            motionVizScene.add(trajectoryLine);
+            
+            // Add waypoint spheres
+            waypoints.forEach((wp, index) => {
+                const sphereGeometry = new THREE.SphereGeometry(0.005, 8, 8);
+                let color;
+                if (index === 0) {
+                    color = 0x4CAF50; // Start - green
+                } else if (index === waypoints.length - 1) {
+                    color = 0xFF5722; // Goal - red
+                } else {
+                    color = 0x2196F3; // Waypoints - blue
+                }
+                
+                const sphereMaterial = new THREE.MeshPhongMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.3
+                });
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                sphere.position.set(wp[0], wp[2], -wp[1]);
+                motionVizScene.add(sphere);
+                waypointSpheres.push(sphere);
+            });
+            
+            // Update info
+            document.getElementById('viz-waypoints').textContent = waypoints.length;
+        }
+        
+        function updateObstacleVisualization() {
+            // Clear existing obstacle visualizations
+            obstacleObjects.forEach(obj => motionVizScene.remove(obj));
+            obstacleObjects = [];
+            
+            if (!showObstacles) return;
+            
+            // Add obstacle visualizations based on current obstacles
+            obstacles.forEach(obs => {
+                let mesh;
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xFF9800,
+                    opacity: 0.6,
+                    transparent: true
+                });
+                
+                if (obs.type === 'sphere') {
+                    const geometry = new THREE.SphereGeometry(obs.radius, 16, 16);
+                    mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(obs.center[0], obs.center[2], -obs.center[1]);
+                } else if (obs.type === 'box') {
+                    const geometry = new THREE.BoxGeometry(obs.size[0], obs.size[2], obs.size[1]);
+                    mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(obs.center[0], obs.center[2], -obs.center[1]);
+                }
+                
+                if (mesh) {
+                    mesh.castShadow = true;
+                    motionVizScene.add(mesh);
+                    obstacleObjects.push(mesh);
+                }
+            });
+        }
+        
+        function animateMotionViz() {
+            animationId = requestAnimationFrame(animateMotionViz);
+            
+            // Update controls
+            if (motionVizControls) {
+                motionVizControls.update();
+            }
+            
+            // Animate robot along trajectory if active
+            if (isAnimating && trajectoryAnimation) {
+                updateTrajectoryAnimation();
+            }
+            
+            // Render scene
+            if (motionVizRenderer && motionVizScene && motionVizCamera) {
+                motionVizRenderer.render(motionVizScene, motionVizCamera);
+            }
+            
+            // Update FPS
+            updateFPS();
+        }
+        
+        let lastTime = performance.now();
+        let frameCount = 0;
+        function updateFPS() {
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - lastTime > 1000) {
+                document.getElementById('viz-fps').textContent = frameCount;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+        }
+        
+        function updateTrajectoryAnimation() {
+            if (!trajectoryAnimation || !currentTrajectory) return;
+            
+            const now = performance.now();
+            const elapsed = (now - trajectoryAnimation.startTime) / 1000 * animationSpeed;
+            const totalTime = currentTrajectory.total_time || 5;
+            
+            if (elapsed > totalTime) {
+                // Loop animation
+                trajectoryAnimation.startTime = now;
+                return;
+            }
+            
+            // Find current position along trajectory
+            const t = elapsed / totalTime;
+            const waypointIndex = Math.floor(t * (currentTrajectory.waypoints.length - 1));
+            
+            if (waypointIndex < currentTrajectory.waypoints.length - 1) {
+                const wp1 = currentTrajectory.waypoints[waypointIndex];
+                const wp2 = currentTrajectory.waypoints[waypointIndex + 1];
+                const localT = (t * (currentTrajectory.waypoints.length - 1)) % 1;
+                
+                // Interpolate position
+                const x = wp1[0] + (wp2[0] - wp1[0]) * localT;
+                const y = wp1[1] + (wp2[1] - wp1[1]) * localT;
+                const z = wp1[2] + (wp2[2] - wp1[2]) * localT;
+                
+                // Update robot position
+                if (motionRobotModel) {
+                    motionRobotModel.position.set(x, z, -y);
+                }
+                
+                // Update time display
+                document.getElementById('viz-time').textContent = elapsed.toFixed(1);
+            }
+        }
+        
+        function resetMotionView() {
+            if (motionVizCamera && motionVizControls) {
+                motionVizCamera.position.set(0.5, 0.5, 0.5);
+                motionVizCamera.lookAt(0, 0.2, 0);
+                motionVizControls.target.set(0, 0.2, 0);
+                motionVizControls.update();
+            }
+        }
+        
+        function toggleTrajectoryAnimation() {
+            isAnimating = !isAnimating;
+            if (isAnimating && currentTrajectory) {
+                trajectoryAnimation = {
+                    startTime: performance.now()
+                };
+                document.querySelector('[onclick="toggleTrajectoryAnimation()"]').textContent = '⏸️ Pause';
+            } else {
+                trajectoryAnimation = null;
+                document.querySelector('[onclick="toggleTrajectoryAnimation()"]').textContent = '▶️ Animate';
+            }
+        }
+        
+        function toggleObstacleView() {
+            showObstacles = !showObstacles;
+            updateObstacleVisualization();
+            document.querySelector('[onclick="toggleObstacleView()"]').textContent = 
+                showObstacles ? '👁️ Obstacles' : '👁️‍🗨️ Obstacles';
+        }
+        
+        function updateVizMode() {
+            const mode = document.getElementById('viz-mode').value;
+            if (!motionRobotModel) return;
+            
+            motionRobotModel.traverse(child => {
+                if (child.isMesh) {
+                    if (mode === 'wireframe') {
+                        child.material.wireframe = true;
+                        child.material.opacity = 1;
+                    } else if (mode === 'transparent') {
+                        child.material.wireframe = false;
+                        child.material.opacity = 0.5;
+                        child.material.transparent = true;
+                    } else {
+                        child.material.wireframe = false;
+                        child.material.opacity = 1;
+                        child.material.transparent = false;
+                    }
+                }
+            });
+        }
+        
+        function updateTrailDensity() {
+            const density = document.getElementById('trail-density').value;
+            // This would affect trajectory rendering density
+            console.log('Trail density:', density);
+        }
+        
+        function updateAnimSpeed() {
+            animationSpeed = parseFloat(document.getElementById('anim-speed').value);
+        }
+        
+        // Initialize visualizations on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            selectPlanningMode('cartesian');
+            
+            // Wait for Three.js modules to load
+            function initializeWhenReady() {
+                console.log('Checking Three.js module status...');
+                console.log('- threeJSReady:', window.threeJSReady);
+                console.log('- THREE:', typeof window.THREE);
+                console.log('- OrbitControls:', typeof window.OrbitControls);
+                console.log('- STLLoader:', typeof window.STLLoader);
+                
+                if (window.threeJSReady && 
+                    typeof window.THREE !== 'undefined' && 
+                    window.OrbitControls && 
+                    window.STLLoader) {
+                    console.log('All Three.js modules ready, initializing 3D visualization...');
+                    try {
+                        initMotionVisualization();
+                    } catch (error) {
+                        console.error('3D visualization initialization failed:', error);
+                    }
+                } else {
+                    console.warn('Three.js modules not ready, waiting...');
+                }
+            }
+            
+            // Listen for Three.js module loading events
+            window.addEventListener('threeJSLoaded', function(event) {
+                console.log('Received Three.js loading event:', event.detail);
+                if (event.detail.success) {
+                    setTimeout(initializeWhenReady, 100); // Short delay to ensure full initialization
+                } else {
+                    console.error('Three.js module loading failed, using simplified mode');
+                }
+            });
+            
+            // If modules already loaded, initialize directly
+            if (window.threeJSReady) {
+                initializeWhenReady();
+            }
+            
+            // Backup timeout mechanism (force initialization after 5 seconds)
+            setTimeout(function() {
+                if (!window.threeJSReady) {
+                    console.warn('Timeout: Force initializing 3D visualization (may have limited functionality)');
+                    initMotionVisualization();
+                }
+            }, 5000);
+        });
+        
+        // Motion Queue Functions
+        let motionQueue = [];
+        let queuePollingInterval = null;
+        
+        function updateQueueInputs() {
+            const type = document.getElementById('queue-instruction-type').value;
+            const inputsDiv = document.getElementById('queue-inputs');
+            const speedLabel = document.getElementById('speed-label');
+            
+            // Clear existing inputs
+            inputsDiv.innerHTML = '';
+            
+            if (type === 'pose') {
+                inputsDiv.innerHTML = `
+                    <div id="pose-inputs" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 12px;">X (m):</label>
+                            <input type="number" id="queue-x" value="0.2" step="0.01" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px;">Y (m):</label>
+                            <input type="number" id="queue-y" value="0.0" step="0.01" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px;">Z (m):</label>
+                            <input type="number" id="queue-z" value="0.2" step="0.01" style="width: 100%; padding: 5px;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;">Speed (m/s):</label>
+                        <input type="number" id="queue-speed" value="0.1" step="0.01" min="0.01" max="1.0" style="width: 100%; padding: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px;">Description:</label>
+                        <input type="text" id="queue-description" placeholder="Auto-generated" style="width: 100%; padding: 5px;">
+                    </div>
+                `;
+            } else if (type === 'joint') {
+                inputsDiv.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 11px;">J1:</label>
+                            <input type="number" id="queue-j1" value="0" step="0.1" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px;">J2:</label>
+                            <input type="number" id="queue-j2" value="0" step="0.1" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px;">J3:</label>
+                            <input type="number" id="queue-j3" value="0" step="0.1" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px;">J4:</label>
+                            <input type="number" id="queue-j4" value="0" step="0.1" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px;">J5:</label>
+                            <input type="number" id="queue-j5" value="0" step="0.1" style="width: 100%; padding: 5px;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;">Speed (rad/s):</label>
+                        <input type="number" id="queue-speed" value="1.0" step="0.1" min="0.1" max="3.0" style="width: 100%; padding: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px;">Description:</label>
+                        <input type="text" id="queue-description" placeholder="Auto-generated" style="width: 100%; padding: 5px;">
+                    </div>
+                `;
+            } else if (type === 'relative') {
+                inputsDiv.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 12px;">ΔX (m):</label>
+                            <input type="number" id="queue-dx" value="0.0" step="0.01" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px;">ΔY (m):</label>
+                            <input type="number" id="queue-dy" value="0.0" step="0.01" style="width: 100%; padding: 5px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px;">ΔZ (m):</label>
+                            <input type="number" id="queue-dz" value="0.05" step="0.01" style="width: 100%; padding: 5px;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;">Speed (m/s):</label>
+                        <input type="number" id="queue-speed" value="0.05" step="0.01" min="0.01" max="0.5" style="width: 100%; padding: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px;">Description:</label>
+                        <input type="text" id="queue-description" placeholder="Auto-generated" style="width: 100%; padding: 5px;">
+                    </div>
+                `;
+            } else if (type === 'gripper') {
+                inputsDiv.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;">Action:</label>
+                        <select id="queue-gripper-action" style="width: 100%; padding: 8px;">
+                            <option value="open">Open Gripper</option>
+                            <option value="close">Close Gripper</option>
+                            <option value="position">Set Position</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;">Value (0-1):</label>
+                        <input type="number" id="queue-gripper-value" value="0.0" step="0.1" min="0" max="1" style="width: 100%; padding: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px;">Description:</label>
+                        <input type="text" id="queue-description" placeholder="Auto-generated" style="width: 100%; padding: 5px;">
+                    </div>
+                `;
+            } else if (type === 'wait') {
+                inputsDiv.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px;">Duration (seconds):</label>
+                        <input type="number" id="queue-duration" value="1.0" step="0.1" min="0.1" max="10.0" style="width: 100%; padding: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px;">Description:</label>
+                        <input type="text" id="queue-description" placeholder="Auto-generated" style="width: 100%; padding: 5px;">
+                    </div>
+                `;
+            }
+        }
+        
+        function addInstructionToQueue() {
+            const type = document.getElementById('queue-instruction-type').value;
+            const description = document.getElementById('queue-description').value;
+            
+            let instruction = {
+                type: type,
+                description: description || null
+            };
+            
+            if (type === 'pose') {
+                instruction.pose = [
+                    parseFloat(document.getElementById('queue-x').value),
+                    parseFloat(document.getElementById('queue-y').value),
+                    parseFloat(document.getElementById('queue-z').value)
+                ];
+                instruction.speed = parseFloat(document.getElementById('queue-speed').value);
+            } else if (type === 'joint') {
+                instruction.joints = [
+                    parseFloat(document.getElementById('queue-j1').value),
+                    parseFloat(document.getElementById('queue-j2').value),
+                    parseFloat(document.getElementById('queue-j3').value),
+                    parseFloat(document.getElementById('queue-j4').value),
+                    parseFloat(document.getElementById('queue-j5').value)
+                ];
+                instruction.speed = parseFloat(document.getElementById('queue-speed').value);
+            } else if (type === 'relative') {
+                instruction.relative = [
+                    parseFloat(document.getElementById('queue-dx').value),
+                    parseFloat(document.getElementById('queue-dy').value),
+                    parseFloat(document.getElementById('queue-dz').value)
+                ];
+                instruction.speed = parseFloat(document.getElementById('queue-speed').value);
+            } else if (type === 'gripper') {
+                instruction.action = document.getElementById('queue-gripper-action').value;
+                instruction.value = parseFloat(document.getElementById('queue-gripper-value').value);
+            } else if (type === 'wait') {
+                instruction.duration = parseFloat(document.getElementById('queue-duration').value);
+            }
+            
+            // Send to API
+            fetch('/api/motion/queue/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(instruction)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(`Added ${type} instruction to queue`, 'success');
+                    refreshQueueDisplay();
+                } else {
+                    showMessage(`Failed to add instruction: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error adding instruction:', error);
+                showMessage('Error adding instruction to queue', 'error');
+            });
+        }
+        
+        function addCurrentPoseToQueue() {
+            // Get current end effector position
+            const currentPos = getCurrentPosition();
+            if (currentPos) {
+                document.getElementById('queue-instruction-type').value = 'pose';
+                updateQueueInputs();
+                document.getElementById('queue-x').value = currentPos[0].toFixed(3);
+                document.getElementById('queue-y').value = currentPos[1].toFixed(3);
+                document.getElementById('queue-z').value = currentPos[2].toFixed(3);
+                document.getElementById('queue-description').value = 'Current robot pose';
+            }
+        }
+        
+        function addCurrentJointsToQueue() {
+            // Get current joint positions
+            if (currentJoints && currentJoints.length >= 5) {
+                document.getElementById('queue-instruction-type').value = 'joint';
+                updateQueueInputs();
+                document.getElementById('queue-j1').value = currentJoints[0].toFixed(3);
+                document.getElementById('queue-j2').value = currentJoints[1].toFixed(3);
+                document.getElementById('queue-j3').value = currentJoints[2].toFixed(3);
+                document.getElementById('queue-j4').value = currentJoints[3].toFixed(3);
+                document.getElementById('queue-j5').value = currentJoints[4].toFixed(3);
+                document.getElementById('queue-description').value = 'Current joint positions';
+            }
+        }
+        
+        function addHomePoseToQueue() {
+            document.getElementById('queue-instruction-type').value = 'joint';
+            updateQueueInputs();
+            document.getElementById('queue-j1').value = '0';
+            document.getElementById('queue-j2').value = '0';
+            document.getElementById('queue-j3').value = '0';
+            document.getElementById('queue-j4').value = '0';
+            document.getElementById('queue-j5').value = '0';
+            document.getElementById('queue-description').value = 'Home position';
+        }
+        
+        function refreshQueueDisplay() {
+            fetch('/api/motion/queue/list')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayQueue(data.queue);
+                    updateQueueStatus(data);
+                }
+            })
+            .catch(error => console.error('Error refreshing queue:', error));
+        }
+        
+        function displayQueue(queue) {
+            const display = document.getElementById('motion-queue-display');
+            const count = document.getElementById('queue-count');
+            
+            count.textContent = queue.length;
+            
+            if (queue.length === 0) {
+                display.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No instructions in queue. Add some above!</div>';
+                return;
+            }
+            
+            let html = '';
+            queue.forEach((instruction, index) => {
+                const statusIcon = instruction.status === 'completed' ? '✅' : 
+                                 instruction.status === 'executing' ? '⚡' : 
+                                 instruction.status === 'error' ? '❌' : '⏳';
+                
+                let details = '';
+                if (instruction.type === 'pose') {
+                    details = `[${instruction.target_pose.map(v => v.toFixed(3)).join(', ')}]`;
+                } else if (instruction.type === 'joint') {
+                    details = `[${instruction.target_joints.map(v => v.toFixed(2)).join(', ')}]`;
+                } else if (instruction.type === 'relative') {
+                    details = `[${instruction.relative_move.map(v => v.toFixed(3)).join(', ')}]`;
+                } else if (instruction.type === 'gripper') {
+                    details = `${instruction.gripper_action} (${instruction.gripper_value})`;
+                } else if (instruction.type === 'wait') {
+                    details = `${instruction.duration}s`;
+                }
+                
+                html += `
+                    <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 16px;">${statusIcon}</span>
+                            <strong>${index + 1}.</strong> ${instruction.description}
+                            <div style="font-size: 11px; color: #666; margin-top: 2px;">
+                                ${instruction.type.toUpperCase()}: ${details}
+                            </div>
+                        </div>
+                        <button onclick="removeQueueInstruction(${instruction.id})" 
+                                style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px;">
+                            🗑️
+                        </button>
+                    </div>
+                `;
+            });
+            
+            display.innerHTML = html;
+        }
+        
+        function removeQueueInstruction(id) {
+            fetch(`/api/motion/queue/remove/${id}`, {method: 'DELETE'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Instruction removed', 'success');
+                    refreshQueueDisplay();
+                } else {
+                    showMessage(`Failed to remove: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => console.error('Error removing instruction:', error));
+        }
+        
+        function clearQueue() {
+            if (confirm('Clear entire motion queue?')) {
+                fetch('/api/motion/queue/clear', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('Queue cleared', 'success');
+                        refreshQueueDisplay();
+                    } else {
+                        showMessage(`Failed to clear: ${data.message}`, 'error');
+                    }
+                })
+                .catch(error => console.error('Error clearing queue:', error));
+            }
+        }
+        
+        function executeQueue() {
+            fetch('/api/motion/queue/execute', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Queue execution started', 'success');
+                    updateQueueControlButtons(true);
+                    startQueuePolling();
+                } else {
+                    showMessage(`Failed to execute: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => console.error('Error executing queue:', error));
+        }
+        
+        function pauseQueue() {
+            // TODO: Implement pause functionality
+            showMessage('Pause functionality not yet implemented', 'warning');
+        }
+        
+        function stopQueue() {
+            fetch('/api/motion/queue/stop', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Queue execution stopped', 'success');
+                    updateQueueControlButtons(false);
+                    stopQueuePolling();
+                } else {
+                    showMessage(`Failed to stop: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => console.error('Error stopping queue:', error));
+        }
+        
+        function updateQueueControlButtons(executing) {
+            document.getElementById('execute-btn').disabled = executing;
+            document.getElementById('pause-btn').disabled = !executing;
+            document.getElementById('stop-btn').disabled = !executing;
+        }
+        
+        function updateQueueStatus(data) {
+            document.getElementById('queue-status-text').textContent = 
+                data.executing ? 'Executing' : 'Ready';
+            document.getElementById('queue-progress').textContent = 
+                `${data.current_index}/${data.total_instructions}`;
+            document.getElementById('queue-current').textContent = 
+                data.current_instruction ? data.current_instruction.description : 'None';
+        }
+        
+        function startQueuePolling() {
+            if (queuePollingInterval) clearInterval(queuePollingInterval);
+            queuePollingInterval = setInterval(() => {
+                fetch('/api/motion/queue/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateQueueStatus(data);
+                        if (!data.executing) {
+                            updateQueueControlButtons(false);
+                            stopQueuePolling();
+                            refreshQueueDisplay();
+                        }
+                    }
+                })
+                .catch(error => console.error('Queue polling error:', error));
+            }, 1000);
+        }
+        
+        function stopQueuePolling() {
+            if (queuePollingInterval) {
+                clearInterval(queuePollingInterval);
+                queuePollingInterval = null;
+            }
+        }
+        
+        // Initialize queue display on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshQueueDisplay();
+            refreshHistoryDisplay();
+        });
+        
+        // Helper functions to automatically add actions to queue
+        function addCartesianMoveToQueue(direction, distance) {
+            // Convert direction to relative move
+            let relative = [0, 0, 0];
+            const distanceM = distance / 100; // Convert cm to meters
+            
+            switch(direction) {
+                case 'forward': relative[0] = distanceM; break;
+                case 'back': relative[0] = -distanceM; break;
+                case 'right': relative[1] = distanceM; break;
+                case 'left': relative[1] = -distanceM; break;
+                case 'up': relative[2] = distanceM; break;
+                case 'down': relative[2] = -distanceM; break;
+            }
+            
+            const instruction = {
+                type: 'relative',
+                relative: relative,
+                speed: 0.1,
+                description: `Move ${direction} ${distance}cm`
+            };
+            
+            autoAddToQueue(instruction);
+        }
+        
+        function addPositionMoveToQueue(x, y, z) {
+            const instruction = {
+                type: 'pose',
+                pose: [x/100, y/100, z/100], // Convert cm to meters
+                speed: 0.1,
+                description: `Move to position (${x}, ${y}, ${z})cm`
+            };
+            
+            autoAddToQueue(instruction);
+        }
+        
+        function addGripperActionToQueue(action) {
+            let actionValue = 0;
+            let description = '';
+            
+            switch(action) {
+                case 'open':
+                    actionValue = 1.0;
+                    description = 'Open gripper';
+                    break;
+                case 'close':
+                    actionValue = 0.0;
+                    description = 'Close gripper';
+                    break;
+                case 'middle':
+                    actionValue = 0.5;
+                    description = 'Set gripper to middle';
+                    break;
+            }
+            
+            const instruction = {
+                type: 'gripper',
+                action: action,
+                value: actionValue,
+                description: description
+            };
+            
+            autoAddToQueue(instruction);
+        }
+        
+        function addRotationToQueue(axis, angle) {
+            // For rotations, we'll add them as relative joint moves
+            // This is a simplified approach - in practice you might want to track the specific joint
+            const instruction = {
+                type: 'relative',
+                relative: [0, 0, 0], // This would need proper joint mapping
+                speed: 0.5,
+                description: `Rotate ${axis} by ${angle}°`
+            };
+            
+            autoAddToQueue(instruction);
+        }
+        
+        function autoAddToQueue(instruction) {
+            // Only add to queue if auto-queue feature is enabled
+            if (isAutoQueueEnabled()) {
+                fetch('/api/motion/queue/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(instruction)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log(`Auto-added to queue: ${instruction.description}`);
+                        refreshQueueDisplay();
+                        // Show subtle notification
+                        showQueueNotification(`Added: ${instruction.description}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error auto-adding to queue:', error);
+                });
+            } else {
+                // If auto-queue is disabled, still add to history when action completes
+                // We'll add it immediately as a "direct execution"
+                setTimeout(() => {
+                    addToHistory(instruction, 0.5, true); // Assume 0.5s execution time for direct actions
+                }, 1000); // Small delay to simulate execution
+            }
+        }
+        
+        function isAutoQueueEnabled() {
+            // Check if auto-queue checkbox is enabled
+            const checkbox = document.getElementById('auto-queue-enabled');
+            return checkbox && checkbox.checked;
+        }
+        
+        function showQueueNotification(message) {
+            // Create a small notification to show queue addition
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 10000;
+                opacity: 0;
+                transition: opacity 0.3s;
+            `;
+            notification.textContent = `📝 ${message}`;
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => notification.style.opacity = '1', 10);
+            
+            // Remove after 2 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        }
+        
+        // Motion History Functions
+        function refreshHistoryDisplay() {
+            fetch('/api/motion/history/list')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayHistory(data.history);
+                    updateHistoryStats(data.history);
+                }
+            })
+            .catch(error => console.error('Error refreshing history:', error));
+        }
+        
+        function displayHistory(history) {
+            const display = document.getElementById('motion-history-display');
+            const count = document.getElementById('history-count');
+            
+            count.textContent = history.length;
+            
+            if (history.length === 0) {
+                display.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No completed actions yet. Execute some motions to see them here!</div>';
+                return;
+            }
+            
+            let html = '';
+            // Show most recent first
+            const reversedHistory = [...history].reverse();
+            
+            reversedHistory.forEach((entry, index) => {
+                const statusIcon = entry.success ? '✅' : '❌';
+                const timeStr = new Date(entry.executed_at * 1000).toLocaleTimeString();
+                const executionTime = entry.execution_time ? `(${entry.execution_time.toFixed(2)}s)` : '';
+                
+                // Basic instruction details
+                let details = '';
+                if (entry.type === 'pose' && entry.target_pose) {
+                    details = `Target: [${entry.target_pose.map(v => v.toFixed(3)).join(', ')}]m`;
+                } else if (entry.type === 'joint' && entry.target_joints) {
+                    details = `Joints: [${entry.target_joints.map(v => v.toFixed(2)).join(', ')}]rad`;
+                } else if (entry.type === 'relative' && entry.relative_move) {
+                    details = `Delta: [${entry.relative_move.map(v => v.toFixed(3)).join(', ')}]m`;
+                } else if (entry.type === 'gripper') {
+                    details = `${entry.gripper_action} (${entry.gripper_value})`;
+                } else if (entry.type === 'wait') {
+                    details = `${entry.duration}s`;
+                }
+                
+                // Joint state information
+                let jointInfo = '';
+                if (entry.joint_state && entry.joint_state.before) {
+                    const beforeJoints = entry.joint_state.before.positions || [];
+                    const afterJoints = entry.joint_state.after ? (entry.joint_state.after.positions || []) : null;
+                    
+                    jointInfo = `
+                        <div style="margin-top: 4px; font-size: 9px; color: #444;">
+                            <div><strong>Joints Before:</strong> [${beforeJoints.slice(0,5).map(v => v.toFixed(2)).join(', ')}]</div>
+                            ${afterJoints ? `<div><strong>Joints After:</strong> [${afterJoints.slice(0,5).map(v => v.toFixed(2)).join(', ')}]</div>` : ''}
+                        </div>
+                    `;
+                }
+                
+                // Pose state information  
+                let poseInfo = '';
+                if (entry.pose_state && entry.pose_state.before) {
+                    const beforePos = entry.pose_state.before.position || {};
+                    const afterPos = entry.pose_state.after ? (entry.pose_state.after.position || {}) : null;
+                    
+                    poseInfo = `
+                        <div style="margin-top: 4px; font-size: 9px; color: #444;">
+                            <div><strong>Pose Before:</strong> (${(beforePos.x || 0).toFixed(3)}, ${(beforePos.y || 0).toFixed(3)}, ${(beforePos.z || 0).toFixed(3)})m</div>
+                            ${afterPos ? `<div><strong>Pose After:</strong> (${(afterPos.x || 0).toFixed(3)}, ${(afterPos.y || 0).toFixed(3)}, ${(afterPos.z || 0).toFixed(3)})m</div>` : ''}
+                        </div>
+                    `;
+                }
+                
+                // Context information
+                let contextInfo = '';
+                if (entry.context) {
+                    contextInfo = `
+                        <div style="margin-top: 4px; font-size: 9px; color: #666;">
+                            Mode: ${entry.context.execution_mode || 'unknown'} | 
+                            Queue: ${entry.context.queue_length || 0} items |
+                            Motors: ${entry.robot_status && entry.robot_status.motors_enabled ? 'ON' : 'OFF'}
+                        </div>
+                    `;
+                }
+                
+                // Trajectory information
+                let trajectoryInfo = '';
+                if (entry.trajectory && entry.trajectory.waypoints) {
+                    trajectoryInfo = `
+                        <div style="margin-top: 4px; font-size: 9px; color: #666;">
+                            <strong>Trajectory:</strong> ${entry.trajectory.waypoints.length} waypoints, ${(entry.trajectory.times ? entry.trajectory.times[entry.trajectory.times.length-1] : 0).toFixed(2)}s planned
+                        </div>
+                    `;
+                }
+                
+                html += `
+                    <div style="padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; cursor: pointer;" 
+                         onclick="toggleHistoryDetails(${entry.id || index})" 
+                         id="history-entry-${entry.id || index}">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 14px;">${statusIcon}</span>
+                                <strong>${entry.description}</strong>
+                                <span style="font-size: 10px; color: #999; margin-left: 8px;">[ID: ${entry.id || index}]</span>
+                                ${entry.error_message ? `<span style="color: #d32f2f; font-size: 10px;">(${entry.error_message})</span>` : ''}
+                            </div>
+                            <div style="color: #666; font-size: 10px;">
+                                ${timeStr} ${executionTime}
+                                <span style="margin-left: 8px; cursor: pointer; color: #1976d2;">📋</span>
+                            </div>
+                        </div>
+                        <div style="font-size: 10px; color: #666; margin-top: 2px; margin-left: 20px;">
+                            ${entry.type.toUpperCase()}: ${details}
+                        </div>
+                        <div id="history-details-${entry.id || index}" style="display: none; margin-left: 20px; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                            ${jointInfo}
+                            ${poseInfo}
+                            ${trajectoryInfo}
+                            ${contextInfo}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            display.innerHTML = html;
+        }
+        
+        function toggleHistoryDetails(entryId) {
+            const detailsDiv = document.getElementById(`history-details-${entryId}`);
+            if (detailsDiv) {
+                detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+        
+        function updateHistoryStats(history) {
+            const successCount = history.filter(entry => entry.success).length;
+            const errorCount = history.filter(entry => !entry.success).length;
+            const totalTime = history.reduce((sum, entry) => sum + (entry.execution_time || 0), 0);
+            
+            document.getElementById('history-success-count').textContent = successCount;
+            document.getElementById('history-error-count').textContent = errorCount;
+            document.getElementById('history-total-time').textContent = `${totalTime.toFixed(1)}s`;
+        }
+        
+        function addToHistory(instruction, executionTime = 0, success = true, errorMessage = null, trajectoryData = null) {
+            // Capture comprehensive robot state information
+            const historyEntry = {
+                instruction: instruction,
+                executed_at: Date.now() / 1000,
+                execution_time: executionTime,
+                success: success,
+                error_message: errorMessage,
+                
+                // Joint state information
+                joint_state: {
+                    before: getCurrentJointState(),
+                    after: null // Will be filled after execution
+                },
+                
+                // Pose information  
+                pose_state: {
+                    before: getCurrentPoseState(),
+                    after: null // Will be filled after execution
+                },
+                
+                // Trajectory information
+                trajectory: trajectoryData || null,
+                
+                // Robot status at time of execution
+                robot_status: {
+                    motors_enabled: motorsEnabled || false,
+                    gripper_position: currentJoints ? currentJoints[5] : 0,
+                    timestamp: Date.now()
+                },
+                
+                // Environmental context
+                context: {
+                    queue_length: motionQueue ? motionQueue.length : 0,
+                    auto_queue_enabled: isAutoQueueEnabled(),
+                    execution_mode: isAutoQueueEnabled() ? 'queued' : 'direct'
+                }
+            };
+            
+            fetch('/api/motion/history/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(historyEntry)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    refreshHistoryDisplay();
+                    
+                    // Schedule update of final state after a short delay to capture post-execution state
+                    setTimeout(() => {
+                        const finalJointState = getCurrentJointState();
+                        const finalPoseState = getCurrentPoseState();
+                        updateHistoryWithFinalState(data.history_id, finalJointState, finalPoseState);
+                    }, 1000); // Wait 1 second for motion to complete
+                }
+            })
+            .catch(error => console.error('Error adding to history:', error));
+        }
+        
+        function clearHistory() {
+            if (confirm('Clear motion history? This action cannot be undone.')) {
+                fetch('/api/motion/history/clear', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('History cleared', 'success');
+                        refreshHistoryDisplay();
+                    } else {
+                        showMessage(`Failed to clear history: ${data.message}`, 'error');
+                    }
+                })
+                .catch(error => console.error('Error clearing history:', error));
+            }
+        }
+        
+        function exportHistory() {
+            window.open('/api/motion/history/export', '_blank');
+            showMessage('History export started', 'info');
+        }
+        
+        // Helper functions to capture robot state
+        function getCurrentJointState() {
+            return {
+                positions: currentJoints ? [...currentJoints] : [0, 0, 0, 0, 0, 0],
+                velocities: currentVelocities ? [...currentVelocities] : [0, 0, 0, 0, 0, 0],
+                timestamp: Date.now(),
+                source: 'real_time_polling'
+            };
+        }
+        
+        function getCurrentPoseState() {
+            // Get current position from display elements
+            const x = parseFloat(document.getElementById('pos-x')?.textContent || '0') / 100; // Convert cm to m
+            const y = parseFloat(document.getElementById('pos-y')?.textContent || '0') / 100;
+            const z = parseFloat(document.getElementById('pos-z')?.textContent || '0') / 100;
+            
+            const roll = parseFloat(document.getElementById('orient-roll')?.textContent || '0') * Math.PI / 180; // Convert deg to rad
+            const pitch = parseFloat(document.getElementById('orient-pitch')?.textContent || '0') * Math.PI / 180;
+            const yaw = parseFloat(document.getElementById('orient-yaw')?.textContent || '0') * Math.PI / 180;
+            
+            return {
+                position: {
+                    x: x,
+                    y: y, 
+                    z: z
+                },
+                orientation: {
+                    roll: roll,
+                    pitch: pitch,
+                    yaw: yaw
+                },
+                frame: 'world',
+                timestamp: Date.now(),
+                source: 'forward_kinematics'
+            };
+        }
+        
+        function updateHistoryWithFinalState(historyId, finalJointState, finalPoseState) {
+            // Update history entry with final robot state after execution
+            fetch('/api/motion/history/update_final_state', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    history_id: historyId,
+                    final_joint_state: finalJointState,
+                    final_pose_state: finalPoseState
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    refreshHistoryDisplay();
+                }
+            })
+            .catch(error => console.error('Error updating final state:', error));
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (motionVizCamera && motionVizRenderer) {
+                const container = document.getElementById('motion-viz-container');
+                motionVizCamera.aspect = container.clientWidth / container.clientHeight;
+                motionVizCamera.updateProjectionMatrix();
+                motionVizRenderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        });
     </script>
 </body>
 </html>
