@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SO-101 Robot Control Panel</title>
+    <!-- Cache control to prevent stale JavaScript -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <!-- Plotly for point cloud visualization -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -234,9 +238,12 @@
         .btn-info { background: var(--info); color: white; }
         
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
             transform: none !important;
+            background: #ccc !important;
+            color: #888 !important;
+            box-shadow: none !important;
         }
         
         .btn-group {
@@ -602,6 +609,36 @@
             display: flex;
             align-items: center;
             gap: 5px;
+        }
+        
+        .captures-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .capture-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .capture-item:last-child {
+            border-bottom: none;
+        }
+        
+        #grasp-visualization-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: auto;
+            margin-top: 15px;
         }
     </style>
     
@@ -1397,8 +1434,9 @@
                     <h2 class="card-title">Camera Control & Visualization</h2>
                 </div>
                 
-                <!-- Camera Connection -->
-                <div style="margin-bottom: 15px;">
+                <!-- Camera Connection Section -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f0f8ff; border-radius: 10px;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">📹 Camera Connection</h4>
                     <div style="font-weight: bold; margin-bottom: 10px;">Camera Type:</div>
                     <div class="camera-type-selector">
                         <div class="radio-btn">
@@ -1421,31 +1459,34 @@
                     <div id="camera-status-text" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
                 </div>
                 
-                <!-- Stream Controls -->
-                <div style="margin-bottom: 15px;">
-                    <div class="btn-group">
-                        <button class="btn btn-primary" onclick="startCameraStream()">Start Stream</button>
-                        <button class="btn btn-warning" onclick="stopCameraStream()">Stop Stream</button>
-                        <button class="btn btn-success" onclick="captureFrame()">📸 Capture</button>
-                        <button class="btn btn-info" onclick="toggleCapturesPanel()">📂 View Captures</button>
+                <!-- Stream Controls and Views -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">🎥 Camera Streams</h4>
+                    <div style="margin-bottom: 15px;">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="startCameraStream()">Start Stream</button>
+                            <button class="btn btn-warning" onclick="stopCameraStream()">Stop Stream</button>
+                            <button class="btn btn-success" onclick="captureFrame()">📸 Capture</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Camera views (RGB and Depth) -->
+                    <div class="camera-views">
+                        <div class="camera-view">
+                            <div class="camera-view-label">RGB</div>
+                            <img id="rgb-view" src="" alt="RGB Stream">
+                        </div>
+                        <div class="camera-view">
+                            <div class="camera-view-label">Depth</div>
+                            <img id="depth-view" src="" alt="Depth Stream">
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Captures Panel -->
-                <div id="captures-panel" style="display: none; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                <!-- Point Cloud Section -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">☁️ 3D Point Cloud Visualization</h4>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-weight: bold;">Recent Captures:</span>
-                        <button class="btn btn-info btn-sm" onclick="refreshCaptures()" style="padding: 5px 10px; font-size: 12px;">🔄 Refresh</button>
-                    </div>
-                    <div id="captures-list" style="max-height: 300px; overflow-y: auto;"></div>
-                </div>
-                
-                <!-- Camera visualization container with better layout -->
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
-                    <!-- Left side: Point Cloud -->
-                    <div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-weight: bold;">3D Point Cloud:</span>
                             <div style="display: flex; gap: 5px; align-items: center;">
                                 <select id="pointcloud-viewer-type" onchange="switchPointCloudViewer()" style="padding: 5px; font-size: 12px; border: 1px solid #ddd; border-radius: 5px;">
                                     <option value="plotly">Plotly</option>
@@ -1527,56 +1568,98 @@
                         </div>
                         <!-- Three.js container -->
                         <div id="pointcloud-container-threejs" style="display: none; width: 100%; height: 500px; background: #1a1a1a; border-radius: 10px; border: 1px solid #ddd; position: relative;"></div>
+                    </div>
+                </div>
+                
+                <!-- Captures Section -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 10px;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">📂 Captured Images</h4>
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-info" onclick="refreshCaptures()">🔄 Refresh List</button>
+                    </div>
+                    <div class="captures-list" id="captures-list" style="max-height: 300px; overflow-y: auto;">
+                        <p style="text-align: center; color: #999;">No captures yet</p>
+                    </div>
+                </div>
+                
+                <!-- Grasp Detection Section -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #fff5e6; border-radius: 10px;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">🦾 ThinkGrasp Detection</h4>
+                    
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label for="grasp-text" style="display: block; margin-bottom: 5px;">Grasp Command:</label>
+                        <input type="text" id="grasp-text" placeholder="e.g., pick up the red ball" 
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label for="capture-select-grasp" style="display: block; margin-bottom: 5px;">Select Capture:</label>
+                        <select id="capture-select-grasp" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="latest">Latest Capture</option>
+                        </select>
+                    </div>
+                    
+                    <button onclick="detectGraspPose()" class="btn btn-primary" 
+                            style="width: 100%; padding: 10px; background: #ff6b35; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🎯 Detect Grasp Pose
+                    </button>
+                    
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <button id="show-trajectory-btn" onclick="visualizeGraspWithTrajectory()" class="btn btn-secondary" 
+                                style="flex: 1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                                disabled title="Detect a grasp pose first">
+                            📊 Show Trajectory
+                        </button>
+                        <button id="clear-viz-btn" onclick="clearGraspVisualization()" class="btn btn-secondary" 
+                                style="flex: 1; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                                disabled title="No visualization to clear">
+                            🗑️ Clear Visualization
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <button onclick="openThinkGraspResults()" class="btn btn-info" 
+                                style="width: 100%; padding: 10px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📈 View ThinkGrasp Results History
+                        </button>
+                        <div style="margin-top: 5px; font-size: 11px; color: #666; text-align: center;">
+                            Browse and visualize all previous grasp detection results
+                        </div>
+                    </div>
+                    
+                    <div id="grasp-status" style="margin-top: 10px; display: none;">
+                        <div class="alert" id="grasp-status-message" style="padding: 10px; border-radius: 4px;"></div>
+                    </div>
+                    
+                    <div id="grasp-result" style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 4px; display: none;">
+                        <strong style="color: #fff;">Grasp Pose Result:</strong>
+                        <pre id="grasp-result-text" style="color: #0f0; font-size: 12px; margin: 5px 0;"></pre>
                         
-                        <!-- Grasp Detection Section -->
-                        <div style="margin-top: 15px; padding: 15px; background: #fff5e6; border-radius: 10px;">
-                            <h4 style="margin-top: 0; margin-bottom: 15px;">🦾 Grasp Detection (ThinkGrasp)</h4>
-                            
-                            <div class="form-group" style="margin-bottom: 10px;">
-                                <label for="grasp-text" style="display: block; margin-bottom: 5px;">Grasp Command:</label>
-                                <input type="text" id="grasp-text" placeholder="e.g., pick up the red ball" 
-                                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                            
-                            <button onclick="detectGraspPose()" class="btn btn-primary" 
-                                    style="width: 100%; padding: 10px; background: #ff6b35; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                🎯 Detect Grasp Pose
-                            </button>
-                            
-                            <div id="grasp-status" style="margin-top: 10px; display: none;">
-                                <div class="alert" id="grasp-status-message" style="padding: 10px; border-radius: 4px;"></div>
-                            </div>
-                            
-                            <div id="grasp-result" style="margin-top: 10px; padding: 10px; background: #2a2a2a; border-radius: 4px; display: none;">
-                                <strong style="color: #fff;">Grasp Pose Result:</strong>
-                                <pre id="grasp-result-text" style="color: #0f0; font-size: 12px; margin: 5px 0;"></pre>
-                                
-                                <!-- Arm Visualization Toggle -->
-                                <div style="margin: 10px 0;">
-                                    <label style="color: #fff; display: flex; align-items: center; gap: 10px;">
-                                        <input type="checkbox" id="show-arm-config" checked 
-                                               onchange="toggleArmVisualization(this.checked)">
-                                        Show Arm Configuration
-                                    </label>
-                                    <small style="color: #888;">Visualize how the arm will move to grasp</small>
-                                </div>
-                                
-                                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                                    <button onclick="showGraspInPlotly()" class="btn btn-info" 
-                                            style="flex: 1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                        📊 Show in Plotly
-                                    </button>
-                                    <button onclick="executeGraspPose()" class="btn btn-success" 
-                                            style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                        🤖 Execute Grasp
-                                    </button>
-                                </div>
-                            </div>
+                        <!-- Arm Visualization Toggle -->
+                        <div style="margin: 10px 0;">
+                            <label style="color: #fff; display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="show-arm-config" checked 
+                                       onchange="toggleArmVisualization(this.checked)">
+                                Show Arm Configuration
+                            </label>
+                            <small style="color: #888;">Visualize how the arm will move to grasp</small>
                         </div>
                         
-                        <!-- Robot-Camera Transform Controls -->
-                        <div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 10px;">
-                            <h4 style="margin-top: 0; margin-bottom: 15px;">🤖 Robot-Camera Transform Adjustment</h4>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button id="show-plotly-btn" onclick="showGraspInPlotly()" class="btn btn-info" 
+                                    style="flex: 1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                📊 Show in Plotly
+                            </button>
+                            <button id="execute-grasp-btn" onclick="executeGraspPose()" class="btn btn-success" 
+                                    style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🤖 Execute Grasp
+                            </button>
+                        </div>
+                    </div>
+                
+                <!-- Robot-Camera Transform Controls -->
+                <div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 10px;">
+                    <h4 style="margin-top: 0; margin-bottom: 15px;">🤖 Robot-Camera Transform Adjustment</h4>
                             
                             <!-- Position Controls -->
                             <div style="margin-bottom: 15px;">
@@ -1687,23 +1770,6 @@
                                 </button>
                             </div>
                             <input type="file" id="import-profiles-file" style="display: none;" accept=".json" onchange="handleProfileImport(event)">
-                        </div>
-                    </div>
-                    
-                    <!-- Right side: RGB and Depth -->
-                    <div>
-                        <div style="font-weight: bold; margin-bottom: 10px;">Camera Streams:</div>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div class="camera-view" style="aspect-ratio: 4/3;">
-                                <div class="camera-view-label">RGB</div>
-                                <img id="rgb-view" src="" alt="RGB Stream">
-                            </div>
-                            <div class="camera-view" style="aspect-ratio: 4/3;">
-                                <div class="camera-view-label">Depth</div>
-                                <img id="depth-view" src="" alt="Depth Stream">
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -2075,6 +2141,18 @@
     <!-- Message -->
     <div id="message" class="message"></div>
     
+    <!-- ThinkGrasp Results Viewer Modal -->
+    <div id="thinkgrasp-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000;">
+        <div style="position: relative; width: 95%; height: 95%; margin: 2.5% auto; background: white; border-radius: 10px; overflow: hidden;">
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 10001;">
+                <button onclick="closeThinkGraspResults()" style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                    ✖ Close
+                </button>
+            </div>
+            <iframe id="thinkgrasp-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
+    </div>
+    
     <script>
         let isRecording = false;
         let keyframeCount = 0;
@@ -2232,41 +2310,99 @@
         }
         
         // Update Plotly point cloud with new parameters
-        async function updatePlotlyPointCloud(captureName) {
+        async function updatePlotlyPointCloud(captureName, includeGrasp = false) {
             const iframe = document.getElementById('pointcloud-iframe');
             const placeholder = document.getElementById('pointcloud-placeholder');
             
-            // Get current joint states if robot is connected and we want to show it
-            let jointStates = null;
-            if (showRobotInPlotly && robotConnected) {
-                try {
-                    const response = await fetch('/api/robot/joint_states');
-                    const data = await response.json();
-                    if (data.success) {
-                        jointStates = data.joint_states;
+            try {
+                // Get current joint states if robot is connected
+                let jointStates = currentJoints;
+                if (showRobotInPlotly && robotConnected) {
+                    try {
+                        const response = await fetch('/api/robot/joint_states');
+                        const data = await response.json();
+                        if (data.success) {
+                            jointStates = data.joint_states;
+                        }
+                    } catch (error) {
+                        console.error('Failed to get joint states:', error);
                     }
-                } catch (error) {
-                    console.error('Failed to get joint states:', error);
                 }
+                
+                // Get robot transform values
+                const robotPosX = parseFloat(document.getElementById('robot-pos-x-input')?.value) || 0;
+                const robotPosY = parseFloat(document.getElementById('robot-pos-y-input')?.value) || 0;
+                const robotPosZ = parseFloat(document.getElementById('robot-pos-z-input')?.value) || 0;
+                const robotRotRoll = parseFloat(document.getElementById('robot-rot-roll')?.value) || 0;
+                const robotRotPitch = parseFloat(document.getElementById('robot-rot-pitch')?.value) || 0;
+                const robotRotYaw = parseFloat(document.getElementById('robot-rot-yaw')?.value) || 0;
+                
+                // Build request body
+                const requestBody = {
+                    capture_name: captureName,
+                    show_camera: showCameraInPlotly,
+                    show_robot: showRobotInPlotly,
+                    robot_joint_angles: jointStates,
+                    robot_position: [robotPosX/100, robotPosY/100, robotPosZ/100], // cm to m
+                    robot_rotation: [robotRotRoll, robotRotPitch, robotRotYaw],
+                    downsample: pointCloudDensity,
+                    max_points: maxPointsLimit,
+                    point_size: pointCloudSize
+                };
+                
+                // Add grasp if requested and available
+                if (includeGrasp && window.currentGraspPose) {
+                    requestBody.show_grasp = true;
+                    requestBody.grasp_pose = window.currentGraspPose;
+                    requestBody.show_trajectory = true;
+                }
+                
+                // Use different endpoint based on whether we need grasp
+                let response;
+                if (includeGrasp && window.currentGraspPose) {
+                    // Use grasp visualization endpoint
+                    response = await fetch('/api/grasp/visualize', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(requestBody)
+                    });
+                } else {
+                    // Use regular point cloud endpoint with parameters
+                    const params = new URLSearchParams({
+                        density: pointCloudDensity,
+                        max_points: maxPointsLimit,
+                        size: pointCloudSize,
+                        show_camera: showCameraInPlotly,
+                        show_robot: showRobotInPlotly
+                    });
+                    
+                    if (jointStates) {
+                        params.append('joint_states', JSON.stringify(jointStates));
+                    }
+                    
+                    iframe.src = `/api/camera/capture/${captureName}/pointcloud?${params.toString()}`;
+                    iframe.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    return; // Exit early as we're using iframe src directly
+                }
+                
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    
+                    // Write HTML to iframe
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    iframeDoc.open();
+                    iframeDoc.write(htmlContent);
+                    iframeDoc.close();
+                    
+                    iframe.style.display = 'block';
+                    placeholder.style.display = 'none';
+                } else {
+                    console.error('Failed to update point cloud visualization');
+                }
+            } catch (error) {
+                console.error('Error updating Plotly point cloud:', error);
             }
-            
-            // Build URL with parameters
-            const params = new URLSearchParams({
-                density: pointCloudDensity,
-                max_points: maxPointsLimit,
-                size: pointCloudSize,
-                show_camera: showCameraInPlotly,
-                show_robot: showRobotInPlotly
-            });
-            
-            // Add joint states if available
-            if (jointStates) {
-                params.append('joint_states', JSON.stringify(jointStates));
-            }
-            
-            iframe.src = `/api/camera/capture/${captureName}/pointcloud?${params.toString()}`;
-            iframe.style.display = 'block';
-            placeholder.style.display = 'none';
         }
         
         // Poll joint states and update displays
@@ -3221,8 +3357,13 @@
                 const captures = await response.json();
                 
                 const listDiv = document.getElementById('captures-list');
+                const captureSelect = document.getElementById('capture-select-grasp');
+                
                 if (captures.length === 0) {
                     listDiv.innerHTML = '<p style="text-align: center; color: #999;">No captures yet</p>';
+                    if (captureSelect) {
+                        captureSelect.innerHTML = '<option value="">No captures available</option>';
+                    }
                 } else {
                     listDiv.innerHTML = captures.map(cap => `
                         <div style="padding: 10px; margin: 5px 0; background: white; border-radius: 5px; border: 1px solid #ddd;">
@@ -3256,6 +3397,18 @@
                             </div>
                         </div>
                     `).join('');
+                    
+                    // Update capture selector in grasp tab
+                    if (captureSelect) {
+                        captureSelect.innerHTML = captures.map(cap => 
+                            `<option value="${cap.name}">${cap.name}</option>`
+                        ).join('');
+                        
+                        // Select the most recent capture
+                        if (captures.length > 0) {
+                            captureSelect.value = captures[captures.length - 1].name;
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Failed to refresh captures:', error);
@@ -3995,31 +4148,39 @@
             // Show status
             statusDiv.style.display = 'block';
             statusMessage.className = 'alert alert-info';
-            statusMessage.innerHTML = '⏳ Capturing scene and detecting grasp pose...';
+            statusMessage.innerHTML = '⏳ Detecting grasp pose...';
             resultDiv.style.display = 'none';
             
             try {
-                // First, capture the current scene
-                const captureResponse = await fetch('/api/camera/capture', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        pointcloud: true
-                    })
-                });
+                // Check if user selected an existing capture or wants to use latest
+                const captureSelect = document.getElementById('capture-select-grasp');
+                let extractedCaptureName = captureSelect ? captureSelect.value : 'latest';
                 
-                const captureData = await captureResponse.json();
-                if (!captureData.success) {
-                    throw new Error(captureData.message || 'Failed to capture scene');
+                // If 'latest' is selected or no captures available, capture a new scene
+                if (!extractedCaptureName || extractedCaptureName === 'latest' || extractedCaptureName === '') {
+                    statusMessage.innerHTML = '⏳ Capturing scene and detecting grasp pose...';
+                    
+                    const captureResponse = await fetch('/api/camera/capture', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            pointcloud: true
+                        })
+                    });
+                    
+                    const captureData = await captureResponse.json();
+                    if (!captureData.success) {
+                        throw new Error(captureData.message || 'Failed to capture scene');
+                    }
+                    
+                    // Extract capture name from the capture_info string
+                    const captureName = captureData.capture_info || captureData.message;
+                    const captureNameMatch = captureName.match(/(\d{8}_\d{6})/);
+                    if (!captureNameMatch) {
+                        throw new Error('Could not extract capture name from response');
+                    }
+                    extractedCaptureName = captureNameMatch[1];
                 }
-                
-                // Extract capture name from the capture_info string
-                const captureName = captureData.capture_info || captureData.message;
-                const captureNameMatch = captureName.match(/(\d{8}_\d{6})/);
-                if (!captureNameMatch) {
-                    throw new Error('Could not extract capture name from response');
-                }
-                const extractedCaptureName = captureNameMatch[1];
                 
                 // Now call the grasp detection API
                 const graspResponse = await fetch('/api/grasp/detect', {
@@ -4044,6 +4205,17 @@
                 // Display results
                 statusMessage.className = 'alert alert-success';
                 statusMessage.innerHTML = '✅ Grasp pose detected successfully!';
+                
+                // Enable visualization buttons now that we have a grasp pose
+                const showTrajectoryBtn = document.getElementById('show-trajectory-btn');
+                const clearVizBtn = document.getElementById('clear-viz-btn');
+                const showPlotlyBtn = document.getElementById('show-plotly-btn');
+                const executeGraspBtn = document.getElementById('execute-grasp-btn');
+                
+                if (showTrajectoryBtn) showTrajectoryBtn.disabled = false;
+                if (clearVizBtn) clearVizBtn.disabled = false;
+                if (showPlotlyBtn) showPlotlyBtn.disabled = false;
+                if (executeGraspBtn) executeGraspBtn.disabled = false;
                 
                 // Format joint states for display
                 let jointStatesText = '';
@@ -4594,49 +4766,80 @@
             window.currentGraspPose = graspPose;
             window.currentGraspJointStates = jointStates;
             
-            // Update the Plotly iframe with grasp pose data
-            const iframe = document.getElementById('pointcloud-iframe');
-            if (!iframe) {
-                console.error('Plotly iframe not found');
-                return;
-            }
-            
-            // Get current iframe URL and add grasp parameters
-            let currentUrl = iframe.src;
-            if (!currentUrl) {
-                // If no URL yet, trigger a plotly update first
-                await updatePlotlyLiveOnce();
-                currentUrl = iframe.src;
-            }
-            
-            // Parse URL and add grasp parameters
-            const url = new URL(currentUrl, window.location.origin);
-            
-            // Add grasp pose parameters
-            url.searchParams.set('grasp_pose', JSON.stringify(graspPose));
-            url.searchParams.set('grasp_joint_states', JSON.stringify(jointStates));
-            url.searchParams.set('show_grasp', 'true');
-            
-            // Reload iframe with grasp data
-            iframe.src = url.toString();
-            
-            console.log('Plotly visualization updated with grasp pose');
-            
-            // Also update robot visualization if needed
-            if (jointStates && showRobotInPlotly) {
-                const robotJointAngles = {
-                    '1': jointStates.joint_1,
-                    '2': jointStates.joint_2,
-                    '3': jointStates.joint_3,
-                    '4': jointStates.joint_4,
-                    '5': jointStates.joint_5,
-                    '6': jointStates.joint_6
-                };
+            try {
+                // Get current capture name from the grasp tab selector
+                const captureSelect = document.getElementById('capture-select-grasp');
+                const captureName = (captureSelect && captureSelect.value) ? captureSelect.value : 'latest';
                 
-                // Request updated visualization with new joint states
-                setTimeout(() => {
-                    updatePlotlyVisualization(robotJointAngles);
-                }, 1000);
+                // Get current robot transform values to preserve them
+                const robotPosX = parseFloat(document.getElementById('robot-pos-x-input')?.value) || 0;
+                const robotPosY = parseFloat(document.getElementById('robot-pos-y-input')?.value) || 0;
+                const robotPosZ = parseFloat(document.getElementById('robot-pos-z-input')?.value) || 0;
+                const robotRotRoll = parseFloat(document.getElementById('robot-rot-roll')?.value) || 0;
+                const robotRotPitch = parseFloat(document.getElementById('robot-rot-pitch')?.value) || 0;
+                const robotRotYaw = parseFloat(document.getElementById('robot-rot-yaw')?.value) || 0;
+                
+                // Call the grasp visualization endpoint which includes point cloud
+                console.log('Calling /api/grasp/visualize endpoint...');
+                const response = await fetch('/api/grasp/visualize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        capture_name: captureName,
+                        grasp_pose: graspPose,
+                        show_trajectory: true,
+                        // Include visualization options
+                        show_camera: document.getElementById('show-camera-viz')?.checked ?? true,
+                        show_robot: document.getElementById('show-robot-viz')?.checked ?? true,
+                        robot_joint_angles: jointStates || currentJoints,
+                        robot_position: [robotPosX/100, robotPosY/100, robotPosZ/100], // cm to m
+                        robot_rotation: [robotRotRoll, robotRotPitch, robotRotYaw]
+                    })
+                });
+                
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    
+                    // Update the main point cloud Plotly iframe
+                    const iframe = document.getElementById('pointcloud-iframe');
+                    if (iframe) {
+                        // Write HTML directly to iframe
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        iframeDoc.open();
+                        iframeDoc.write(htmlContent);
+                        iframeDoc.close();
+                        
+                        // Hide placeholder if shown
+                        const placeholder = document.getElementById('pointcloud-placeholder');
+                        if (placeholder) {
+                            placeholder.style.display = 'none';
+                        }
+                        
+                        console.log('Point cloud Plotly visualization updated with grasp pose and trajectory');
+                        showMessage('Grasp trajectory added to point cloud viewer', 'success');
+                    } else {
+                        console.error('Point cloud iframe not found');
+                        showMessage('Error: Point cloud viewer not found', 'error');
+                    }
+                    
+                    // Show success message
+                    const statusMessage = document.getElementById('grasp-status-message');
+                    if (statusMessage) {
+                        statusMessage.innerHTML += '<br>📊 Grasp visualization with trajectory updated in Plotly viewer';
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('Failed to update grasp visualization:', errorText);
+                    try {
+                        const error = JSON.parse(errorText);
+                        showMessage('Failed to generate visualization: ' + (error.message || 'Unknown error'), 'error');
+                    } catch {
+                        showMessage('Failed to generate visualization: Server error', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating Plotly with grasp pose:', error);
+                showMessage('Error visualizing grasp: ' + error.message, 'error');
             }
         }
         
@@ -4682,12 +4885,125 @@
             if (currentViewerType !== 'plotly') {
                 document.getElementById('pointcloud-viewer-type').value = 'plotly';
                 switchPointCloudViewer();
+                // Wait for viewer to switch before updating
+                setTimeout(() => {
+                    updatePlotlyWithGraspPose(detectedGraspPose, window.currentGraspJointStates);
+                }, 500);
+            } else {
+                // Update Plotly with grasp pose immediately
+                updatePlotlyWithGraspPose(detectedGraspPose, window.currentGraspJointStates);
             }
             
-            // Update Plotly with grasp pose
-            setTimeout(() => {
-                updatePlotlyWithGraspPose(detectedGraspPose, window.currentGraspJointStates);
-            }, 500);
+            // Scroll to the point cloud viewer
+            const pointCloudContainer = document.getElementById('pointcloud-container');
+            if (pointCloudContainer) {
+                pointCloudContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        // Function to visualize grasp with trajectory
+        async function visualizeGraspWithTrajectory() {
+            if (!detectedGraspPose) {
+                showMessage('No grasp pose detected. Please detect a grasp first.', 'error');
+                return;
+            }
+            
+            // Update Plotly visualization with trajectory
+            await updatePlotlyWithGraspPose(detectedGraspPose, window.currentGraspJointStates);
+            showMessage('Grasp trajectory visualization updated', 'success');
+        }
+        
+        // Function to clear grasp visualization
+        function clearGraspVisualization() {
+            // Clear Three.js visualization if present
+            if (graspVisualization) {
+                pointCloudScene.remove(graspVisualization);
+                graspVisualization = null;
+                if (pointCloudRenderer) {
+                    pointCloudRenderer.render(pointCloudScene, pointCloudCamera);
+                }
+            }
+            
+            // Clear the grasp result display
+            const graspResult = document.getElementById('grasp-result');
+            if (graspResult) {
+                graspResult.style.display = 'none';
+            }
+            
+            // Reset detected grasp pose
+            detectedGraspPose = null;
+            window.currentGraspPose = null;
+            window.currentGraspJointStates = null;
+            
+            // Disable visualization buttons since there's no grasp pose
+            const showTrajectoryBtn = document.getElementById('show-trajectory-btn');
+            const clearVizBtn = document.getElementById('clear-viz-btn');
+            const showPlotlyBtn = document.getElementById('show-plotly-btn');
+            const executeGraspBtn = document.getElementById('execute-grasp-btn');
+            
+            if (showTrajectoryBtn) showTrajectoryBtn.disabled = true;
+            if (clearVizBtn) clearVizBtn.disabled = true;
+            if (showPlotlyBtn) showPlotlyBtn.disabled = true;
+            if (executeGraspBtn) executeGraspBtn.disabled = true;
+            
+            // Refresh the point cloud view to show original without grasp
+            if (currentViewerType === 'plotly') {
+                // Update Plotly to remove grasp visualization but keep everything else
+                updatePlotlyNow(); // This will refresh with current settings but no grasp
+            }
+            
+            showMessage('Grasp visualization cleared', 'info');
+            
+            // Clear dedicated grasp container
+            const graspContainer = document.getElementById('grasp-plotly-container');
+            if (graspContainer) {
+                graspContainer.innerHTML = '';
+                graspContainer.style.display = 'none';
+            }
+            
+            // Clear Plotly visualization by reloading without grasp
+            const iframe = document.getElementById('pointcloud-iframe');
+            if (iframe && iframe.src) {
+                const url = new URL(iframe.src, window.location.origin);
+                url.searchParams.delete('grasp_pose');
+                url.searchParams.delete('grasp_joint_states');
+                url.searchParams.delete('show_grasp');
+                iframe.src = url.toString();
+            }
+            
+            showMessage('Grasp visualization cleared', 'info');
+        }
+        
+        // Function to open ThinkGrasp Results Viewer
+        function openThinkGraspResults() {
+            const modal = document.getElementById('thinkgrasp-modal');
+            const iframe = document.getElementById('thinkgrasp-iframe');
+            
+            if (modal && iframe) {
+                // Set the iframe source to the ThinkGrasp results viewer
+                iframe.src = '/thinkgrasp/results';
+                modal.style.display = 'block';
+                
+                showMessage('Loading ThinkGrasp results viewer...', 'info');
+                
+                // Wait for iframe to load
+                iframe.onload = function() {
+                    showMessage('ThinkGrasp results viewer loaded', 'success');
+                };
+            }
+        }
+        
+        // Function to close ThinkGrasp Results Viewer
+        function closeThinkGraspResults() {
+            const modal = document.getElementById('thinkgrasp-modal');
+            const iframe = document.getElementById('thinkgrasp-iframe');
+            
+            if (modal) {
+                modal.style.display = 'none';
+                if (iframe) {
+                    iframe.src = ''; // Clear iframe source
+                }
+            }
         }
         
         // Function to execute the detected grasp
@@ -6985,6 +7301,16 @@
         document.addEventListener('DOMContentLoaded', function() {
             refreshQueueDisplay();
             refreshHistoryDisplay();
+        });
+        
+        // Add keyboard shortcut to close ThinkGrasp modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('thinkgrasp-modal');
+                if (modal && modal.style.display !== 'none') {
+                    closeThinkGraspResults();
+                }
+            }
         });
         
         // Helper functions to automatically add actions to queue
