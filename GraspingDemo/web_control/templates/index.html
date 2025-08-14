@@ -649,6 +649,278 @@
         
         <!-- Main Grid -->
         <div class="main-grid">
+            <!-- Cartesian Position Control - Moved to top -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📍</span>
+                    <h2 class="card-title">Cartesian Position Control (World Frame)</h2>
+                </div>
+                
+                <!-- Info Note -->
+                <div style="padding: 8px; background: #e3f2fd; border-radius: 5px; margin-bottom: 10px; font-size: 12px; color: #1976d2;">
+                    ℹ️ Movements are in world coordinates relative to base. Motors auto-enable for movement.
+                </div>
+                
+                <!-- Current Position Display -->
+                <div style="padding: 12px; background: var(--light); border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 8px;">Gripper Pose (Forward Kinematics):</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div>X (Forward): <span id="pos-x" style="font-weight: bold;">--</span> cm</div>
+                        <div>Y (Left): <span id="pos-y" style="font-weight: bold;">--</span> cm</div>
+                        <div>Z (Up): <span id="pos-z" style="font-weight: bold;">--</span> cm</div>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
+                        <div style="font-weight: bold; margin-bottom: 8px;">Orientation (Quaternion):</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px;">
+                            <div>w: <span id="quat-w" style="font-weight: bold;">--</span></div>
+                            <div>x: <span id="quat-x" style="font-weight: bold;">--</span></div>
+                            <div>y: <span id="quat-y" style="font-weight: bold;">--</span></div>
+                            <div>z: <span id="quat-z" style="font-weight: bold;">--</span></div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; text-align: center;">
+                        <button class="btn btn-info btn-sm" onclick="updateGripperPose()" style="padding: 5px 15px;">
+                            🔄 Update FK Pose
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Directional Movement -->
+                <div style="margin-bottom: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Move Gripper:</div>
+                    
+                    <!-- Distance selector -->
+                    <div style="margin-bottom: 10px;">
+                        <label>Distance: </label>
+                        <select id="move-distance" style="padding: 5px; border-radius: 5px;">
+                            <option value="1">1 cm</option>
+                            <option value="2">2 cm</option>
+                            <option value="5">5 cm</option>
+                            <option value="10">10 cm</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Direction buttons in cross layout -->
+                    <div style="display: grid; grid-template-areas: '. up .' 'left middle right' '. down .'; grid-template-columns: 1fr 1fr 1fr; gap: 5px; max-width: 200px; margin: 0 auto;">
+                        <button class="btn btn-primary" style="grid-area: up;" onclick="cartesianMove('forward')" title="Move Forward in World Frame (+X away from base)">
+                            ↑
+                        </button>
+                        <button class="btn btn-primary" style="grid-area: left;" onclick="cartesianMove('left')" title="Move Left in World Frame (-Y)">
+                            ←
+                        </button>
+                        <button class="btn btn-info" style="grid-area: middle;" onclick="updateGripperPose()" title="Update Position">
+                            🔄
+                        </button>
+                        <button class="btn btn-primary" style="grid-area: right;" onclick="cartesianMove('right')" title="Move Right in World Frame (+Y)">
+                            →
+                        </button>
+                        <button class="btn btn-primary" style="grid-area: down;" onclick="cartesianMove('back')" title="Move Back in World Frame (-X toward base)">
+                            ↓
+                        </button>
+                    </div>
+                    
+                    <!-- Up/Down controls -->
+                    <div style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;">
+                        <button class="btn btn-success" onclick="cartesianMove('up')" title="Move Up (+Z)">
+                            ⬆️ Up
+                        </button>
+                        <button class="btn btn-warning" onclick="cartesianMove('down')" title="Move Down (-Z)">
+                            ⬇️ Down
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Go to Position -->
+                <div style="border-top: 1px solid #ddd; padding-top: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Set Target Position (IK):</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                        <input type="number" id="target-x" placeholder="X (cm)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                        <input type="number" id="target-y" placeholder="Y (cm)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                        <input type="number" id="target-z" placeholder="Z (cm)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                    </div>
+                    <button class="btn btn-primary" onclick="moveToPosition()" style="width: 100%; margin-bottom: 10px;">
+                        📍 Move to Position (IK)
+                    </button>
+                    
+                    <!-- IK Result Display -->
+                    <div id="ik-result" style="display: none; padding: 10px; background: #e8f5e9; border-radius: 5px; margin-top: 10px;">
+                        <div style="font-weight: bold; font-size: 12px; margin-bottom: 5px;">IK Solution (radians):</div>
+                        <div style="font-family: monospace; font-size: 11px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;">
+                            <div>J1: <span id="ik-j1">--</span></div>
+                            <div>J2: <span id="ik-j2">--</span></div>
+                            <div>J3: <span id="ik-j3">--</span></div>
+                            <div>J4: <span id="ik-j4">--</span></div>
+                            <div>J5: <span id="ik-j5">--</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Set Joint States from IK -->
+                    <div style="margin-top: 10px;">
+                        <button class="btn btn-warning" onclick="applyIKJoints()" style="width: 100%;" disabled id="apply-ik-btn">
+                            🔧 Apply IK Joint States
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gripper Rotation Control - Moved to top -->
+            <div class="card">
+                <div class="card-header">
+                    <span>🔄</span>
+                    <h2 class="card-title">Gripper Rotation Control</h2>
+                </div>
+                
+                <!-- Enhanced rotation controls with clearer UI -->
+                <div style="padding: 15px; background: var(--light); border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 12px; color: var(--primary);">Rotation Settings:</div>
+                    
+                    <!-- Angle selector with visual feedback -->
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <label style="font-weight: 500;">Step Size:</label>
+                        <select id="rotation-angle" style="padding: 8px 12px; border-radius: 5px; border: 2px solid var(--primary); font-weight: bold;">
+                            <option value="5">5°</option>
+                            <option value="10" selected>10°</option>
+                            <option value="15">15°</option>
+                            <option value="30">30°</option>
+                            <option value="45">45°</option>
+                            <option value="90">90°</option>
+                        </select>
+                        <span style="font-size: 12px; color: #666;">(per click)</span>
+                    </div>
+                    
+                    <!-- Current Orientation Display -->
+                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                        <div style="font-weight: 500; margin-bottom: 8px; color: #333;">Current Orientation:</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                            <div style="text-align: center; padding: 5px; background: #e3f2fd; border-radius: 5px;">
+                                <div style="font-size: 11px; color: #666;">Roll</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #1976d2;">
+                                    <span id="orient-roll">--</span>°
+                                </div>
+                            </div>
+                            <div style="text-align: center; padding: 5px; background: #e8f5e9; border-radius: 5px;">
+                                <div style="font-size: 11px; color: #666;">Pitch</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #4caf50;">
+                                    <span id="orient-pitch">--</span>°
+                                </div>
+                            </div>
+                            <div style="text-align: center; padding: 5px; background: #fff3e0; border-radius: 5px;">
+                                <div style="font-size: 11px; color: #666;">Yaw</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #ff9800;">
+                                    <span id="orient-yaw">--</span>°
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Rotation Control Buttons with Clear Labels -->
+                <div style="display: grid; gap: 15px;">
+                    <!-- Base Rotation -->
+                    <div style="background: #e8f5e9; padding: 12px; border-radius: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: #2e7d32;">
+                            🎯 Base Rotation (Joint 1)
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn btn-success" onclick="rotateGripper('base', -1)" 
+                                    style="flex: 1; padding: 10px;" 
+                                    title="Rotate entire arm counter-clockwise">
+                                <span style="font-size: 18px;">↺</span><br>
+                                Counter-Clockwise
+                            </button>
+                            <button class="btn btn-success" onclick="rotateGripper('base', 1)" 
+                                    style="flex: 1; padding: 10px;"
+                                    title="Rotate entire arm clockwise">
+                                <span style="font-size: 18px;">↻</span><br>
+                                Clockwise
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Wrist Pitch -->
+                    <div style="background: #e3f2fd; padding: 12px; border-radius: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: #1565c0;">
+                            ↕️ Wrist Pitch (Joint 4)
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn btn-info" onclick="rotateGripper('wrist_pitch', -1)" 
+                                    style="flex: 1; padding: 10px;"
+                                    title="Tilt gripper down">
+                                <span style="font-size: 18px;">↓</span><br>
+                                Pitch Down
+                            </button>
+                            <button class="btn btn-info" onclick="rotateGripper('wrist_pitch', 1)" 
+                                    style="flex: 1; padding: 10px;"
+                                    title="Tilt gripper up">
+                                <span style="font-size: 18px;">↑</span><br>
+                                Pitch Up
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Wrist Roll -->
+                    <div style="background: #fff3e0; padding: 12px; border-radius: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: #e65100;">
+                            🔄 Wrist Roll (Joint 5)
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn btn-warning" onclick="rotateGripper('wrist_roll', -1)" 
+                                    style="flex: 1; padding: 10px;"
+                                    title="Roll gripper counter-clockwise">
+                                <span style="font-size: 18px;">↺</span><br>
+                                Roll Left
+                            </button>
+                            <button class="btn btn-warning" onclick="rotateGripper('wrist_roll', 1)" 
+                                    style="flex: 1; padding: 10px;"
+                                    title="Roll gripper clockwise">
+                                <span style="font-size: 18px;">↻</span><br>
+                                Roll Right
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Info Note -->
+                <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-size: 12px; color: #666;">
+                    💡 <strong>Tip:</strong> Use smaller angles for precise control. Rotations are relative to current position.
+                </div>
+            </div>
+            
+            <!-- Joint Positions -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📊</span>
+                    <h2 class="card-title">Joint Positions (Radians)</h2>
+                </div>
+                
+                <div class="joints-display">
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Base rotation joint">Joint 1 (Base)</span>
+                        <span class="joint-value" id="joint-0">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Shoulder pitch joint">Joint 2 (Shoulder)</span>
+                        <span class="joint-value" id="joint-1">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Elbow flexion joint">Joint 3 (Elbow)</span>
+                        <span class="joint-value" id="joint-2">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Wrist pitch joint">Joint 4 (Wrist P)</span>
+                        <span class="joint-value" id="joint-3">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Wrist roll joint">Joint 5 (Wrist R)</span>
+                        <span class="joint-value" id="joint-4">0.000</span>
+                    </div>
+                    <div class="joint-item">
+                        <span class="joint-label tooltip" data-tooltip="Gripper open/close">Joint 6 (Gripper)</span>
+                        <span class="joint-value" id="joint-5">0.000</span>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Connection & Control -->
             <div class="card">
                 <div class="card-header">
@@ -1223,38 +1495,58 @@
                 </div>
             </div>
             
-            <!-- Joint Positions -->
-            <div class="card">
+            <!-- Calibration Control -->
+            <div class="card full-width">
                 <div class="card-header">
-                    <span>📊</span>
-                    <h2 class="card-title">Joint Positions (Radians)</h2>
+                    <span>🎯</span>
+                    <h2 class="card-title">Hand-Eye Calibration</h2>
                 </div>
                 
-                <div class="joints-display">
-                    <div class="joint-item">
-                        <span class="joint-label tooltip" data-tooltip="Base rotation joint">Joint 1 (Base)</span>
-                        <span class="joint-value" id="joint-0">0.000</span>
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">Calibration Mode</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="startCalibrationWorkflow('eye-in-hand')">🤖 Eye-in-Hand</button>
+                        <button class="btn btn-primary" onclick="startCalibrationWorkflow('eye-to-hand')">📷 Eye-to-Hand (Stationary)</button>
                     </div>
-                    <div class="joint-item">
-                        <span class="joint-label tooltip" data-tooltip="Shoulder pitch joint">Joint 2 (Shoulder)</span>
-                        <span class="joint-value" id="joint-1">0.000</span>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">Quick Actions</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-info" onclick="testCheckerboardPattern()">🔍 Test Pattern</button>
+                        <button class="btn btn-primary" onclick="openCameraView()">📹 View Camera</button>
                     </div>
-                    <div class="joint-item">
-                        <span class="joint-label tooltip" data-tooltip="Elbow flexion joint">Joint 3 (Elbow)</span>
-                        <span class="joint-value" id="joint-2">0.000</span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">Calibration Workflow</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="captureCalibrationPoint()">📸 Capture Point</button>
+                        <button class="btn btn-warning" onclick="deleteLastCalibration()">🗑️ Delete Last</button>
+                        <button class="btn btn-primary" onclick="computeCalibrationWorkflow()">🔧 Compute</button>
+                        <button class="btn btn-danger" onclick="stopCalibration()">⏹️ Stop</button>
                     </div>
-                    <div class="joint-item">
-                        <span class="joint-label tooltip" data-tooltip="Wrist pitch joint">Joint 4 (Wrist P)</span>
-                        <span class="joint-value" id="joint-3">0.000</span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">ROS2 Integration</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="connectROS2()">🤖 Publish TF</button>
+                        <button class="btn btn-info" onclick="listCalibrations().then(cals => console.log('Calibrations:', cals))">📋 List Files</button>
                     </div>
-                    <div class="joint-item">
-                        <span class="joint-label tooltip" data-tooltip="Wrist roll joint">Joint 5 (Wrist R)</span>
-                        <span class="joint-value" id="joint-4">0.000</span>
-                    </div>
-                    <div class="joint-item">
-                        <span class="joint-label tooltip" data-tooltip="Gripper open/close">Joint 6 (Gripper)</span>
-                        <span class="joint-value" id="joint-5">0.000</span>
-                    </div>
+                </div>
+
+                <div id="calibration-status" style="padding: 10px; background: var(--light); border-radius: 5px; margin-top: 10px;">
+                    <div style="color: #666;">Ready for calibration</div>
+                </div>
+                
+                <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px;">
+                    <strong>Instructions:</strong><br>
+                    1. Choose calibration mode (Eye-in-Hand or Eye-to-Hand)<br>
+                    2. Move robot to different positions<br>
+                    3. Capture 3-10 calibration points<br>
+                    4. Compute calibration matrix<br>
+                    5. Publish TF to ROS2 for integration
                 </div>
             </div>
             
@@ -1320,160 +1612,6 @@
             </div>
         </div>
         
-        <!-- Cartesian Control (DISABLED - Under Development) -->
-        <div class="card" style="opacity: 0.5; pointer-events: none; position: relative;">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 10px; font-weight: bold; color: #666; z-index: 10;">
-                🚧 Under Development
-            </div>
-            <div class="card-header">
-                <span>📍</span>
-                <h2 class="card-title">Cartesian Position Control (World Frame)</h2>
-            </div>
-            
-            <!-- Info Note -->
-            <div style="padding: 8px; background: #e3f2fd; border-radius: 5px; margin-bottom: 10px; font-size: 12px; color: #1976d2;">
-                ℹ️ Movements are in world coordinates relative to base. Motors auto-enable for movement.
-            </div>
-            
-            <!-- Current Position Display -->
-            <div style="padding: 12px; background: var(--light); border-radius: 8px; margin-bottom: 15px;">
-                <div style="font-weight: bold; margin-bottom: 8px;">Gripper Position in World Frame (cm):</div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div>X (Forward): <span id="pos-x" style="font-weight: bold;">--</span></div>
-                    <div>Y (Left): <span id="pos-y" style="font-weight: bold;">--</span></div>
-                    <div>Z (Up): <span id="pos-z" style="font-weight: bold;">--</span></div>
-                </div>
-            </div>
-            
-            <!-- Directional Movement -->
-            <div style="margin-bottom: 15px;">
-                <div style="font-weight: bold; margin-bottom: 10px;">Move Gripper:</div>
-                
-                <!-- Distance selector -->
-                <div style="margin-bottom: 10px;">
-                    <label>Distance: </label>
-                    <select id="move-distance" style="padding: 5px; border-radius: 5px;">
-                        <option value="1">1 cm</option>
-                        <option value="2">2 cm</option>
-                        <option value="5">5 cm</option>
-                        <option value="10">10 cm</option>
-                    </select>
-                </div>
-                
-                <!-- Direction buttons in cross layout -->
-                <div style="display: grid; grid-template-areas: '. up .' 'left middle right' '. down .'; grid-template-columns: 1fr 1fr 1fr; gap: 5px; max-width: 200px; margin: 0 auto;">
-                    <button class="btn btn-primary" style="grid-area: up;" onclick="cartesianMove('forward')" title="Move Forward in World Frame (+X away from base)">
-                        ↑
-                    </button>
-                    <button class="btn btn-primary" style="grid-area: left;" onclick="cartesianMove('left')" title="Move Left in World Frame (+Y)">
-                        ←
-                    </button>
-                    <button class="btn btn-info" style="grid-area: middle;" onclick="updateGripperPose()" title="Update Position">
-                        🔄
-                    </button>
-                    <button class="btn btn-primary" style="grid-area: right;" onclick="cartesianMove('right')" title="Move Right in World Frame (-Y)">
-                        →
-                    </button>
-                    <button class="btn btn-primary" style="grid-area: down;" onclick="cartesianMove('back')" title="Move Back in World Frame (-X toward base)">
-                        ↓
-                    </button>
-                </div>
-                
-                <!-- Up/Down controls -->
-                <div style="display: flex; gap: 10px; margin-top: 10px; justify-content: center;">
-                    <button class="btn btn-success" onclick="cartesianMove('up')" title="Move Up (+Z)">
-                        ⬆️ Up
-                    </button>
-                    <button class="btn btn-warning" onclick="cartesianMove('down')" title="Move Down (-Z)">
-                        ⬇️ Down
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Go to Position -->
-            <div style="border-top: 1px solid #ddd; padding-top: 15px;">
-                <div style="font-weight: bold; margin-bottom: 10px;">Go to World Position (cm):</div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
-                    <input type="number" id="target-x" placeholder="X (forward)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
-                    <input type="number" id="target-y" placeholder="Y (left)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
-                    <input type="number" id="target-z" placeholder="Z (up)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
-                </div>
-                <button class="btn btn-primary" onclick="moveToPosition()" style="width: 100%;">
-                    📍 Move to World Position
-                </button>
-            </div>
-        </div>
-        
-        <!-- Rotation Control (DISABLED - Under Development) -->
-        <div class="card" style="opacity: 0.5; pointer-events: none; position: relative;">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 10px; font-weight: bold; color: #666; z-index: 10;">
-                🚧 Under Development
-            </div>
-            <div class="card-header">
-                <span>🔄</span>
-                <h2 class="card-title">Gripper Rotation Control</h2>
-            </div>
-            
-            <!-- Rotation controls -->
-            <div style="margin-bottom: 15px;">
-                <div style="font-weight: bold; margin-bottom: 10px;">Rotate Gripper:</div>
-                
-                <!-- Angle selector -->
-                <div style="margin-bottom: 10px;">
-                    <label>Angle: </label>
-                    <select id="rotation-angle" style="padding: 5px; border-radius: 5px;">
-                        <option value="5">5°</option>
-                        <option value="10" selected>10°</option>
-                        <option value="15">15°</option>
-                        <option value="30">30°</option>
-                        <option value="45">45°</option>
-                        <option value="90">90°</option>
-                    </select>
-                </div>
-                
-                <!-- Wrist controls -->
-                <div style="margin-bottom: 10px;">
-                    <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Wrist Controls:</div>
-                    <div style="display: flex; gap: 5px; justify-content: center;">
-                        <button class="btn btn-info" onclick="rotateGripper('wrist_pitch', -1)" title="Wrist Pitch Down">
-                            ↓ Pitch
-                        </button>
-                        <button class="btn btn-info" onclick="rotateGripper('wrist_pitch', 1)" title="Wrist Pitch Up">
-                            ↑ Pitch
-                        </button>
-                        <button class="btn btn-warning" onclick="rotateGripper('wrist_roll', -1)" title="Wrist Roll Left">
-                            ↺ Roll
-                        </button>
-                        <button class="btn btn-warning" onclick="rotateGripper('wrist_roll', 1)" title="Wrist Roll Right">
-                            ↻ Roll
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Base rotation -->
-                <div>
-                    <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Base Rotation:</div>
-                    <div style="display: flex; gap: 5px; justify-content: center;">
-                        <button class="btn btn-success" onclick="rotateGripper('base', -1)" title="Rotate Base Left">
-                            ← Base Left
-                        </button>
-                        <button class="btn btn-success" onclick="rotateGripper('base', 1)" title="Rotate Base Right">
-                            Base Right →
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Orientation display -->
-            <div style="padding: 10px; background: var(--light); border-radius: 8px;">
-                <div style="font-size: 12px; color: #666;">Current Orientation (degrees):</div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">
-                    <div style="font-size: 11px;">Roll: <span id="orient-roll" style="font-weight: bold;">--</span></div>
-                    <div style="font-size: 11px;">Pitch: <span id="orient-pitch" style="font-weight: bold;">--</span></div>
-                    <div style="font-size: 11px;">Yaw: <span id="orient-yaw" style="font-weight: bold;">--</span></div>
-                </div>
-            </div>
-        </div>
     </div>
     
     <!-- Emergency Stop Button -->
@@ -1746,6 +1884,31 @@
             placeholder.style.display = 'none';
         }
         
+        // Poll joint states and update displays
+        function pollJointStates() {
+            // Try to fetch joint states even if not explicitly connected
+            fetch('/api/robot/joint_states')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.joint_states) {
+                        const states = data.joint_states;
+                        // Update joint display
+                        if (states['1'] !== undefined) document.getElementById('joint-0').textContent = states['1'].toFixed(3);
+                        if (states['2'] !== undefined) document.getElementById('joint-1').textContent = states['2'].toFixed(3);
+                        if (states['3'] !== undefined) document.getElementById('joint-2').textContent = states['3'].toFixed(3);
+                        if (states['4'] !== undefined) document.getElementById('joint-3').textContent = states['4'].toFixed(3);
+                        if (states['5'] !== undefined) document.getElementById('joint-4').textContent = states['5'].toFixed(3);
+                        if (states['6'] !== undefined) document.getElementById('joint-5').textContent = states['6'].toFixed(3);
+                        
+                        // Auto-update gripper pose using FK if we have valid joint data
+                        if (robotConnected) {
+                            updateGripperPose();
+                        }
+                    }
+                })
+                .catch(error => console.error('Error polling joint states:', error));
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             // Load saved home position
@@ -1790,6 +1953,13 @@
             
             // Start status updates
             setInterval(updateStatus, 1000);
+            // Start polling joint states every 500ms
+            setInterval(pollJointStates, 500);
+            
+            // Initial update of gripper pose
+            console.log('Starting joint state and gripper pose polling...');
+            pollJointStates();
+            updateGripperPose();
             refreshTrajectories();
         });
         
@@ -1816,8 +1986,8 @@
                             }
                         }
                         
-                        // Update gripper pose periodically (disabled for now)
-                        // updateGripperPose();
+                        // Update gripper pose when connected
+                        updateGripperPose();
                         
                         // Update motion indicator
                         isMoving = data.is_moving || false;
@@ -1900,6 +2070,13 @@
                 .then(data => {
                     showMessage(data.message, data.success ? 'success' : 'error');
                     updateStatus();
+                    if (data.success) {
+                        // Start updating gripper pose after connection
+                        setTimeout(() => {
+                            pollJointStates();
+                            updateGripperPose();
+                        }, 500);
+                    }
                 });
         }
         
@@ -2063,19 +2240,92 @@
                         document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
                         document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
                         
+                        // Update quaternion if available
+                        if (pose.quaternion) {
+                            document.getElementById('quat-w').textContent = pose.quaternion.w.toFixed(3);
+                            document.getElementById('quat-x').textContent = pose.quaternion.x.toFixed(3);
+                            document.getElementById('quat-y').textContent = pose.quaternion.y.toFixed(3);
+                            document.getElementById('quat-z').textContent = pose.quaternion.z.toFixed(3);
+                        } else {
+                            // Set default values if quaternion not available
+                            document.getElementById('quat-w').textContent = '1.000';
+                            document.getElementById('quat-x').textContent = '0.000';
+                            document.getElementById('quat-y').textContent = '0.000';
+                            document.getElementById('quat-z').textContent = '0.000';
+                        }
+                        
                         // Update orientation if available
                         if (pose.orientation) {
-                            document.getElementById('orient-roll').textContent = (pose.orientation.roll * 180 / Math.PI).toFixed(1);
-                            document.getElementById('orient-pitch').textContent = (pose.orientation.pitch * 180 / Math.PI).toFixed(1);
-                            document.getElementById('orient-yaw').textContent = (pose.orientation.yaw * 180 / Math.PI).toFixed(1);
+                            const roll = document.getElementById('orient-roll');
+                            const pitch = document.getElementById('orient-pitch');
+                            const yaw = document.getElementById('orient-yaw');
+                            if (roll) roll.textContent = pose.orientation.roll.toFixed(1);
+                            if (pitch) pitch.textContent = pose.orientation.pitch.toFixed(1);
+                            if (yaw) yaw.textContent = pose.orientation.yaw.toFixed(1);
                         }
+                    } else {
+                        console.log('Gripper pose update failed:', data.message);
                     }
+                })
+                .catch(error => {
+                    console.error('Error updating gripper pose:', error);
                 });
+        }
+        
+        // Apply IK joint solution to robot
+        function applyIKJoints() {
+            if (!window.lastIKSolution) {
+                showMessage('No IK solution available', 'error');
+                return;
+            }
+            
+            const joints = window.lastIKSolution;
+            
+            // Send command to set joint states
+            fetch('/api/set_joints', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    joints: {
+                        joint_1: joints[0],
+                        joint_2: joints[1],
+                        joint_3: joints[2],
+                        joint_4: joints[3],
+                        joint_5: joints[4]
+                    }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('IK joint states applied successfully', 'success');
+                    // Clear IK solution display
+                    document.getElementById('ik-result').style.display = 'none';
+                    document.getElementById('apply-ik-btn').disabled = true;
+                    window.lastIKSolution = null;
+                    
+                    // Update gripper pose display
+                    setTimeout(updateGripperPose, 500);
+                } else {
+                    showMessage(data.message || 'Failed to apply IK joints', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error applying IK joints: ' + error, 'error');
+            });
         }
         
         function rotateGripper(axis, direction) {
             const angle = parseFloat(document.getElementById('rotation-angle').value);
             const actualAngle = angle * direction;  // direction is 1 or -1
+            
+            if (isNaN(angle) || angle <= 0) {
+                showMessage('Invalid angle value', 'error');
+                return;
+            }
+            
+            // Show loading indicator
+            showMessage(`Rotating ${axis} by ${actualAngle}°...`, 'info');
             
             fetch('/api/rotate_gripper', {
                 method: 'POST',
@@ -2107,13 +2357,27 @@
                     if (data.motors_enabled !== undefined) {
                         motorsEnabled = data.motors_enabled;
                     }
+                    // Update full gripper pose after rotation
+                    setTimeout(updateGripperPose, 200);
                 }
                 setTimeout(updateStatus, 500);
+            })
+            .catch(error => {
+                showMessage('Error: ' + error, 'error');
+                console.error('Rotation error:', error);
             });
         }
         
         function cartesianMove(direction) {
             const distance = parseFloat(document.getElementById('move-distance').value);
+            
+            if (isNaN(distance) || distance <= 0) {
+                showMessage('Invalid distance value', 'error');
+                return;
+            }
+            
+            // Show loading indicator
+            showMessage(`Moving ${direction} ${distance}cm...`, 'info');
             
             fetch('/api/cartesian_move', {
                 method: 'POST',
@@ -2131,16 +2395,22 @@
                     // Update position display
                     if (data.new_pose) {
                         const pose = data.new_pose;
-                        document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
-                        document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
-                        document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                        document.getElementById('pos-x').textContent = (pose.position[0] * 100).toFixed(1);
+                        document.getElementById('pos-y').textContent = (pose.position[1] * 100).toFixed(1);
+                        document.getElementById('pos-z').textContent = (pose.position[2] * 100).toFixed(1);
                     }
+                    // Update full gripper pose with FK
+                    setTimeout(updateGripperPose, 200);
                     // Update motor state if it changed
                     if (data.motors_enabled !== undefined) {
                         motorsEnabled = data.motors_enabled;
                     }
                 }
                 setTimeout(updateStatus, 500);
+            })
+            .catch(error => {
+                showMessage('Error: ' + error, 'error');
+                console.error('Cartesian move error:', error);
             });
         }
         
@@ -2153,6 +2423,9 @@
                 showMessage('Please enter valid X, Y, Z coordinates', 'error');
                 return;
             }
+            
+            // Show loading indicator
+            showMessage(`Calculating IK for position (${x}, ${y}, ${z})cm...`, 'info');
             
             fetch('/api/move_to_position', {
                 method: 'POST',
@@ -2169,16 +2442,42 @@
                     // Update position display
                     if (data.pose) {
                         const pose = data.pose;
-                        document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
-                        document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
-                        document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                        // Handle both array and object formats
+                        if (Array.isArray(pose.position)) {
+                            document.getElementById('pos-x').textContent = (pose.position[0] * 100).toFixed(1);
+                            document.getElementById('pos-y').textContent = (pose.position[1] * 100).toFixed(1);
+                            document.getElementById('pos-z').textContent = (pose.position[2] * 100).toFixed(1);
+                        } else {
+                            document.getElementById('pos-x').textContent = (pose.position.x * 100).toFixed(1);
+                            document.getElementById('pos-y').textContent = (pose.position.y * 100).toFixed(1);
+                            document.getElementById('pos-z').textContent = (pose.position.z * 100).toFixed(1);
+                        }
                     }
+                    
+                    // Display IK solution
+                    if (data.joint_solution) {
+                        document.getElementById('ik-result').style.display = 'block';
+                        document.getElementById('ik-j1').textContent = data.joint_solution[0].toFixed(3);
+                        document.getElementById('ik-j2').textContent = data.joint_solution[1].toFixed(3);
+                        document.getElementById('ik-j3').textContent = data.joint_solution[2].toFixed(3);
+                        document.getElementById('ik-j4').textContent = data.joint_solution[3].toFixed(3);
+                        document.getElementById('ik-j5').textContent = data.joint_solution[4].toFixed(3);
+                        
+                        // Store IK solution for apply button
+                        window.lastIKSolution = data.joint_solution;
+                        document.getElementById('apply-ik-btn').disabled = false;
+                    }
+                    
                     // Update motor state if it changed
                     if (data.motors_enabled !== undefined) {
                         motorsEnabled = data.motors_enabled;
                     }
                 }
                 setTimeout(updateStatus, 500);
+            })
+            .catch(error => {
+                showMessage('Error: ' + error, 'error');
+                console.error('Move to position error:', error);
             });
         }
         
@@ -4679,6 +4978,325 @@
                 }
             } catch (error) {
                 console.error('Error fetching joint states:', error);
+            }
+        }
+
+        // Calibration functions
+        async function testCheckerboardPattern() {
+            try {
+                const response = await fetch('/api/calibration/test_checkerboard');
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage(data.message || 'Checkerboard test started', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to test checkerboard', 'error');
+                }
+            } catch (error) {
+                showMessage('Error testing checkerboard: ' + error.message, 'error');
+            }
+        }
+
+        async function startManualCalibration() {
+            try {
+                const response = await fetch('/api/calibration/manual/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Manual calibration started', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to start calibration', 'error');
+                }
+            } catch (error) {
+                showMessage('Error starting calibration: ' + error.message, 'error');
+            }
+        }
+
+        async function captureCalibrationSession() {
+            try {
+                const response = await fetch('/api/calibration/manual/capture_session', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration session captured', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to capture session', 'error');
+                }
+            } catch (error) {
+                showMessage('Error capturing session: ' + error.message, 'error');
+            }
+        }
+
+        async function openCameraView() {
+            try {
+                // Open camera stream in new window or modal
+                const streamWindow = window.open('/api/camera/stream', 'Camera View', 'width=800,height=600');
+                if (!streamWindow) {
+                    // If popup blocked, try fetching the stream
+                    const response = await fetch('/api/camera/stream');
+                    if (response.ok) {
+                        showMessage('Camera stream opened', 'success');
+                    } else {
+                        showMessage('Failed to open camera stream', 'error');
+                    }
+                }
+            } catch (error) {
+                showMessage('Error opening camera: ' + error.message, 'error');
+            }
+        }
+
+        async function startCalibration(mode = 'default') {
+            try {
+                const response = await fetch('/api/calibration/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mode: mode })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration started', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to start calibration', 'error');
+                }
+            } catch (error) {
+                showMessage('Error starting calibration: ' + error.message, 'error');
+            }
+        }
+
+        async function detectCalibrationPattern() {
+            try {
+                const response = await fetch('/api/calibration/detect_pattern', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage(`Pattern detected: ${data.pattern}`, 'success');
+                } else {
+                    showMessage('No pattern detected', 'warning');
+                }
+            } catch (error) {
+                showMessage('Error detecting pattern: ' + error.message, 'error');
+            }
+        }
+
+        async function captureCalibration() {
+            try {
+                const response = await fetch('/api/calibration/capture', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage(`Captured position ${data.captured}`, 'success');
+                } else {
+                    showMessage(data.message || 'Failed to capture', 'error');
+                }
+            } catch (error) {
+                showMessage('Error capturing: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteLastCalibration() {
+            try {
+                const response = await fetch('/api/calibration/delete_last', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Last capture deleted', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to delete', 'error');
+                }
+            } catch (error) {
+                showMessage('Error deleting: ' + error.message, 'error');
+            }
+        }
+
+        async function computeCalibration() {
+            try {
+                const response = await fetch('/api/calibration/compute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration computed successfully', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to compute', 'error');
+                }
+            } catch (error) {
+                showMessage('Error computing: ' + error.message, 'error');
+            }
+        }
+
+        async function saveCalibration(filename) {
+            try {
+                const response = await fetch('/api/calibration/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename: filename })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration saved', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to save', 'error');
+                }
+            } catch (error) {
+                showMessage('Error saving: ' + error.message, 'error');
+            }
+        }
+
+        async function listCalibrations() {
+            try {
+                const response = await fetch('/api/calibration/list');
+                const data = await response.json();
+                if (data.status === 'success') {
+                    return data.calibrations;
+                }
+                return [];
+            } catch (error) {
+                showMessage('Error listing calibrations: ' + error.message, 'error');
+                return [];
+            }
+        }
+
+        async function loadCalibration(calibrationId) {
+            try {
+                const response = await fetch(`/api/calibration/load/${calibrationId}`);
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration loaded', 'success');
+                    return data.calibration;
+                } else {
+                    showMessage(data.message || 'Failed to load', 'error');
+                }
+            } catch (error) {
+                showMessage('Error loading: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteCalibration(calibrationId) {
+            try {
+                const response = await fetch(`/api/calibration/delete/${calibrationId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration deleted', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to delete', 'error');
+                }
+            } catch (error) {
+                showMessage('Error deleting: ' + error.message, 'error');
+            }
+        }
+
+        async function stopCalibration() {
+            try {
+                const response = await fetch('/api/calibration/stop', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('Calibration stopped', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to stop', 'error');
+                }
+            } catch (error) {
+                showMessage('Error stopping: ' + error.message, 'error');
+            }
+        }
+
+        async function connectROS2() {
+            try {
+                const response = await fetch('/api/calibration/ros2/connect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('ROS2 connected', 'success');
+                } else {
+                    showMessage(data.message || 'Failed to connect ROS2', 'error');
+                }
+            } catch (error) {
+                showMessage('Error connecting ROS2: ' + error.message, 'error');
+            }
+        }
+
+        // Calibration Workflow Functions
+        async function startCalibrationWorkflow(type = 'eye-in-hand') {
+            try {
+                const response = await fetch('/api/calibration/workflow/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        type: type,
+                        pattern_size: [7, 4],  // Default pattern
+                        square_size: 25.0
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(`Started ${type} calibration workflow`, 'success');
+                    document.getElementById('calibration-status').innerHTML = 
+                        `<div style="color: green;">Active: ${type} calibration</div>`;
+                } else {
+                    showMessage(data.error || 'Failed to start workflow', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function captureCalibrationPoint() {
+            try {
+                const response = await fetch('/api/calibration/workflow/capture', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(`Captured point ${data.captures} at ${data.distance.toFixed(1)}mm`, 'success');
+                    document.getElementById('calibration-status').innerHTML = 
+                        `<div style="color: blue;">Captures: ${data.captures}</div>`;
+                } else {
+                    showMessage(data.error || 'Failed to capture', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function computeCalibrationWorkflow() {
+            try {
+                const response = await fetch('/api/calibration/workflow/compute', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(`Calibration computed! Saved to ${data.output_file}`, 'success');
+                    document.getElementById('calibration-status').innerHTML = 
+                        `<div style="color: green;">Completed: ${data.type} with ${data.captures} captures</div>`;
+                } else {
+                    showMessage(data.error || 'Failed to compute', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
             }
         }
     </script>
