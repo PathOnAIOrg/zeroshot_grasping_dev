@@ -1,0 +1,14 @@
+# Request
+sensor_msgs/Image rgb_image        # RGB image from camera
+sensor_msgs/Image depth_image      # Depth image from camera
+string grasp_instruction           # Text instruction for grasping (e.g., "grasp the red cube")
+bool save_visualization           # Whether to save visualization files
+---
+# Response
+bool success                       # Whether grasp detection was successful
+string message                    # Status message or error description
+geometry_msgs/Pose grasp_pose     # The detected grasp pose
+float64 grasp_depth               # Grasp depth
+float64 confidence_score          # Confidence score of the grasp
+string timestamp                  # Timestamp of the result
+string visualization_url          # URL to view visualization (if saved)
