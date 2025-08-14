@@ -1,0 +1,18 @@
+Selected Object/Object Part: [object:purple container]
+Cropping Box Coordinates: (150, 100, 400, 300)
+Objects and Their Properties:
+Object: Purple Container
+Grasping Score: 85
+Material Composition: 70
+Surface Texture: 30
+Stability Assessment: 90
+Centroid Coordinates: (275, 200)
+Preferred Grasping Location: 5
+
+Object: Blue Packet
+Grasping Score: 75
+Material Composition: 60
+Surface Texture: 20
+Stability Assessment: 80
+Centroid Coordinates: (375, 150)
+Preferred Grasping Location: 6
