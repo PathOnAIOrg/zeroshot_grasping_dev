@@ -21,9 +21,16 @@ except ImportError:
     sys.exit(1)
 
 # Add parent directory to path for robot imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'GraspingDemo'))
+grasping_demo_path = os.path.join(os.path.dirname(__file__), '..', '..', 'GraspingDemo')
+if os.path.exists(grasping_demo_path):
+    sys.path.insert(0, grasping_demo_path)
 
-from so101_grasp.robot.so101_client import SO101Client
+try:
+    from so101_grasp.robot.so101_client import SO101Client
+except ImportError:
+    # If SO101Client is not available, we can still use the calibrator for testing
+    SO101Client = None
+    print("Warning: SO101Client not available, robot functions will be disabled")
 
 
 class RealSenseCalibrator:
@@ -551,7 +558,9 @@ def main():
         if not args.no_robot:
             print(f"\n🤖 Connecting to robot on {args.port}...")
             try:
-                from so101_grasp.robot.so101_client import SO101Client
+                if SO101Client is None:
+                    raise ImportError("SO101Client not available")
+                # SO101Client already imported at top
                 # First check if robot needs calibration
                 print("Checking robot calibration...")
                 

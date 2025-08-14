@@ -18,9 +18,9 @@ cd web_control
 
 # Start the Flask application
 echo "Starting web interface..."
-echo "Open your browser to: http://localhost:5000"
+echo "Open your browser to: http://localhost:5001"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
-python app.py
+python app.py 5001

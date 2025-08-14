@@ -15,6 +15,7 @@ from datetime import datetime
 import sys
 import numpy as np
 import base64
+import io
 
 # Try to import cv2 for image handling
 try:
@@ -27,8 +28,38 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the improved main client with built-in reliability features
-from so101_grasp.robot.so101_client_raw_simple import SO101ClientRawSimple
-from so101_grasp.robot.so101_kinematics import SO101Kinematics
+try:
+    from so101_grasp.robot.so101_client_raw_simple import SO101ClientRawSimple
+    from so101_grasp.robot.so101_kinematics import SO101Kinematics
+    HAS_ROBOT = True
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"⚠️ Warning: Robot control modules not available: {e}")
+    SO101ClientRawSimple = None
+    SO101Kinematics = None
+    HAS_ROBOT = False
+    
+    # Create dummy kinematics class
+    class SO101Kinematics:
+        def __init__(self):
+            pass
+
+# Import hand-eye calibration modules
+handeye_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'handeye', 'handeye_calibration')
+sys.path.insert(0, handeye_path)
+print(f"Adding handeye path: {handeye_path}")
+
+try:
+    from handeye_manual_calibration import ManualHandEyeCalibrator
+    from handeye_manual_realsense import RealSenseCalibrator
+    from handeye_manual_realsense_stationary import StationaryRealSenseCalibrator
+    calibration_available = True
+    print("✅ Hand-eye calibration modules loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Warning: Hand-eye calibration modules not available: {e}")
+    calibration_available = False
+    ManualHandEyeCalibrator = None
+    RealSenseCalibrator = None
+    StationaryRealSenseCalibrator = None
 
 print("Using SO-101 client with enhanced reliability features")
 
@@ -60,6 +91,47 @@ webcam = None
 active_camera = None  # 'realsense', 'webcam', or None
 camera_streaming = False
 
+# Shared RealSense pipeline for all operations
+shared_realsense_pipeline = None
+shared_realsense_config = None
+shared_realsense_lock = threading.Lock()
+
+# Global calibration handler
+current_calibrator = None
+calibration_session = {}
+
+def get_shared_realsense():
+    """Get or create shared RealSense pipeline"""
+    global shared_realsense_pipeline, shared_realsense_config
+    
+    with shared_realsense_lock:
+        if shared_realsense_pipeline is None:
+            try:
+                import pyrealsense2 as rs
+                shared_realsense_pipeline = rs.pipeline()
+                shared_realsense_config = rs.config()
+                shared_realsense_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+                shared_realsense_config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+                shared_realsense_pipeline.start(shared_realsense_config)
+                print("✅ Shared RealSense pipeline initialized")
+            except Exception as e:
+                print(f"❌ Failed to initialize shared RealSense: {e}")
+                return None
+        return shared_realsense_pipeline
+
+def release_shared_realsense():
+    """Release shared RealSense pipeline"""
+    global shared_realsense_pipeline
+    
+    with shared_realsense_lock:
+        if shared_realsense_pipeline:
+            try:
+                shared_realsense_pipeline.stop()
+                print("✅ Shared RealSense pipeline released")
+            except:
+                pass
+            shared_realsense_pipeline = None
+
 # Trajectories directory
 TRAJ_DIR = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/trajectories"
 TRAJ_DIR.mkdir(exist_ok=True)
@@ -68,6 +140,11 @@ TRAJ_DIR.mkdir(exist_ok=True)
 def connect_robot():
     """Connect to robot"""
     global robot, current_status
+    
+    if not HAS_ROBOT or SO101ClientRawSimple is None:
+        current_status = "Robot control module not available"
+        return False
+        
     try:
         robot = SO101ClientRawSimple(port="/dev/ttyACM0")
         current_status = "Connected"
@@ -89,8 +166,18 @@ def disconnect_robot():
 
 @app.route('/')
 def index():
-    """Main page"""
+    """Main page - classic UI"""
     return render_template('index.html')
+
+@app.route('/modern')
+def modern():
+    """Modern UI version"""
+    return render_template('index_modern.html')
+
+@app.route('/unified')
+def unified():
+    """Unified UI with theme switching"""
+    return render_template('index_unified.html')
 
 
 @app.route('/camera')
@@ -149,6 +236,20 @@ def disconnect():
     return jsonify({'success': True, 'message': 'Disconnected from robot'})
 
 
+@app.route('/api/motor/status')
+def get_motor_status():
+    """Get current motor lock status"""
+    global motors_enabled, robot
+    
+    return jsonify({
+        'connected': robot is not None,
+        'motors_locked': motors_enabled,
+        'status': 'Locked' if motors_enabled else 'Unlocked (Manual Mode)',
+        'can_move': motors_enabled,
+        'timestamp': time.time()
+    })
+
+
 @app.route('/api/enable_torque', methods=['POST'])
 def enable_torque():
     """Enable all servos"""
@@ -162,7 +263,7 @@ def enable_torque():
             robot.enable_torque(i + 1, True)
             time.sleep(0.01)
         motors_enabled = True
-        return jsonify({'success': True, 'message': 'All servos enabled'})
+        return jsonify({'success': True, 'message': 'All servos enabled', 'motors_locked': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -180,7 +281,7 @@ def disable_torque():
             robot.enable_torque(i + 1, False)
             time.sleep(0.01)
         motors_enabled = False
-        return jsonify({'success': True, 'message': 'All servos disabled - move manually'})
+        return jsonify({'success': True, 'message': 'All servos disabled - move manually', 'motors_locked': False})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -557,7 +658,7 @@ def delete_trajectory():
 
 @app.route('/api/gripper_pose')
 def get_gripper_pose():
-    """Get current gripper pose in cartesian coordinates"""
+    """Get current gripper pose in cartesian coordinates using forward kinematics"""
     if not robot:
         return jsonify({'success': False, 'message': 'Robot not connected'})
     
@@ -565,12 +666,43 @@ def get_gripper_pose():
         # Read current joint positions
         joints = robot.read_joints(validate=False)
         
-        # Calculate gripper pose
-        pose = kinematics.get_gripper_pose(joints)
+        # Calculate gripper pose using forward kinematics
+        position, orientation = kinematics.forward_kinematics(joints)
+        
+        # Convert orientation matrix to Euler angles and quaternion for display
+        from scipy.spatial.transform import Rotation
+        r = Rotation.from_matrix(orientation)
+        euler_angles = r.as_euler('xyz', degrees=True)
+        quaternion = r.as_quat()  # Returns [x, y, z, w]
+        
+        pose = {
+            'position': {
+                'x': float(position[0]),
+                'y': float(position[1]),
+                'z': float(position[2])
+            },
+            'orientation': {
+                'roll': float(euler_angles[0]),
+                'pitch': float(euler_angles[1]),
+                'yaw': float(euler_angles[2])
+            },
+            'quaternion': {
+                'w': float(quaternion[3]),
+                'x': float(quaternion[0]),
+                'y': float(quaternion[1]),
+                'z': float(quaternion[2])
+            },
+            'position_mm': {
+                'x': float(position[0] * 1000),
+                'y': float(position[1] * 1000),
+                'z': float(position[2] * 1000)
+            }
+        }
         
         return jsonify({
             'success': True,
-            'pose': pose
+            'pose': pose,
+            'joints': joints
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -578,7 +710,7 @@ def get_gripper_pose():
 
 @app.route('/api/cartesian_move', methods=['POST'])
 def cartesian_move():
-    """Move gripper in cartesian space"""
+    """Move gripper in cartesian space using forward/inverse kinematics"""
     global is_moving, motors_enabled
     
     if not robot:
@@ -612,8 +744,28 @@ def cartesian_move():
         # Get current joint positions
         current_joints = robot.read_joints()
         
-        # Calculate new joint positions for cartesian move
-        new_joints = kinematics.cartesian_move(current_joints, direction, distance)
+        # Calculate current end-effector position using forward kinematics
+        current_pos, current_rot = kinematics.forward_kinematics(current_joints)
+        
+        # Calculate target position based on direction
+        target_pos = current_pos.copy()
+        if direction in ['forward', 'x+']:
+            target_pos[0] += distance
+        elif direction in ['backward', 'back', 'x-']:
+            target_pos[0] -= distance
+        elif direction in ['left', 'y-']:
+            target_pos[1] -= distance  # Left is -Y in robot frame
+        elif direction in ['right', 'y+']:
+            target_pos[1] += distance  # Right is +Y in robot frame
+        elif direction in ['up', 'z+']:
+            target_pos[2] += distance
+        elif direction in ['down', 'z-']:
+            target_pos[2] -= distance
+        else:
+            return jsonify({'success': False, 'message': f'Unknown direction: {direction}'})
+        
+        # Calculate new joint positions using inverse kinematics
+        new_joints = kinematics.inverse_kinematics(target_pos, current_joints, current_rot)
         
         if new_joints is None:
             return jsonify({'success': False, 'message': 'Target position unreachable'})
@@ -621,16 +773,19 @@ def cartesian_move():
         # Set moving flag
         is_moving = True
         try:
-            # Move to new position
-            robot.interpolate_waypoint(current_joints, new_joints, steps=30, timestep=0.02)
+            # Move to new position smoothly
+            robot.interpolate_waypoint(current_joints, new_joints, steps=50, timestep=0.02)
             
             # Get new gripper pose
-            new_pose = kinematics.get_gripper_pose(new_joints)
+            new_pos, new_rot = kinematics.forward_kinematics(new_joints)
             
             return jsonify({
                 'success': True,
                 'message': f'Moved {direction} {distance*1000:.1f}mm',
-                'new_pose': new_pose,
+                'new_pose': {
+                    'position': new_pos.tolist(),
+                    'joints': new_joints
+                },
                 'motors_enabled': motors_enabled
             })
         finally:
@@ -676,12 +831,50 @@ def rotate_gripper():
         
         # Get current joint positions
         current_joints = robot.read_joints()
+        new_joints = list(current_joints)  # Make a copy
         
-        # Calculate new joint positions for rotation
-        new_joints = kinematics.rotate_gripper(current_joints, axis, angle_rad)
-        
-        if new_joints is None:
-            return jsonify({'success': False, 'message': 'Rotation unreachable'})
+        # Handle specific joint rotations
+        if axis == 'base':
+            # Rotate joint 1 (base rotation)
+            new_joints[0] += angle_rad
+            # Clamp to joint limits
+            new_joints[0] = max(-1.92, min(1.92, new_joints[0]))
+            
+        elif axis == 'wrist_pitch':
+            # Rotate joint 4 (wrist pitch)
+            new_joints[3] += angle_rad
+            # Clamp to joint limits
+            new_joints[3] = max(-1.66, min(1.66, new_joints[3]))
+            
+        elif axis == 'wrist_roll':
+            # Rotate joint 5 (wrist roll)
+            new_joints[4] += angle_rad
+            # Clamp to joint limits
+            new_joints[4] = max(-2.79, min(2.79, new_joints[4]))
+            
+        elif axis in ['x', 'roll', 'y', 'pitch', 'z', 'yaw']:
+            # Use IK for end-effector rotations
+            current_pos, current_rot = kinematics.forward_kinematics(current_joints)
+            
+            # Create rotation matrix for the desired rotation
+            from scipy.spatial.transform import Rotation
+            if axis in ['x', 'roll']:
+                rot_matrix = Rotation.from_euler('x', angle_rad).as_matrix()
+            elif axis in ['y', 'pitch']:
+                rot_matrix = Rotation.from_euler('y', angle_rad).as_matrix()
+            elif axis in ['z', 'yaw']:
+                rot_matrix = Rotation.from_euler('z', angle_rad).as_matrix()
+            
+            # Apply rotation to current orientation
+            new_orientation = current_rot @ rot_matrix
+            
+            # Calculate new joint positions using IK with new orientation
+            ik_solution = kinematics.inverse_kinematics(current_pos, current_joints, new_orientation)
+            if ik_solution is None:
+                return jsonify({'success': False, 'message': 'Rotation unreachable'})
+            new_joints = ik_solution
+        else:
+            return jsonify({'success': False, 'message': f'Unknown axis: {axis}'})
         
         # Set moving flag
         is_moving = True
@@ -689,8 +882,30 @@ def rotate_gripper():
             # Move to new position
             robot.interpolate_waypoint(current_joints, new_joints, steps=20, timestep=0.02)
             
-            # Get new gripper pose
-            new_pose = kinematics.get_gripper_pose(new_joints)
+            # Get new gripper pose using forward kinematics
+            new_pos, new_rot = kinematics.forward_kinematics(new_joints)
+            
+            # Convert to pose format
+            r = Rotation.from_matrix(new_rot)
+            euler_angles = r.as_euler('xyz', degrees=False)  # Return in radians
+            
+            new_pose = {
+                'position': {
+                    'x': float(new_pos[0]),
+                    'y': float(new_pos[1]),
+                    'z': float(new_pos[2])
+                },
+                'orientation': {
+                    'roll': float(euler_angles[0]),
+                    'pitch': float(euler_angles[1]),
+                    'yaw': float(euler_angles[2])
+                },
+                'position_mm': {
+                    'x': float(new_pos[0] * 1000),
+                    'y': float(new_pos[1] * 1000),
+                    'z': float(new_pos[2] * 1000)
+                }
+            }
             
             return jsonify({
                 'success': True,
@@ -708,7 +923,7 @@ def rotate_gripper():
 
 @app.route('/api/move_to_position', methods=['POST'])
 def move_to_position():
-    """Move gripper to specific cartesian position"""
+    """Move gripper to specific cartesian position using inverse kinematics"""
     global is_moving, motors_enabled
     
     if not robot:
@@ -746,8 +961,11 @@ def move_to_position():
         # Get current joints
         current_joints = robot.read_joints()
         
+        # Get current orientation (optional, to maintain it)
+        _, current_orientation = kinematics.forward_kinematics(current_joints)
+        
         # Calculate IK solution
-        new_joints = kinematics.inverse_kinematics(target_pos, current_joints)
+        new_joints = kinematics.inverse_kinematics(target_pos, current_joints, current_orientation)
         
         if new_joints is None:
             return jsonify({'success': False, 'message': 'Target position unreachable'})
@@ -758,13 +976,25 @@ def move_to_position():
             # Move to target
             robot.interpolate_waypoint(current_joints, new_joints, steps=50, timestep=0.02)
             
-            # Get actual pose
-            final_pose = kinematics.get_gripper_pose(new_joints)
+            # Get actual pose using forward kinematics
+            final_pos, final_rot = kinematics.forward_kinematics(new_joints)
+            
+            # Convert to pose format
+            from scipy.spatial.transform import Rotation
+            r = Rotation.from_matrix(final_rot)
+            euler_angles = r.as_euler('xyz', degrees=True)
+            
+            final_pose = {
+                'position': final_pos.tolist(),
+                'orientation': euler_angles.tolist(),
+                'position_mm': (final_pos * 1000).tolist()
+            }
             
             return jsonify({
                 'success': True,
                 'message': f'Moved to position',
                 'pose': final_pose,
+                'joint_solution': new_joints[:5],  # Return first 5 joints for IK display
                 'motors_enabled': motors_enabled
             })
         finally:
@@ -838,6 +1068,30 @@ def disconnect_camera():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+
+@app.route('/api/camera/shared_status')
+def shared_camera_status():
+    """Get shared RealSense camera status"""
+    global shared_realsense_pipeline
+    
+    return jsonify({
+        'connected': shared_realsense_pipeline is not None,
+        'type': 'RealSense (Shared)',
+        'info': {
+            'resolution': '640x480',
+            'fps': 30,
+            'streams': ['color', 'depth']
+        } if shared_realsense_pipeline else None
+    })
+
+@app.route('/api/camera/shared_connect', methods=['POST'])
+def shared_camera_connect():
+    """Initialize shared RealSense camera"""
+    pipeline = get_shared_realsense()
+    if pipeline:
+        return jsonify({'success': True, 'message': 'Shared camera initialized'})
+    else:
+        return jsonify({'success': False, 'message': 'Failed to initialize shared camera'})
 
 @app.route('/api/camera/status')
 def camera_status():
@@ -1905,6 +2159,67 @@ def get_coordinate_visualization():
     return jsonify(viz_data)
 
 
+@app.route('/api/set_joints', methods=['POST'])
+def set_joints():
+    """Set robot joint positions from IK solution"""
+    global robot, is_moving, motors_enabled
+    
+    if not robot:
+        return jsonify({'success': False, 'message': 'Robot not connected'})
+    
+    if is_moving:
+        return jsonify({'success': False, 'message': 'Robot is already moving'})
+    
+    data = request.get_json() or {}
+    joints_dict = data.get('joints', {})
+    
+    # Convert dictionary to array
+    target_joints = [
+        joints_dict.get('joint_1', 0),
+        joints_dict.get('joint_2', 0),
+        joints_dict.get('joint_3', 0),
+        joints_dict.get('joint_4', 0),
+        joints_dict.get('joint_5', 0),
+        robot.read_joints()[5] if robot else 0  # Keep current gripper position
+    ]
+    
+    try:
+        # Enable motors if not already enabled
+        if not motors_enabled:
+            for i in range(6):
+                robot.enable_torque(i + 1, True)
+                time.sleep(0.01)
+            motors_enabled = True
+            time.sleep(0.1)
+        
+        # Get current positions
+        current_joints = robot.read_joints()
+        
+        # Set moving flag
+        is_moving = True
+        
+        try:
+            # Move to target positions
+            robot.interpolate_waypoint(current_joints, target_joints, steps=50, timestep=0.02)
+            
+            # Read final position
+            final_joints = robot.read_joints()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Applied IK joint states successfully',
+                'final_joints': final_joints,
+                'motors_enabled': motors_enabled
+            })
+            
+        finally:
+            is_moving = False
+            
+    except Exception as e:
+        is_moving = False
+        return jsonify({'success': False, 'message': str(e)})
+
+
 @app.route('/api/robot/move_joints', methods=['POST'])
 def move_robot_joints():
     """Move robot to specific joint positions"""
@@ -2267,7 +2582,7 @@ def serve_mesh(filename):
     return send_from_directory(mesh_dir, filename)
 
 
-def transform_camera_to_world(position_camera, camera_intrinsics, depth_array, depth_scale):
+def transform_camera_to_world(position_camera, camera_intrinsics, depth_array, depth_scale, robot_transform=None):
     """
     Transform position from camera coordinates to world coordinates.
     
@@ -2276,6 +2591,7 @@ def transform_camera_to_world(position_camera, camera_intrinsics, depth_array, d
         camera_intrinsics: Camera intrinsic parameters (not used in simple transform)
         depth_array: Depth image array (not used in simple transform)
         depth_scale: Scale factor to convert depth units to meters
+        robot_transform: Not used - grasp stays in world coordinates
     
     Returns:
         Position in world coordinates [x, y, z] in meters
@@ -2293,38 +2609,48 @@ def transform_camera_to_world(position_camera, camera_intrinsics, depth_array, d
     y_world = -x_cam  # Left in world is negative right in camera  
     z_world = -y_cam  # Up in world is negative down in camera
     
-    # Apply any additional camera mounting offsets if needed
-    # These would come from hand-eye calibration
-    # For now, using default offsets
-    camera_offset_x = 0.0  # meters
-    camera_offset_y = 0.0  # meters
-    camera_offset_z = 0.3  # Camera mounted 30cm above robot base
-    
-    x_world += camera_offset_x
-    y_world += camera_offset_y
-    z_world += camera_offset_z
+    # NOTE: We do NOT apply robot transform here
+    # The grasp pose should be in world/camera coordinates
+    # The robot transform is only for visualizing where the robot is relative to the camera
     
     return np.array([x_world, y_world, z_world])
 
 
-def calculate_grasp_joint_states(xyz, rot_matrix):
-    """Calculate robot joint states for a given grasp pose using inverse kinematics"""
+def calculate_grasp_joint_states(xyz, rot_matrix, robot_transform=None):
+    """Calculate robot joint states for a given grasp pose using inverse kinematics
+    
+    Args:
+        xyz: Grasp position in world/camera coordinates (mm)
+        rot_matrix: 3x3 rotation matrix for grasp orientation
+        robot_transform: Robot base transform relative to camera
+    """
     global robot
     
     try:
         # Initialize kinematics if available
         kinematics = SO101Kinematics()
         
-        # Convert grasp pose from camera frame to robot base frame
-        # This requires the hand-eye calibration transform
-        # For now, we'll use approximate values
-        
         # Convert position from mm to meters
-        position = np.array(xyz) / 1000.0
+        grasp_position_world = np.array(xyz) / 1000.0
         
-        # Adjust for camera to robot transform (approximate)
-        # This should use actual calibration data
-        robot_position = position + np.array([0.1, 0, 0.2])  # Offset from camera to robot base
+        # Apply robot transform to get grasp position relative to robot base
+        if robot_transform:
+            # Robot transform contains position offset of robot base from camera origin
+            robot_base_offset = np.array([
+                robot_transform.get('position', {}).get('x', 0) / 1000.0,  # mm to m
+                robot_transform.get('position', {}).get('y', 0) / 1000.0,
+                robot_transform.get('position', {}).get('z', 0) / 1000.0
+            ])
+            
+            # TODO: Also apply rotation transform if robot base is rotated
+            # For now, just subtract the robot base position to get grasp relative to robot
+            grasp_position_robot = grasp_position_world - robot_base_offset
+        else:
+            # No transform provided, assume robot at origin
+            grasp_position_robot = grasp_position_world
+        
+        # Use the robot-relative position for IK
+        robot_position = grasp_position_robot
         
         # Convert rotation matrix to quaternion or euler angles
         from scipy.spatial.transform import Rotation
@@ -2388,6 +2714,8 @@ def detect_grasp_pose():
         data = request.get_json() or {}
         capture_name = data.get('capture_name')
         grasp_text = data.get('grasp_text', 'pick up the object')
+        # Get robot transform for IK calculation (not for grasp detection)
+        robot_transform = data.get('robot_transform', None)
         
         if not capture_name:
             return jsonify({'success': False, 'message': 'No capture name provided'})
@@ -2459,11 +2787,11 @@ def detect_grasp_pose():
                     y_world = -x_cam  # Left in world is negative right in camera
                     z_world = -y_cam  # Up in world is negative down in camera
                     
-                    # Add camera mounting offset (camera position relative to robot base)
-                    # These values should be calibrated for your specific setup
-                    camera_offset_x = 0.0  # meters
-                    camera_offset_y = 0.0  # meters  
-                    camera_offset_z = 0.3  # Camera mounted 30cm above robot base
+                    # Grasp pose is in camera/world coordinates
+                    # No transform needed - grasp shows where object is in real world
+                    camera_offset_x = 0.0
+                    camera_offset_y = 0.0
+                    camera_offset_z = 0.0
                     
                     x_world += camera_offset_x
                     y_world += camera_offset_y
@@ -2473,7 +2801,8 @@ def detect_grasp_pose():
                     xyz_world = [x_world * 1000, y_world * 1000, z_world * 1000]
                     
                     # Calculate joint states using inverse kinematics
-                    joint_states = calculate_grasp_joint_states(xyz_world, rot)
+                    # Pass robot transform so IK knows where robot base is
+                    joint_states = calculate_grasp_joint_states(xyz_world, rot, robot_transform)
                     
                     return jsonify({
                         'success': True,
@@ -2791,6 +3120,1046 @@ def pixel_to_3d():
             'units': 'meters'
         }
     })
+
+
+# ============================================
+# Hand-Eye Calibration API Routes
+# ============================================
+
+@app.route('/api/calibration/start', methods=['POST'])
+def start_calibration():
+    """Start hand-eye calibration session using shared RealSense"""
+    global current_calibrator, calibration_session
+    
+    if not calibration_available:
+        return jsonify({'success': False, 'error': 'Calibration modules not available'})
+    
+    data = request.get_json() or {}
+    mode = data.get('mode', 'eye-in-hand')
+    pattern = data.get('pattern', '7x4')
+    square_size = float(data.get('square_size', 25.0))
+    
+    # Parse pattern
+    try:
+        cols, rows = map(int, pattern.split('x'))
+        checkerboard_size = (cols, rows)
+    except:
+        return jsonify({'success': False, 'error': 'Invalid pattern format'})
+    
+    # Create appropriate calibrator
+    try:
+        if mode == 'eye-in-hand':
+            if RealSenseCalibrator is None:
+                return jsonify({'success': False, 'error': 'RealSenseCalibrator not available'})
+            current_calibrator = RealSenseCalibrator(
+                checkerboard_size=checkerboard_size,
+                square_size=square_size
+            )
+        else:
+            if StationaryRealSenseCalibrator is None:
+                return jsonify({'success': False, 'error': 'StationaryRealSenseCalibrator not available'})
+            current_calibrator = StationaryRealSenseCalibrator(
+                checkerboard_size=checkerboard_size,
+                square_size=square_size
+            )
+        
+        # Use shared RealSense pipeline instead of initializing new one
+        pipeline = get_shared_realsense()
+        if pipeline is None:
+            return jsonify({'success': False, 'error': 'Failed to access camera. Please ensure RealSense is connected.'})
+        
+        # Override calibrator's pipeline with shared one
+        current_calibrator.pipeline = pipeline
+        current_calibrator.camera_matrix = None  # Will be set from intrinsics
+        current_calibrator.dist_coeffs = np.zeros(5)  # Default distortion
+        
+        # Get camera intrinsics from shared pipeline
+        try:
+            import pyrealsense2 as rs
+            profile = pipeline.get_active_profile()
+            color_stream = profile.get_stream(rs.stream.color)
+            intrinsics = color_stream.as_video_stream_profile().get_intrinsics()
+            
+            # Convert to OpenCV format
+            current_calibrator.camera_matrix = np.array([
+                [intrinsics.fx, 0, intrinsics.ppx],
+                [0, intrinsics.fy, intrinsics.ppy],
+                [0, 0, 1]
+            ])
+            current_calibrator.dist_coeffs = np.array(intrinsics.coeffs)
+        except Exception as e:
+            print(f"Warning: Could not get camera intrinsics: {e}")
+            # Use default values
+            current_calibrator.camera_matrix = np.array([
+                [600, 0, 320],
+                [0, 600, 240],
+                [0, 0, 1]
+            ])
+        
+        # Load camera calibration if available (will override intrinsics)
+        current_calibrator.load_camera_calibration('calibration_data.npz')
+        
+        # Initialize session
+        calibration_session = {
+            'mode': mode,
+            'pattern': pattern,
+            'captures': 0,
+            'active': True
+        }
+        
+        return jsonify({'success': True, 'mode': mode})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/detect_pattern', methods=['POST'])
+def detect_pattern():
+    """Auto-detect checkerboard pattern size using shared RealSense"""
+    
+    # Patterns to test (from test_checkerboard_detection.py)
+    patterns_to_try = [
+        (7, 4), (4, 7),  # Common pattern
+        (9, 6), (6, 9),  # Standard OpenCV calibration pattern
+        (8, 6), (6, 8),  # Another common pattern
+        (7, 5), (5, 7),  
+        (7, 6), (6, 7),  
+        (6, 4), (4, 6),  
+        (5, 4), (4, 5),  
+        (8, 5), (5, 8),  
+        (10, 7), (7, 10),  # Larger patterns
+        (11, 8), (8, 11),
+        (12, 9), (9, 12),
+        (13, 9), (9, 13),
+    ]
+    
+    detected_patterns = []
+    
+    try:
+        # Use shared RealSense pipeline
+        pipeline = get_shared_realsense()
+        if pipeline is None:
+            return jsonify({'success': False, 'error': 'Failed to access camera. Please ensure RealSense is connected.'})
+        
+        # Try multiple frames
+        with shared_realsense_lock:
+            for _ in range(10):
+                try:
+                    frames = pipeline.wait_for_frames(timeout_ms=1000)
+                    color_frame = frames.get_color_frame()
+                    if not color_frame:
+                        continue
+                    
+                    frame = np.asanyarray(color_frame.get_data())
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    
+                    # Try each pattern
+                    for pattern in patterns_to_try:
+                        ret, corners = cv2.findChessboardCorners(gray, pattern, None)
+                        if ret and pattern not in detected_patterns:
+                            detected_patterns.append(pattern)
+                            print(f"Detected pattern: {pattern}")
+                except Exception as e:
+                    print(f"Frame capture error: {e}")
+                    continue
+        
+        if detected_patterns:
+            # Return the first detected pattern (most likely)
+            pattern = detected_patterns[0]
+            return jsonify({
+                'success': True, 
+                'pattern': f"{pattern[0]}x{pattern[1]}",
+                'all_patterns': [f"{p[0]}x{p[1]}" for p in detected_patterns],
+                'message': f'Detected {len(detected_patterns)} pattern(s)'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No checkerboard pattern detected. Please ensure checkerboard is visible to camera.'
+            })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/detect_frame', methods=['GET'])
+def detect_frame():
+    """Get camera frame with pattern detection overlay for preview"""
+    
+    # Get pattern size from query params
+    pattern_str = request.args.get('pattern', '9x6')
+    try:
+        parts = pattern_str.split('x')
+        pattern_size = (int(parts[0]), int(parts[1]))
+    except:
+        pattern_size = (9, 6)  # Default
+    
+    try:
+        # Use shared RealSense pipeline
+        pipeline = get_shared_realsense()
+        if pipeline is None:
+            return jsonify({'success': False, 'error': 'Camera not available'})
+        
+        with shared_realsense_lock:
+            frames = pipeline.wait_for_frames(timeout_ms=1000)
+            color_frame = frames.get_color_frame()
+            if not color_frame:
+                return jsonify({'success': False, 'error': 'Failed to get frame'})
+            
+            frame = np.asanyarray(color_frame.get_data())
+            display_frame = frame.copy()
+            
+            # Convert to grayscale for detection
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # Try to detect checkerboard
+            ret, corners = cv2.findChessboardCorners(gray, pattern_size, None)
+            
+            if ret:
+                # Draw the detected corners
+                cv2.drawChessboardCorners(display_frame, pattern_size, corners, ret)
+                
+                # Add status text
+                text = f"DETECTED: {pattern_size[0]}x{pattern_size[1]} corners"
+                cv2.putText(display_frame, text, (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            else:
+                # Add status text
+                text = f"Searching for {pattern_size[0]}x{pattern_size[1]} pattern..."
+                cv2.putText(display_frame, text, (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            
+            # Convert to JPEG
+            _, buffer = cv2.imencode('.jpg', display_frame)
+            jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+            
+            return jsonify({
+                'success': True, 
+                'image': jpg_as_text,
+                'detected': ret,
+                'pattern': pattern_str
+            })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/detect', methods=['GET'])
+def detect_checkerboard():
+    """Detect checkerboard in current frame using shared pipeline"""
+    global current_calibrator
+    
+    if not current_calibrator:
+        return jsonify({'success': False, 'error': 'No calibration session'})
+    
+    try:
+        # Get frame from shared RealSense pipeline
+        pipeline = get_shared_realsense()
+        if pipeline is None:
+            return jsonify({'success': False, 'error': 'Camera not available'})
+        
+        with shared_realsense_lock:
+            frames = pipeline.wait_for_frames(timeout_ms=1000)
+            color_frame = frames.get_color_frame()
+            if not color_frame:
+                return jsonify({'success': False, 'error': 'Failed to get frame'})
+            
+            frame = np.asanyarray(color_frame.get_data())
+        
+        # Detect checkerboard
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        ret_corners, corners = cv2.findChessboardCorners(
+            gray, current_calibrator.checkerboard_size, None
+        )
+        
+        detected = False
+        distance = None
+        
+        if ret_corners:
+            # Refine corners
+            corners = cv2.cornerSubPix(
+                gray, corners, (11, 11), (-1, -1), current_calibrator.criteria
+            )
+            
+            # Solve PnP to get distance
+            ret_pnp, rvec, tvec = cv2.solvePnP(
+                current_calibrator.objp, corners, 
+                current_calibrator.camera_matrix, 
+                current_calibrator.dist_coeffs
+            )
+            
+            if ret_pnp:
+                detected = True
+                distance = float(tvec[2, 0])  # Distance in mm
+                
+                # Store temporarily for capture
+                current_calibrator.temp_rvec = rvec
+                current_calibrator.temp_tvec = tvec
+                
+                # Draw checkerboard
+                cv2.drawChessboardCorners(frame, current_calibrator.checkerboard_size, corners, True)
+        
+        # Get robot joints
+        robot_joints = [0, 0, 0, 0, 0, 0]
+        if robot:
+            try:
+                positions = robot.read_position()
+                if positions:
+                    robot_joints = positions[:6]
+            except:
+                pass
+        
+        # Encode image
+        _, buffer = cv2.imencode('.jpg', frame)
+        img_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        return jsonify({
+            'success': True,
+            'detected': detected,
+            'image': img_base64,
+            'distance': distance,
+            'robot_joints': robot_joints,
+            'pattern': f"{current_calibrator.checkerboard_size[0]}x{current_calibrator.checkerboard_size[1]}"
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/capture', methods=['POST'])
+def capture_calibration_point():
+    """Capture calibration data point"""
+    global current_calibrator, calibration_session
+    
+    if not current_calibrator:
+        return jsonify({'success': False, 'error': 'No calibration session'})
+    
+    try:
+        # Check if we have a valid detection
+        if not hasattr(current_calibrator, 'temp_rvec'):
+            return jsonify({'success': False, 'error': 'No checkerboard detected'})
+        
+        # Get robot joints
+        robot_joints = [0, 0, 0, 0, 0, 0]
+        if robot:
+            try:
+                positions = robot.read_position()
+                if positions:
+                    robot_joints = positions[:6]
+            except:
+                pass
+        
+        # Store calibration data
+        robot_pose = current_calibrator.joints_to_pose_matrix(robot_joints)
+        current_calibrator.robot_poses.append(robot_pose)
+        current_calibrator.rvecs.append(current_calibrator.temp_rvec)
+        current_calibrator.tvecs.append(current_calibrator.temp_tvec)
+        current_calibrator.robot_joints_history.append(list(robot_joints))
+        
+        # Clear temp data
+        delattr(current_calibrator, 'temp_rvec')
+        delattr(current_calibrator, 'temp_tvec')
+        
+        calibration_session['captures'] = len(current_calibrator.robot_poses)
+        
+        return jsonify({
+            'success': True,
+            'captured_count': len(current_calibrator.robot_poses),
+            'joints': robot_joints
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/delete_last', methods=['POST'])
+def delete_last_capture():
+    """Delete last captured calibration point"""
+    global current_calibrator, calibration_session
+    
+    if not current_calibrator:
+        return jsonify({'success': False, 'error': 'No calibration session'})
+    
+    try:
+        if len(current_calibrator.robot_poses) > 0:
+            current_calibrator.robot_poses.pop()
+            current_calibrator.rvecs.pop()
+            current_calibrator.tvecs.pop()
+            current_calibrator.robot_joints_history.pop()
+            calibration_session['captures'] = len(current_calibrator.robot_poses)
+        
+        return jsonify({
+            'success': True,
+            'captured_count': len(current_calibrator.robot_poses)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/compute', methods=['POST'])
+def compute_calibration():
+    """Compute hand-eye calibration"""
+    global current_calibrator, calibration_session
+    
+    if not current_calibrator:
+        return jsonify({'success': False, 'error': 'No calibration session'})
+    
+    if len(current_calibrator.robot_poses) < 3:
+        return jsonify({'success': False, 'error': 'Need at least 3 positions'})
+    
+    try:
+        # Use the same computation as original
+        if isinstance(current_calibrator, StationaryRealSenseCalibrator):
+            T_cam2base, T_base2cam = current_calibrator.compute_hand_eye_calibration()
+            
+            # Save using original method
+            output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'handeye', 'output')
+            os.makedirs(output_dir, exist_ok=True)
+            output_file = os.path.join(output_dir, 'handeye_realsense_stationary.npz')
+            
+            current_calibrator.save_calibration(T_cam2base, T_base2cam, output_file)
+            
+            result = {
+                'camera_to_base': T_cam2base.tolist(),
+                'base_to_camera': T_base2cam.tolist(),
+                'type': 'eye_to_hand'
+            }
+        else:
+            T_cam2gripper = current_calibrator.compute_hand_eye_calibration()
+            
+            # Save using original method
+            output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'handeye', 'output')
+            os.makedirs(output_dir, exist_ok=True)
+            output_file = os.path.join(output_dir, 'handeye_realsense.npz')
+            
+            current_calibrator.save_calibration(T_cam2gripper, output_file)
+            
+            result = {
+                'transformation_matrix': T_cam2gripper.tolist(),
+                'type': 'camera_to_gripper'
+            }
+        
+        return jsonify({'success': True, 'result': result})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/save', methods=['POST'])
+def save_calibration():
+    """Save calibration results"""
+    # Already saved in compute_calibration
+    return jsonify({'success': True, 'message': 'Calibration saved'})
+
+
+@app.route('/api/calibration/list', methods=['GET'])
+def list_calibrations():
+    """List saved calibrations"""
+    try:
+        output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'handeye', 'output')
+        calibrations = []
+        
+        if os.path.exists(output_dir):
+            for file in os.listdir(output_dir):
+                if file.endswith('.json'):
+                    filepath = os.path.join(output_dir, file)
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        calibrations.append({
+                            'id': file.replace('.json', ''),
+                            'name': file,
+                            'mode': 'eye-to-hand' if 'stationary' in file else 'eye-in-hand',
+                            'timestamp': data.get('timestamp', '')
+                        })
+        
+        return jsonify(calibrations)
+        
+    except Exception as e:
+        return jsonify([])
+
+
+@app.route('/api/calibration/load/<calibration_id>')
+def load_calibration(calibration_id):
+    """Load a saved calibration"""
+    try:
+        output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'handeye', 'output')
+        
+        # Try to load npz file
+        npz_file = os.path.join(output_dir, f"{calibration_id}.npz")
+        json_file = os.path.join(output_dir, f"{calibration_id}.json")
+        
+        if os.path.exists(npz_file):
+            data = np.load(npz_file)
+            
+            # Check which type of calibration it is
+            if 'T_cam2gripper' in data and data['T_cam2gripper'] is not None:
+                transformation_matrix = data['T_cam2gripper'].tolist()
+                calib_type = 'eye-in-hand'
+            elif 'T_cam2base' in data:
+                transformation_matrix = data['T_cam2base'].tolist()
+                calib_type = 'eye-to-hand'
+            else:
+                return jsonify({'success': False, 'error': 'Invalid calibration file'})
+            
+            return jsonify({
+                'success': True,
+                'transformation_matrix': transformation_matrix,
+                'type': calib_type
+            })
+            
+        elif os.path.exists(json_file):
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+                return jsonify({
+                    'success': True,
+                    'transformation_matrix': data.get('transformation_matrix', data.get('camera_to_base_matrix')),
+                    'type': 'eye-to-hand' if 'camera_to_base' in data else 'eye-in-hand'
+                })
+        else:
+            return jsonify({'success': False, 'error': 'Calibration file not found'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/delete/<calibration_id>', methods=['DELETE'])
+def delete_calibration(calibration_id):
+    """Delete a saved calibration"""
+    try:
+        output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'handeye', 'output')
+        
+        # Delete both npz and json files
+        npz_file = os.path.join(output_dir, f"{calibration_id}.npz")
+        json_file = os.path.join(output_dir, f"{calibration_id}.json")
+        
+        deleted = False
+        if os.path.exists(npz_file):
+            os.remove(npz_file)
+            deleted = True
+        
+        if os.path.exists(json_file):
+            os.remove(json_file)
+            deleted = True
+        
+        if deleted:
+            return jsonify({'success': True, 'message': 'Calibration deleted'})
+        else:
+            return jsonify({'success': False, 'error': 'Calibration file not found'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/stop', methods=['POST'])
+def stop_calibration():
+    """Stop calibration session (keeps shared pipeline running)"""
+    global current_calibrator, calibration_session
+    
+    try:
+        # Clear calibrator (but don't stop shared pipeline)
+        if current_calibrator:
+            current_calibrator.pipeline = None  # Remove reference to shared pipeline
+            current_calibrator = None
+        
+        # Clear session
+        if calibration_session:
+            calibration_session['active'] = False
+        
+        return jsonify({'success': True, 'message': 'Calibration stopped'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/test_checkerboard', methods=['GET'])
+def test_checkerboard_detection():
+    """Test checkerboard pattern detection with current camera frame"""
+    
+    if not cv2_available:
+        return jsonify({'success': False, 'error': 'OpenCV not available'})
+    
+    # Patterns to test (from test_checkerboard_detection.py)
+    patterns_to_try = [
+        (7, 4), (4, 7),  # Common pattern
+        (9, 6), (6, 9),  # Standard OpenCV calibration pattern
+        (8, 6), (6, 8),  # Another common pattern
+        (7, 5), (5, 7),  
+        (7, 6), (6, 7),  
+        (6, 4), (4, 6),  
+        (5, 4), (4, 5),  
+        (8, 5), (5, 8),  
+        (10, 7), (7, 10),  # Larger patterns
+        (11, 8), (8, 11),
+        (12, 9), (9, 12),
+        (13, 9), (9, 13),
+    ]
+    
+    try:
+        # Get shared RealSense pipeline
+        pipeline = get_shared_realsense()
+        if pipeline is None:
+            return jsonify({'success': False, 'error': 'Camera not available. Please connect RealSense camera.'})
+        
+        # Get current frame
+        import pyrealsense2 as rs
+        frames = pipeline.wait_for_frames(5000)  # 5 second timeout
+        color_frame = frames.get_color_frame()
+        
+        if not color_frame:
+            return jsonify({'success': False, 'error': 'No frame available from camera'})
+        
+        # Convert to numpy array
+        frame = np.asanyarray(color_frame.get_data())
+        if frame is None or frame.size == 0:
+            return jsonify({'success': False, 'error': 'Invalid frame data'})
+            
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Test each pattern
+        detected_patterns = []
+        for pattern in patterns_to_try:
+            ret, corners = cv2.findChessboardCorners(gray, pattern, None)
+            if ret:
+                detected_patterns.append({
+                    'pattern': f"{pattern[0]}x{pattern[1]}",
+                    'corners': pattern[0] * pattern[1],
+                    'size': pattern
+                })
+        
+        # Return the frame as base64 for display
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_b64 = base64.b64encode(buffer).decode('utf-8')
+        
+        return jsonify({
+            'success': True,
+            'detected_patterns': detected_patterns,
+            'frame': frame_b64,
+            'recommendations': get_pattern_recommendations(detected_patterns)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+def get_pattern_recommendations(detected_patterns):
+    """Get recommendations based on detected patterns"""
+    if not detected_patterns:
+        return [
+            "No checkerboard pattern detected",
+            "Ensure checkerboard is fully visible",
+            "Check lighting conditions",
+            "Try different angles or distances"
+        ]
+    elif len(detected_patterns) == 1:
+        pattern = detected_patterns[0]
+        return [
+            f"Perfect! Your checkerboard is {pattern['pattern']} internal corners",
+            f"Use this in calibration settings: {pattern['pattern']}",
+            "Pattern detected successfully"
+        ]
+    else:
+        return [
+            f"Multiple patterns detected ({len(detected_patterns)} patterns)",
+            "This might indicate detection uncertainty",
+            "Try positioning checkerboard more clearly",
+            "Most likely patterns: " + ", ".join([p['pattern'] for p in detected_patterns[:3]])
+        ]
+
+
+@app.route('/api/calibration/manual/start', methods=['POST'])
+def start_manual_calibration():
+    """Start manual hand-eye calibration using standard webcam"""
+    global current_calibrator, calibration_session
+    
+    if not calibration_available or not ManualHandEyeCalibrator:
+        return jsonify({'success': False, 'error': 'Manual calibration not available'})
+    
+    data = request.get_json() or {}
+    pattern = data.get('pattern', '7x4')
+    square_size = float(data.get('square_size', 25.0))
+    camera_id = int(data.get('camera_id', 0))
+    
+    # Parse pattern
+    try:
+        cols, rows = map(int, pattern.split('x'))
+        checkerboard_size = (cols, rows)
+    except:
+        return jsonify({'success': False, 'error': 'Invalid pattern format'})
+    
+    try:
+        # Create manual calibrator
+        current_calibrator = ManualHandEyeCalibrator(
+            checkerboard_size=checkerboard_size,
+            square_size=square_size
+        )
+        
+        # Try to load camera calibration (optional)
+        try:
+            current_calibrator.load_camera_calibration('calibration_data.npz')
+        except FileNotFoundError:
+            print("Warning: Camera calibration file not found, using default values")
+        except Exception as e:
+            print(f"Warning: Could not load camera calibration: {e}")
+        
+        # Initialize session
+        calibration_session = {
+            'mode': 'manual',
+            'pattern': pattern,
+            'captures': 0,
+            'active': True,
+            'camera_id': camera_id
+        }
+        
+        return jsonify({
+            'success': True, 
+            'mode': 'manual',
+            'message': 'Manual calibration initialized. Use external camera window for capture.'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/manual/capture_session', methods=['POST'])
+def manual_capture_session():
+    """Run the manual calibration capture session (blocking)"""
+    global current_calibrator, robot
+    
+    if not current_calibrator:
+        return jsonify({'success': False, 'error': 'Manual calibration not started. Call /api/calibration/manual/start first.'})
+    
+    if not calibration_session.get('active'):
+        return jsonify({'success': False, 'error': 'Calibration session not active'})
+    
+    data = request.get_json() or {}
+    min_positions = int(data.get('min_positions', 3))
+    max_positions = int(data.get('max_positions', 30))
+    camera_id = calibration_session.get('camera_id', 0)
+    
+    try:
+        # Check if robot is available
+        if robot is None:
+            return jsonify({'success': False, 'error': 'Robot not connected. Please connect robot first.'})
+        
+        print(f"Starting manual capture session with camera {camera_id}")
+        
+        # Run the manual capture session (this will block until user finishes)
+        num_captured = current_calibrator.manual_calibration_capture(
+            robot_client=robot,
+            camera_id=camera_id,
+            min_positions=min_positions,
+            max_positions=max_positions
+        )
+        
+        if num_captured >= min_positions:
+            # Compute calibration
+            T_cam2gripper = current_calibrator.compute_hand_eye_calibration()
+            
+            # Save results
+            current_calibrator.save_calibration(T_cam2gripper)
+            
+            # Update session
+            calibration_session['captures'] = num_captured
+            calibration_session['completed'] = True
+            
+            return jsonify({
+                'success': True,
+                'captures': num_captured,
+                'message': f'Manual calibration completed successfully with {num_captured} poses',
+                'transform_matrix': T_cam2gripper.tolist()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'captures': num_captured,
+                'error': f'Insufficient captures ({num_captured} < {min_positions}). Please capture more poses.'
+            })
+            
+    except KeyboardInterrupt:
+        return jsonify({'success': False, 'error': 'Calibration interrupted by user'})
+    except Exception as e:
+        print(f"Error in manual capture session: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Calibration failed: {str(e)}'})
+
+
+@app.route('/api/calibration/ros2/connect', methods=['POST'])
+def connect_ros2_tf():
+    """Start ROS2 TF connection with proper calibration file"""
+    data = request.get_json() or {}
+    mode = data.get('mode', 'eye-in-hand')
+    calibration_file = data.get('calibration_file', None)
+    
+    try:
+        # Build command based on mode
+        if mode == 'eye-to-hand' or mode == 'stationary':
+            base_cmd = 'ros2 run ros2_digital_twin connect_camera_to_robot_stationary.py'
+            default_file = '/home/pathonai/Documents/Github/opensource_dev/handeye/output/handeye_realsense_stationary.npz'
+        else:
+            base_cmd = 'ros2 run ros2_digital_twin connect_camera_to_robot.py'
+            default_file = '/home/pathonai/Documents/Github/opensource_dev/handeye/output/handeye_realsense.npz'
+        
+        # Add calibration file parameter
+        if calibration_file:
+            cmd = f"{base_cmd} --ros-args -p calibration_file:={calibration_file}"
+        else:
+            cmd = f"{base_cmd} --ros-args -p calibration_file:={default_file}"
+        
+        # Try to start the process
+        import subprocess
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        return jsonify({
+            'success': True, 
+            'command': cmd,
+            'mode': mode,
+            'pid': process.pid if process else None,
+            'verify_commands': [
+                'ros2 run tf2_ros tf2_echo base camera_link',
+                'ros2 run tf2_tools view_frames',
+                'ros2 topic echo /tf_static'
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/workflow/start', methods=['POST'])
+def start_calibration_workflow():
+    """Start complete calibration workflow (eye-in-hand or eye-to-hand)"""
+    global current_calibrator, calibration_session
+    
+    data = request.get_json() or {}
+    workflow_type = data.get('type', 'eye-in-hand')  # or 'eye-to-hand'
+    pattern_size = data.get('pattern_size', None)  # e.g., [7, 4]
+    square_size = data.get('square_size', 25.0)
+    
+    try:
+        # Import appropriate calibrator
+        if workflow_type == 'eye-to-hand':
+            from handeye_manual_realsense_stationary import StationaryRealSenseCalibrator
+            current_calibrator = StationaryRealSenseCalibrator(
+                checkerboard_size=tuple(pattern_size) if pattern_size else None,
+                square_size=square_size
+            )
+        else:
+            from handeye_manual_realsense import RealSenseCalibrator
+            current_calibrator = RealSenseCalibrator(
+                checkerboard_size=tuple(pattern_size) if pattern_size else None,
+                square_size=square_size
+            )
+        
+        # Initialize RealSense
+        if hasattr(current_calibrator, 'init_realsense'):
+            success = current_calibrator.init_realsense()
+            if not success:
+                return jsonify({'success': False, 'error': 'Failed to initialize RealSense'})
+        
+        # Initialize session
+        calibration_session = {
+            'type': workflow_type,
+            'pattern_size': pattern_size,
+            'square_size': square_size,
+            'captures': 0,
+            'active': True,
+            'robot_poses': [],
+            'camera_poses': []
+        }
+        
+        return jsonify({
+            'success': True,
+            'type': workflow_type,
+            'message': f'Started {workflow_type} calibration workflow'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/workflow/capture', methods=['POST'])
+def capture_workflow_calibration_point():
+    """Capture single calibration point in workflow"""
+    global current_calibrator, calibration_session, robot
+    
+    if not current_calibrator or not calibration_session.get('active'):
+        return jsonify({'success': False, 'error': 'No active calibration session'})
+    
+    try:
+        # Get current frame
+        frame = current_calibrator.get_frame() if hasattr(current_calibrator, 'get_frame') else None
+        if frame is None:
+            return jsonify({'success': False, 'error': 'Failed to get camera frame'})
+        
+        # Get robot joints
+        robot_joints = robot.read_joints() if robot and robot.connected else [0, 0, 0, 0, 0, 0]
+        
+        # Detect checkerboard
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        pattern_size = current_calibrator.checkerboard_size
+        
+        if pattern_size:
+            ret, corners = cv2.findChessboardCorners(gray, pattern_size, None)
+            
+            if ret:
+                # Refine corners
+                corners = cv2.cornerSubPix(
+                    gray, corners, (11, 11), (-1, -1), 
+                    current_calibrator.criteria
+                )
+                
+                # Solve PnP
+                ret_pnp, rvec, tvec = cv2.solvePnP(
+                    current_calibrator.objp, corners,
+                    current_calibrator.camera_matrix,
+                    current_calibrator.dist_coeffs
+                )
+                
+                if ret_pnp:
+                    # Store calibration data
+                    robot_pose = current_calibrator.joints_to_pose_matrix(robot_joints)
+                    current_calibrator.robot_poses.append(robot_pose)
+                    current_calibrator.rvecs.append(rvec)
+                    current_calibrator.tvecs.append(tvec)
+                    current_calibrator.robot_joints_history.append(list(robot_joints))
+                    
+                    calibration_session['captures'] += 1
+                    
+                    return jsonify({
+                        'success': True,
+                        'captures': calibration_session['captures'],
+                        'distance': float(tvec[2, 0]),
+                        'joints': robot_joints
+                    })
+        
+        return jsonify({'success': False, 'error': 'Checkerboard not detected'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/calibration/workflow/compute', methods=['POST'])
+def compute_calibration_workflow():
+    """Compute calibration from captured data"""
+    global current_calibrator, calibration_session
+    
+    if not current_calibrator:
+        return jsonify({'success': False, 'error': 'No calibration data'})
+    
+    try:
+        workflow_type = calibration_session.get('type', 'eye-in-hand')
+        
+        if workflow_type == 'eye-to-hand':
+            # Compute eye-to-hand calibration
+            T_cam2base, T_base2cam = current_calibrator.compute_hand_eye_calibration()
+            
+            # Save calibration
+            output_file = '../output/handeye_realsense_stationary.npz'
+            current_calibrator.save_calibration(T_cam2base, T_base2cam, output_file)
+            
+            result = {
+                'camera_to_base': T_cam2base.tolist(),
+                'base_to_camera': T_base2cam.tolist()
+            }
+        else:
+            # Compute eye-in-hand calibration
+            T_cam2gripper = current_calibrator.compute_hand_eye_calibration()
+            
+            # Save calibration
+            output_file = 'output/handeye_realsense.npz'
+            current_calibrator.save_calibration(T_cam2gripper, output_file)
+            
+            result = {
+                'camera_to_gripper': T_cam2gripper.tolist()
+            }
+        
+        return jsonify({
+            'success': True,
+            'type': workflow_type,
+            'result': result,
+            'output_file': output_file,
+            'captures': calibration_session.get('captures', 0)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# ============================================
+# Camera Stream API Routes
+# ============================================
+
+@app.route('/api/camera/stream')
+def camera_stream():
+    """Provide camera stream for external viewing"""
+    if not cv2_available:
+        return jsonify({'error': 'OpenCV not available'})
+        
+    try:
+        # Get shared RealSense pipeline
+        pipeline = get_shared_realsense()
+        if pipeline is None:
+            # Try webcam as fallback
+            return get_webcam_frame()
+        
+        # Get current frame from RealSense
+        import pyrealsense2 as rs
+        frames = pipeline.wait_for_frames(3000)  # 3 second timeout
+        color_frame = frames.get_color_frame()
+        
+        if not color_frame:
+            return get_webcam_frame()
+        
+        # Convert to numpy array and encode as JPEG
+        frame = np.asanyarray(color_frame.get_data())
+        if frame is None or frame.size == 0:
+            return get_webcam_frame()
+            
+        success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if not success:
+            return get_webcam_frame()
+        
+        return send_file(
+            io.BytesIO(buffer.tobytes()),
+            mimetype='image/jpeg',
+            as_attachment=False
+        )
+        
+    except Exception as e:
+        print(f"Error in camera stream: {e}")
+        return get_webcam_frame()
+
+def get_webcam_frame():
+    """Fallback to webcam if RealSense not available"""
+    if not cv2_available:
+        return jsonify({'error': 'OpenCV not available'})
+        
+    try:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            cap.release()
+            return jsonify({'error': 'Webcam not accessible'})
+            
+        ret, frame = cap.read()
+        cap.release()
+        
+        if ret and frame is not None:
+            success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if success:
+                return send_file(
+                    io.BytesIO(buffer.tobytes()),
+                    mimetype='image/jpeg',
+                    as_attachment=False
+                )
+        
+        # Return error as JSON if frame capture failed
+        return jsonify({'error': 'No camera available'})
+            
+    except Exception as e:
+        print(f"Webcam fallback failed: {e}")
+        return jsonify({'error': f'Camera error: {str(e)}'})
 
 
 if __name__ == '__main__':

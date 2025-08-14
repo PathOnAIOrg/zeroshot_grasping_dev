@@ -377,9 +377,10 @@ def create_plotly_figure(traces, title="3D Point Cloud Viewer", adaptive_range=T
     fig = go.Figure(data=traces)
     
     # Calculate data range if adaptive
+    # Use consistent range for all axes (300cm cube centered at origin)
     x_range = [-150, 150]  # Default range in cm
-    y_range = [-150, 150]
-    z_range = [-50, 200]
+    y_range = [-150, 150]  # Same range for Y
+    z_range = [-150, 150]  # Same range for Z to maintain uniform scale
     
     if adaptive_range and len(traces) > 0:
         # Get all vertices from traces (excluding axis lines)
@@ -439,7 +440,7 @@ def create_plotly_figure(traces, title="3D Point Cloud Viewer", adaptive_range=T
                 center=dict(x=0, y=0, z=0),
                 up=dict(x=0, y=0, z=1)
             ),
-            aspectmode='data'  # Let Plotly handle aspect ratio based on data
+            aspectmode='cube'  # Force equal aspect ratio for all axes
         ),
         showlegend=True,
         height=600,
