@@ -277,12 +277,15 @@ class grasp_model():
         grasp_net = self.load_grasp_net()
         gg_array, gg = self.get_grasps(grasp_net, end_points)
 
+        # Save initial grasps (before mask filtering)
         grippers = gg.to_open3d_geometry_list()
-        o3d.visualization.draw_geometries([cloud, *grippers])
+        self.save_intermediate_step(cloud, grippers, "01_initial_grasps", gg)
+        
         gg = self.choose_in_mask(gg)
 
+        # Save after mask filtering
         grippers = gg.to_open3d_geometry_list()
-        o3d.visualization.draw_geometries([cloud, *grippers])
+        self.save_intermediate_step(cloud, grippers, "02_after_mask_filter", gg)
 
         gg = self.collision_detection(gg, np.array(cloud.points))
         
@@ -290,8 +293,9 @@ class grasp_model():
         
         gg_array = gg.grasp_group_array
         
+        # Save final grasps (after collision detection and sorting)
         grippers = gg.to_open3d_geometry_list()
-        o3d.visualization.draw_geometries([cloud, *grippers])
+        self.save_intermediate_step(cloud, grippers, "03_final_grasps", gg)
         
         Path(self.output_path).mkdir(parents=True, exist_ok=True)
         
@@ -299,3 +303,78 @@ class grasp_model():
         o3d.io.write_point_cloud(f'{self.output_path}/cloud.ply', cloud)
         
         return gg,gg_array
+    
+    def save_intermediate_step(self, cloud, grippers, step_name, gg):
+        """Save intermediate visualization steps"""
+        import logging
+        import json
+        
+        try:
+            # Create step folder
+            step_folder = f"{self.output_path}/{step_name}"
+            Path(step_folder).mkdir(parents=True, exist_ok=True)
+            
+            # Save point cloud
+            o3d.io.write_point_cloud(f"{step_folder}/point_cloud.ply", cloud)
+            
+            # Save all grippers for this step
+            all_grippers_data = []
+            for i, gripper in enumerate(grippers):
+                gripper_data = {
+                    "id": i,
+                    "vertices": np.asarray(gripper.vertices).tolist(),
+                    "faces": np.asarray(gripper.triangles).tolist(),
+                    "score": float(gg.scores[i]) if i < len(gg.scores) else 0.0
+                }
+                all_grippers_data.append(gripper_data)
+                
+                # Save individual gripper PLY
+                o3d.io.write_triangle_mesh(f"{step_folder}/gripper_{i:03d}.ply", gripper)
+            
+            # Save metadata
+            metadata = {
+                "step_name": step_name,
+                "num_grasps": len(grippers),
+                "scores": gg.scores.tolist() if hasattr(gg, 'scores') else [],
+                "translations": gg.translations.tolist() if hasattr(gg, 'translations') else [],
+                "grasps": all_grippers_data
+            }
+            
+            with open(f"{step_folder}/metadata.json", 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            # Save point cloud as JSON for web visualization
+            self.save_point_cloud_json_step(cloud, f"{step_folder}/point_cloud.json")
+            
+            logging.info(f"Saved intermediate step: {step_name} with {len(grippers)} grasps")
+            
+        except Exception as e:
+            logging.error(f"Error saving intermediate step {step_name}: {e}")
+    
+    def save_point_cloud_json_step(self, pcd, output_path):
+        """Save point cloud as JSON for web visualization"""
+        import json
+        
+        points = np.asarray(pcd.points)
+        colors = np.asarray(pcd.colors)
+        
+        # Downsample if too many points for web performance
+        max_points = 30000
+        if len(points) > max_points:
+            indices = np.random.choice(len(points), max_points, replace=False)
+            points = points[indices]
+            if len(colors) > 0:
+                colors = colors[indices]
+        
+        # Create JSON data
+        point_data = {
+            "points": points.tolist(),
+            "colors": colors.tolist() if len(colors) > 0 else [],
+            "count": len(points),
+            "original_count": len(np.asarray(pcd.points))
+        }
+        
+        with open(output_path, 'w') as f:
+            json.dump(point_data, f)
+        
+        return output_path

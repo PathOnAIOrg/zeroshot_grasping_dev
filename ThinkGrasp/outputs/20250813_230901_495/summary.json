@@ -1,0 +1,76 @@
+{
+  "timestamp": "20250813_230901_495",
+  "input_text": "grasp item",
+  "openai_response": "Selected Object/Object Part: [object:purple container]\nCropping Box Coordinates: (150, 100, 400, 300)\nObjects and Their Properties:\nObject: Purple Container\nGrasping Score: 85\nMaterial Composition: 70\nSurface Texture: 30\nStability Assessment: 90\nCentroid Coordinates: (275, 200)\nPreferred Grasping Location: 5\n\nObject: Blue Packet\nGrasping Score: 75\nMaterial Composition: 60\nSurface Texture: 20\nStability Assessment: 80\nCentroid Coordinates: (375, 150)\nPreferred Grasping Location: 6",
+  "num_grasp_poses": 21,
+  "selected_action_idx": 0,
+  "num_bboxes": 1,
+  "position_xyz": [
+    0.014197273179888725,
+    -0.07771635800600052,
+    0.3709999918937683
+  ],
+  "rotation_matrix": [
+    [
+      -0.01589503511786461,
+      0.9961710572242737,
+      0.08596863597631454
+    ],
+    [
+      -0.18111571669578552,
+      -0.08742573112249374,
+      0.9795682430267334
+    ],
+    [
+      0.9833333492279053,
+      0.0,
+      0.1818118691444397
+    ]
+  ],
+  "grasp_depth": 0.009999999776482582,
+  "final_results": {
+    "action_index": 0,
+    "full_action": [
+      0.13449567556381226,
+      0.08136557042598724,
+      0.019999999552965164,
+      0.009999999776482582,
+      -0.01589503511786461,
+      0.9961710572242737,
+      0.08596863597631454,
+      -0.18111571669578552,
+      -0.08742573112249374,
+      0.9795682430267334,
+      0.9833333492279053,
+      0.0,
+      0.1818118691444397,
+      0.014197273179888725,
+      -0.07771635800600052,
+      0.3709999918937683,
+      -1.0
+    ],
+    "position_xyz": [
+      0.014197273179888725,
+      -0.07771635800600052,
+      0.3709999918937683
+    ],
+    "rotation_matrix": [
+      [
+        -0.01589503511786461,
+        0.9961710572242737,
+        0.08596863597631454
+      ],
+      [
+        -0.18111571669578552,
+        -0.08742573112249374,
+        0.9795682430267334
+      ],
+      [
+        0.9833333492279053,
+        0.0,
+        0.1818118691444397
+      ]
+    ],
+    "depth": 0.009999999776482582
+  }
+}
