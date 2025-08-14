@@ -7,6 +7,8 @@ import open3d_plus as o3dp
 import torch
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from PIL import Image
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend to avoid Tkinter issues
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 from constants import WORKSPACE_LIMITS, PIXEL_SIZE
@@ -784,7 +786,7 @@ def get_and_process_data(cropping_box,color, depth):
 
     end_points['point_clouds'] = cloud_sampled
     end_points['cloud_colors'] = color_sampled
-    o3d.visualization.draw_geometries([cloud])
+    # o3d.visualization.draw_geometries([cloud])
     return end_points, cloud
 
 def rotm2angle(R):
