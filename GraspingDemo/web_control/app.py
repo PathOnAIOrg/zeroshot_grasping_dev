@@ -16,6 +16,7 @@ import sys
 import numpy as np
 import base64
 import io
+import logging
 
 # Try to import cv2 for image handling
 try:
@@ -82,6 +83,33 @@ from pointcloud_viewer import (
 from coordinate_transform import CoordinateTransform
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+# Configure logging to suppress request logs for frequent endpoints
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)  # Only show errors, not regular requests
+
+# If you want to selectively log certain endpoints, you can use a custom filter
+class RequestFilter(logging.Filter):
+    def filter(self, record):
+        # Filter out frequent status and streaming endpoints
+        if hasattr(record, 'getMessage'):
+            message = record.getMessage()
+            # List of endpoints to suppress logging for
+            suppress_endpoints = [
+                '/api/status',
+                '/api/robot/joint_states',
+                '/api/camera/rgb',
+                '/api/camera/depth',
+                '/api/camera/pointcloud'
+            ]
+            for endpoint in suppress_endpoints:
+                if endpoint in message:
+                    return False
+        return True
+
+# Apply the filter to werkzeug logger
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.addFilter(RequestFilter())
 
 # Import and register motion planning API if available
 try:
@@ -186,6 +214,27 @@ def disconnect_robot():
 def index():
     """Main page - classic UI"""
     return render_template('index.html')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve a simple favicon to avoid 404 errors"""
+    import io
+    import base64
+    from flask import send_file
+    
+    # Robot icon as favicon (base64 encoded PNG, 32x32)
+    favicon_base64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAJFSURBVFiFxZe9jtNAEMc/r+04jhMnF3EREqJBQkI0NDRQQ0NHxwNQ8QI8AS0VDRUPQMUDUFFRIKWgoEFCQkI6JM5HnNiO7bU3FLuzXjuXO+4QI61kvTM7/5nZnZ0d8N13lFIopRARRATXdRERAFzXRUSw1iIiAKRpirUWYwzWWowxWGsxxmCMwVqLMQZrLdZalFIURUGe50RRhIig63qZnmVZBX6SJKRpSpZlFEVBURTkeU6WZeR5TpZlFVqe52RZRpqmpGlKkiQkScLg7u5u+uHDhxGASqmS5VEUATCfz0mSpFTkeR5BEBCGIb7v43keYRji+z6u6yIiRFFEEATlO4Du9XplVsdxSJKELMsq4BtskWVZOZ7neaXK8zwnCAJc16Xb7VbStCiKaDQaZUYcx0EphVIKx3FQSlWA5jiOtDqxcxxHRKQ1UUqJUkocxxGlVDmmta78aa3r2nHWAr7ZdWx37eYHqOs6tm3bqOV5XqmgtY7W2lp0SqkqWOvAnNj9r5BqiCpgNVJyXRegtppPTk4AWCwWtGJd1xkMBgBsbW2xs7MDwPHxMZeXl7X7m80mW1tbrFYrZrNZvRhjODo6wmqtaTabKKXY3d1ld3cXgMPDQ7LsD5ZzQCml3r171394aqytVqsNJGzfuKfT6crUB4MBvu+ztbWFtZbdbMb5+fm6JHw8PiGJk9+W+uJLnHVQjhhjODg4IMsyXNclDMN/Pl4uut0uvV6P/f39G82BwcHBAbPZjOl0yvPnzzeFmKIovskvIYQQQvwEP/XpMXQFCrIAAAAASUVORK5CYII="
+    
+    # Decode base64 to bytes
+    favicon_bytes = base64.b64decode(favicon_base64)
+    
+    # Return as PNG image
+    return send_file(
+        io.BytesIO(favicon_bytes),
+        mimetype='image/png'
+    )
+
 
 @app.route('/modern')
 def modern():
@@ -2911,6 +2960,621 @@ def detect_grasp_pose():
             'success': False,
             'message': f'Error detecting grasp pose: {str(e)}'
         })
+
+
+@app.route('/api/grasp/visualize', methods=['POST'])
+def visualize_grasp():
+    """Generate Plotly visualization for grasp pose and trajectory"""
+    global realsense_camera, active_camera
+    try:
+        import plotly.graph_objects as go
+        from pointcloud_viewer import vis_pcd_plotly, generate_plotly_html, load_point_cloud_from_capture
+        
+        data = request.get_json() or {}
+        grasp_pose = data.get('grasp_pose')
+        show_trajectory = data.get('show_trajectory', False)
+        capture_name = data.get('capture_name', 'latest')
+        
+        # Additional visualization options
+        show_camera = data.get('show_camera', True)
+        show_robot = data.get('show_robot', True)
+        robot_joint_angles = data.get('robot_joint_angles')
+        robot_position = data.get('robot_position', [0, 0, 0])
+        robot_rotation = data.get('robot_rotation', [0, 0, 0])
+        
+        if not grasp_pose:
+            return jsonify({'success': False, 'message': 'No grasp pose provided'})
+        
+        # Load point cloud if capture specified
+        pointclouds = []
+        
+        # Option to use test/demo point cloud if needed
+        use_demo_pointcloud = data.get('use_demo_pointcloud', False)
+        
+        if use_demo_pointcloud:
+            # Generate a demo point cloud for testing
+            print("Using demo point cloud for testing...")
+            demo_points = []
+            demo_colors = []
+            # Create a simple cube point cloud
+            for x in np.linspace(-50, 50, 20):
+                for y in np.linspace(-50, 50, 20):
+                    for z in np.linspace(10, 60, 10):
+                        demo_points.append([x, y, z])
+                        # Color based on height
+                        demo_colors.append([z/60, 0.5, 1-z/60])
+            
+            pointclouds.append({
+                'vertices': np.array(demo_points),
+                'colors': np.array(demo_colors),
+                'name': 'Demo Point Cloud'
+            })
+            print(f"Created demo point cloud with {len(demo_points)} points")
+        elif capture_name and capture_name != 'none':
+            try:
+                # Handle "latest" capture name by finding the most recent capture
+                if capture_name == 'latest':
+                    captures_base = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures"
+                    if not captures_base.exists():
+                        captures_base = Path('captures')
+                    
+                    if captures_base.exists():
+                        # Find the most recent capture directory
+                        capture_dirs = [d for d in captures_base.iterdir() if d.is_dir()]
+                        if capture_dirs:
+                            # Sort by modification time and get the most recent
+                            capture_dir = max(capture_dirs, key=lambda d: d.stat().st_mtime)
+                            print(f"Using latest capture: {capture_dir.name}")
+                        else:
+                            print("No capture directories found")
+                            capture_dir = captures_base / 'latest'  # Fallback
+                    else:
+                        print("Captures directory does not exist")
+                        capture_dir = Path('captures') / 'latest'
+                else:
+                    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+                    if not capture_dir.exists():
+                        capture_dir = Path('captures') / capture_name
+                
+                if capture_dir.exists():
+                    from pointcloud_viewer import load_point_cloud_from_capture
+                    print(f"Loading point cloud from: {capture_dir}")
+                    pcd_data, metadata = load_point_cloud_from_capture(str(capture_dir))
+                    if pcd_data:
+                        vertices = pcd_data['vertices'] * 100  # Convert to cm
+                        colors = pcd_data['colors']
+                        print(f"Loaded point cloud with {len(vertices)} points")
+                        
+                        # Use same filtering method as live stream
+                        # Only filter out extremely far points (noise)
+                        distances = np.linalg.norm(vertices, axis=1)
+                        valid_mask = distances < 500  # Keep points within 5 meters
+                        vertices = vertices[valid_mask]
+                        colors = colors[valid_mask]
+                        
+                        # Remove statistical outliers if there are enough points
+                        if len(vertices) > 100:
+                            from pointcloud_viewer import remove_statistical_outliers
+                            vertices, colors = remove_statistical_outliers(vertices, colors, n_neighbors=10, std_ratio=1.5)
+                        
+                        # Further downsample if needed (voxel size in cm)
+                        if len(vertices) > 20000:
+                            from pointcloud_viewer import downsample_pointcloud
+                            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=1.0)  # 1cm voxel size
+                        
+                        print(f"After processing: {len(vertices)} points")
+                        print(f"Point cloud range - X: [{vertices[:, 0].min():.2f}, {vertices[:, 0].max():.2f}] cm")
+                        print(f"Point cloud range - Y: [{vertices[:, 1].min():.2f}, {vertices[:, 1].max():.2f}] cm")
+                        print(f"Point cloud range - Z: [{vertices[:, 2].min():.2f}, {vertices[:, 2].max():.2f}] cm")
+                        
+                        pointclouds.append({
+                            'vertices': vertices,
+                            'colors': colors,
+                            'name': f'Capture: {capture_name}'
+                        })
+                    else:
+                        print(f"No point cloud data returned for {capture_name}")
+                else:
+                    print(f"Capture directory does not exist: {capture_dir}")
+                    print("Attempting to generate point cloud from current camera data...")
+                    
+                    # Try to get current camera data to generate point cloud
+                    if active_camera == 'realsense' and realsense_camera:
+                        try:
+                            # Get current depth and RGB frames
+                            depth_frame = realsense_camera.get_depth_data()
+                            rgb_frame = realsense_camera.get_rgb_data()
+                            
+                            if depth_frame is not None:
+                                from pointcloud_viewer import generate_pointcloud_from_depth
+                                
+                                # Get camera intrinsics
+                                camera_intrinsics = {
+                                    'fx': 615.0,
+                                    'fy': 615.0, 
+                                    'ppx': 320.0,
+                                    'ppy': 240.0,
+                                    'depth_scale': 0.001
+                                }
+                                
+                                if hasattr(realsense_camera, 'intrinsics'):
+                                    intr = realsense_camera.intrinsics
+                                    camera_intrinsics.update({
+                                        'fx': intr.fx,
+                                        'fy': intr.fy,
+                                        'ppx': intr.ppx,
+                                        'ppy': intr.ppy
+                                    })
+                                
+                                # Generate point cloud from current camera data
+                                pcd_data = generate_pointcloud_from_depth(
+                                    depth_frame, 
+                                    {'camera_intrinsics': camera_intrinsics},
+                                    rgb_frame
+                                )
+                                
+                                if pcd_data:
+                                    vertices = pcd_data['vertices'] * 100  # Convert to cm
+                                    colors = pcd_data['colors']
+                                    print(f"Generated {len(vertices)} points from live camera")
+                                    
+                                    # Apply same filtering as live stream
+                                    distances = np.linalg.norm(vertices, axis=1)
+                                    valid_mask = distances < 500  # Keep points within 5 meters
+                                    vertices = vertices[valid_mask]
+                                    colors = colors[valid_mask]
+                                    
+                                    # Remove statistical outliers
+                                    if len(vertices) > 100:
+                                        from pointcloud_viewer import remove_statistical_outliers
+                                        vertices, colors = remove_statistical_outliers(vertices, colors, n_neighbors=10, std_ratio=1.5)
+                                    
+                                    # Downsample if needed
+                                    if len(vertices) > 20000:
+                                        from pointcloud_viewer import downsample_pointcloud
+                                        vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=1.0)
+                                    
+                                    print(f"After processing: {len(vertices)} points from live camera")
+                                    
+                                    pointclouds.append({
+                                        'vertices': vertices,
+                                        'colors': colors,
+                                        'name': 'Live Camera Data'
+                                    })
+                            else:
+                                print("No depth data available from camera")
+                        except Exception as e:
+                            print(f"Failed to generate point cloud from camera: {e}")
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        print("RealSense camera not available for live point cloud generation")
+            except Exception as e:
+                print(f"Could not load point cloud: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Extract grasp pose components
+        xyz = grasp_pose.get('xyz', [0, 0, 0])
+        rot = np.array(grasp_pose.get('rot', [[1,0,0],[0,1,0],[0,0,1]]))
+        dep = grasp_pose.get('dep', 0.05)
+        
+        # Convert position from mm to cm for visualization
+        pos_cm = [x/10 for x in xyz]
+        print(f"Grasp position: {pos_cm} cm")
+        
+        # Decide whether to use vis_pcd_plotly for complete visualization
+        if show_camera or show_robot:
+            # Use vis_pcd_plotly for complete scene visualization
+            from pointcloud_viewer import vis_pcd_plotly
+            
+            # Get camera info if available
+            camera_info = None
+            if show_camera:
+                # Use default camera info for visualization
+                camera_info = {
+                    'fx': 615.0,
+                    'fy': 615.0,
+                    'cx': 320.0,
+                    'cy': 240.0,
+                    'width': 640,
+                    'height': 480
+                }
+                try:
+                    # Try to get actual intrinsics if RealSense is connected
+                    if active_camera == 'realsense' and realsense_camera:
+                        if hasattr(realsense_camera, 'intrinsics'):
+                            intr = realsense_camera.intrinsics
+                            camera_info.update({
+                                'fx': intr.fx,
+                                'fy': intr.fy,
+                                'cx': intr.ppx,
+                                'cy': intr.ppy,
+                                'width': intr.width,
+                                'height': intr.height
+                            })
+                except Exception as e:
+                    print(f"Could not get camera intrinsics: {e}")
+            
+            # Convert robot joint angles to dict format if needed
+            if robot_joint_angles and isinstance(robot_joint_angles, list):
+                joint_dict = {}
+                for i, angle in enumerate(robot_joint_angles[:6]):
+                    joint_dict[str(i+1)] = angle
+                robot_joint_angles = joint_dict
+            
+            # Create figure with full visualization including point cloud
+            print(f"Creating vis_pcd_plotly with {len(pointclouds)} point clouds")
+            print(f"show_camera={show_camera}, show_robot={show_robot}")
+            if pointclouds:
+                print(f"First pointcloud has {len(pointclouds[0]['vertices'])} vertices")
+            else:
+                print("WARNING: No pointclouds to visualize!")
+            
+            fig = vis_pcd_plotly(
+                pointclouds=pointclouds if pointclouds else [],
+                size_ls=[2] if pointclouds else [],  # Increased marker size from 1 to 2
+                title=f"Grasp Visualization - {capture_name}",
+                show_camera=show_camera,
+                camera_info=camera_info,
+                show_robot=show_robot,
+                robot_joint_angles=robot_joint_angles,
+                robot_position=robot_position if robot_position else None,
+                robot_rotation=robot_rotation if robot_rotation else None,
+                show_grid=True  # Show ground grid
+            )
+        else:
+            # Simple visualization without camera/robot
+            print(f"Using simple visualization, {len(pointclouds)} point clouds available")
+            fig = go.Figure()
+            
+            # Add ground grid
+            from pointcloud_viewer import create_ground_grid_traces
+            grid_traces = create_ground_grid_traces(grid_size=20, grid_spacing=10, z_level=0)
+            for trace in grid_traces:
+                fig.add_trace(trace)
+            
+            # Add point cloud if available
+            if pointclouds:
+                pcd = pointclouds[0]
+                vertices = pcd['vertices']
+                colors = pcd['colors']
+                
+                # Convert colors to RGB strings
+                if colors.max() <= 1.0:
+                    colors = (colors * 255).astype(int)
+                color_strings = ['rgb({},{},{})'.format(r, g, b) for r, g, b in colors]
+                
+                fig.add_trace(go.Scatter3d(
+                    x=vertices[:, 0],
+                    y=vertices[:, 1],
+                    z=vertices[:, 2],
+                    mode='markers',
+                    marker=dict(size=2, color=color_strings),  # Increased marker size from 1 to 2
+                    name='Point Cloud'
+                ))
+            
+            # Set proper scene parameters for simple visualization
+            fig.update_layout(
+                scene=dict(
+                    xaxis=dict(title='X (cm)', gridcolor='lightgray', showbackground=True),
+                    yaxis=dict(title='Y (cm)', gridcolor='lightgray', showbackground=True),
+                    zaxis=dict(title='Z (cm)', gridcolor='lightgray', showbackground=True),
+                    aspectmode='cube',  # Ensure uniform scaling
+                    camera=dict(
+                        eye=dict(x=1.5, y=1.5, z=1.0),
+                        center=dict(x=0, y=0, z=0)
+                    )
+                )
+            )
+        
+        # Add grasp coordinate frame
+        axis_length = dep * 100  # Convert to cm
+        axis_colors = ['red', 'green', 'blue']
+        axis_names = ['X', 'Y', 'Z']
+        
+        for i, (color, name) in enumerate(zip(axis_colors, axis_names)):
+            axis_dir = rot[:, i] * axis_length
+            fig.add_trace(go.Scatter3d(
+                x=[pos_cm[0], pos_cm[0] + axis_dir[0]],
+                y=[pos_cm[1], pos_cm[1] + axis_dir[1]],
+                z=[pos_cm[2], pos_cm[2] + axis_dir[2]],
+                mode='lines+markers',
+                line=dict(color=color, width=5),
+                marker=dict(size=[3, 6], color=color),
+                name=f'Grasp {name}-axis',
+                hovertemplate=f'Grasp {name}-axis<br>Direction: {axis_dir}'
+            ))
+        
+        # Add gripper visualization
+        gripper_width = dep * 100  # Convert to cm
+        finger_length = gripper_width * 0.8
+        finger_thickness = 1  # 1cm thickness
+        
+        # Create gripper fingers in local frame then transform
+        for side in [-1, 1]:  # Left and right fingers
+            # Finger base and tip in local frame
+            finger_base = np.array([side * gripper_width/2, 0, 0])
+            finger_tip = np.array([side * gripper_width/2, finger_length, 0])
+            
+            # Transform to world frame
+            finger_base_world = rot @ finger_base + pos_cm
+            finger_tip_world = rot @ finger_tip + pos_cm
+            
+            fig.add_trace(go.Scatter3d(
+                x=[finger_base_world[0], finger_tip_world[0]],
+                y=[finger_base_world[1], finger_tip_world[1]],
+                z=[finger_base_world[2], finger_tip_world[2]],
+                mode='lines',
+                line=dict(color='yellow', width=8),
+                name=f'Gripper {"left" if side < 0 else "right"} finger',
+                showlegend=(side > 0)  # Only show one in legend
+            ))
+        
+        # Add gripper palm connection
+        left_base = rot @ np.array([-gripper_width/2, 0, 0]) + pos_cm
+        right_base = rot @ np.array([gripper_width/2, 0, 0]) + pos_cm
+        
+        fig.add_trace(go.Scatter3d(
+            x=[left_base[0], right_base[0]],
+            y=[left_base[1], right_base[1]],
+            z=[left_base[2], right_base[2]],
+            mode='lines',
+            line=dict(color='orange', width=6),
+            name='Gripper palm',
+            showlegend=False
+        ))
+        
+        # Add trajectory if requested
+        if show_trajectory:
+            # Current robot position (get from robot state or use default)
+            start_pos = [30, 0, 20]  # Default start position in cm
+            
+            # Pre-grasp position (approach from above)
+            pre_grasp_offset = 10  # 10cm above grasp point
+            pre_grasp_pos = [pos_cm[0], pos_cm[1], pos_cm[2] + pre_grasp_offset]
+            
+            # Generate trajectory waypoints
+            num_points = 20
+            trajectory_points = []
+            
+            # Approach trajectory (from start to pre-grasp)
+            for i in range(num_points//2):
+                t = i / (num_points//2 - 1) if num_points > 2 else 0
+                point = [
+                    start_pos[0] + t * (pre_grasp_pos[0] - start_pos[0]),
+                    start_pos[1] + t * (pre_grasp_pos[1] - start_pos[1]),
+                    start_pos[2] + t * (pre_grasp_pos[2] - start_pos[2])
+                ]
+                trajectory_points.append(point)
+            
+            # Grasp trajectory (from pre-grasp to grasp)
+            for i in range(num_points//2):
+                t = i / (num_points//2 - 1) if num_points > 2 else 0
+                point = [
+                    pre_grasp_pos[0] + t * (pos_cm[0] - pre_grasp_pos[0]),
+                    pre_grasp_pos[1] + t * (pos_cm[1] - pre_grasp_pos[1]),
+                    pre_grasp_pos[2] + t * (pos_cm[2] - pre_grasp_pos[2])
+                ]
+                trajectory_points.append(point)
+            
+            # Add trajectory line
+            traj_array = np.array(trajectory_points)
+            fig.add_trace(go.Scatter3d(
+                x=traj_array[:, 0],
+                y=traj_array[:, 1],
+                z=traj_array[:, 2],
+                mode='lines+markers',
+                line=dict(color='cyan', width=4),
+                marker=dict(
+                    size=4,
+                    color=np.linspace(0, 1, len(trajectory_points)),
+                    colorscale='Viridis',
+                    showscale=False
+                ),
+                name='Grasp Trajectory',
+                hovertemplate='Waypoint %{pointNumber}<br>Position: (%{x:.1f}, %{y:.1f}, %{z:.1f}) cm'
+            ))
+            
+            # Add arrow at the end
+            if len(trajectory_points) > 1:
+                last_point = trajectory_points[-1]
+                second_last = trajectory_points[-2]
+                direction = np.array(last_point) - np.array(second_last)
+                direction = direction / np.linalg.norm(direction) * 3  # 3cm arrow
+                
+                fig.add_trace(go.Cone(
+                    x=[last_point[0]],
+                    y=[last_point[1]],
+                    z=[last_point[2]],
+                    u=[direction[0]],
+                    v=[direction[1]],
+                    w=[direction[2]],
+                    sizemode='absolute',
+                    sizeref=2,
+                    colorscale=[[0, 'cyan'], [1, 'cyan']],
+                    showscale=False,
+                    name='Approach Direction'
+                ))
+        
+        # Update layout - only update title to preserve existing scene settings from vis_pcd_plotly
+        # The vis_pcd_plotly function already sets proper scene parameters including aspectmode='cube'
+        # which ensures uniform scaling for all axes
+        fig.update_layout(
+            title=f"Grasp Pose Visualization - {capture_name}",
+            showlegend=True,
+            width=900,
+            height=700
+        )
+        
+        
+        # Generate HTML
+        html_content = generate_plotly_html(fig)
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error generating visualization: {str(e)}'
+        })
+
+
+@app.route('/thinkgrasp/results')
+def thinkgrasp_results_viewer():
+    """Serve the ThinkGrasp results viewer HTML"""
+    import os
+    thinkgrasp_viewer_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'results_viewer.html'
+    )
+    
+    if os.path.exists(thinkgrasp_viewer_path):
+        with open(thinkgrasp_viewer_path, 'r') as f:
+            return f.read()
+    else:
+        return "ThinkGrasp results viewer not found", 404
+
+
+@app.route('/list_results')
+def list_thinkgrasp_results():
+    """List available ThinkGrasp results"""
+    import os
+    import glob
+    
+    thinkgrasp_outputs_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs'
+    )
+    
+    # Find all result directories (format: YYYYMMDD_HHMMSS_NNN)
+    result_pattern = os.path.join(thinkgrasp_outputs_dir, '[0-9]*_[0-9]*_[0-9]*')
+    result_dirs = glob.glob(result_pattern)
+    
+    # Extract timestamps from directory names
+    timestamps = []
+    for dir_path in result_dirs:
+        dirname = os.path.basename(dir_path)
+        # Validate it's a proper timestamp format (YYYYMMDD_HHMMSS_NNN)
+        parts = dirname.split('_')
+        if len(parts) == 3 and len(parts[0]) == 8 and len(parts[1]) == 6 and len(parts[2]) == 3:
+            timestamps.append(dirname)
+    
+    # Sort by timestamp (newest first)
+    timestamps.sort(reverse=True)
+    
+    return jsonify({'timestamps': timestamps})
+
+
+@app.route('/results/<timestamp>/<filename>')
+def serve_thinkgrasp_result_file(timestamp, filename):
+    """Serve a specific file from ThinkGrasp results"""
+    import os
+    from flask import send_file, abort
+    
+    thinkgrasp_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp
+    )
+    
+    file_path = os.path.join(thinkgrasp_dir, filename)
+    
+    if os.path.exists(file_path):
+        # Handle JSON files specially to ensure proper content type
+        if filename.endswith('.json'):
+            return send_file(file_path, mimetype='application/json')
+        elif filename.endswith('.txt'):
+            return send_file(file_path, mimetype='text/plain')
+        else:
+            return send_file(file_path)
+    else:
+        abort(404)
+
+
+@app.route('/steps/<timestamp>')
+def get_thinkgrasp_steps(timestamp):
+    """Get available steps for a ThinkGrasp result"""
+    import os
+    import glob
+    
+    thinkgrasp_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp
+    )
+    
+    steps = []
+    # Look for step folders (format: XX_step_name)
+    step_pattern = os.path.join(thinkgrasp_dir, '[0-9][0-9]_*')
+    step_dirs = glob.glob(step_pattern)
+    
+    for step_dir in step_dirs:
+        dirname = os.path.basename(step_dir)
+        # Try to load metadata for the step
+        metadata_path = os.path.join(step_dir, 'metadata.json')
+        num_grasps = 0
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r') as f:
+                    metadata = json.load(f)
+                    num_grasps = len(metadata.get('grasps', []))
+            except:
+                pass
+        
+        steps.append({
+            'folder': dirname,
+            'step_name': dirname,
+            'num_grasps': num_grasps
+        })
+    
+    return jsonify({'steps': sorted(steps, key=lambda x: x['folder'])})
+
+
+@app.route('/step_files/<timestamp>/<step_folder>/<filename>')
+def serve_thinkgrasp_step_file(timestamp, step_folder, filename):
+    """Serve a file from a ThinkGrasp step folder"""
+    import os
+    from flask import send_file, abort
+    
+    file_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp, step_folder, filename
+    )
+    
+    if os.path.exists(file_path):
+        if filename.endswith('.json'):
+            return send_file(file_path, mimetype='application/json')
+        else:
+            return send_file(file_path)
+    else:
+        abort(404)
+
+
+@app.route('/convert_ply/<timestamp>/<filename>')
+def convert_ply_to_json(timestamp, filename):
+    """Convert PLY file to JSON format for Three.js"""
+    import os
+    
+    ply_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp, filename
+    )
+    
+    if not os.path.exists(ply_path):
+        return jsonify({'error': 'PLY file not found'}), 404
+    
+    try:
+        import open3d as o3d
+        pcd = o3d.io.read_point_cloud(ply_path)
+        points = np.asarray(pcd.points).tolist()
+        colors = np.asarray(pcd.colors).tolist() if pcd.has_colors() else []
+        
+        return jsonify({
+            'points': points,
+            'colors': colors,
+            'count': len(points)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/grasp/execute', methods=['POST'])
