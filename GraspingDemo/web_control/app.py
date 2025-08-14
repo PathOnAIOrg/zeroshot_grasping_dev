@@ -30,7 +30,15 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import the improved main client with built-in reliability features
 try:
     from so101_grasp.robot.so101_client_raw_simple import SO101ClientRawSimple
-    from so101_grasp.robot.so101_kinematics import SO101Kinematics
+    
+    # Try to use fast kinematics first
+    try:
+        from so101_grasp.robot.so101_kinematics_fast import SO101KinematicsFast as SO101Kinematics
+        print("✅ Using optimized fast kinematics solver")
+    except ImportError:
+        from so101_grasp.robot.so101_kinematics import SO101Kinematics
+        print("ℹ️ Using standard kinematics solver")
+    
     HAS_ROBOT = True
 except (ImportError, ModuleNotFoundError) as e:
     print(f"⚠️ Warning: Robot control modules not available: {e}")
@@ -73,7 +81,17 @@ from pointcloud_viewer import (
 )
 from coordinate_transform import CoordinateTransform
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+# Import and register motion planning API if available
+try:
+    from motion_planning_api import motion_api
+    app.register_blueprint(motion_api)
+    print("✅ Motion planning API registered")
+    HAS_MOTION_PLANNER = True
+except ImportError as e:
+    print(f"⚠️ Motion planning API not available: {e}")
+    HAS_MOTION_PLANNER = False
 
 # Global robot client and kinematics
 robot = None
@@ -1003,6 +1021,51 @@ def move_to_position():
     except Exception as e:
         is_moving = False
         return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/inverse_kinematics', methods=['POST'])
+def inverse_kinematics():
+    """Compute inverse kinematics for a target position"""
+    try:
+        data = request.get_json() or {}
+        position = data.get('position', [0.2, 0.0, 0.2])
+        current_joints = data.get('current_joints', [0, 0, 0, 0, 0, 0])
+        
+        # Validate input
+        if not isinstance(position, (list, tuple)) or len(position) != 3:
+            return jsonify({
+                'success': False,
+                'message': 'Position must be [x, y, z] in meters'
+            })
+        
+        # Convert to numpy array
+        target_pos = np.array(position)
+        
+        # Compute IK solution
+        solution = kinematics.inverse_kinematics(target_pos, current_joints)
+        
+        if solution is None:
+            return jsonify({
+                'success': False,
+                'message': 'No IK solution found for target position'
+            })
+        
+        # Verify solution with forward kinematics
+        pos, rot = kinematics.forward_kinematics(solution)
+        error = np.linalg.norm(pos - target_pos)
+        
+        return jsonify({
+            'success': True,
+            'joints': solution[:6],  # Return all 6 joints
+            'error_mm': float(error * 1000),
+            'verified_position': pos.tolist()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'IK computation failed: {str(e)}'
+        })
 
 
 # Camera control routes
