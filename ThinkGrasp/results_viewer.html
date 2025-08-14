@@ -463,6 +463,42 @@
                         </div>
                     </div>
 
+                    <!-- Input Images Section -->
+                    <div class="section">
+                        <div class="section-header">📸 Input Images</div>
+                        <div class="section-content">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                                <div class="info-card">
+                                    <h4>RGB Image</h4>
+                                    <img src="/results/${currentResult}/input_rgb.png" 
+                                         style="width: 100%; height: auto; border-radius: 8px; cursor: pointer;"
+                                         onclick="window.open('/results/${currentResult}/input_rgb.png', '_blank')"
+                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjE1MCIgeT0iMTAwIiBzdHlsZT0iZmlsbDojOTk5O2ZvbnQtZmFtaWx5OkFyaWFsIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='">
+                                </div>
+                                <div class="info-card">
+                                    <h4>Depth Visualization</h4>
+                                    <img src="/results/${currentResult}/input_depth_visualization.png" 
+                                         style="width: 100%; height: auto; border-radius: 8px; cursor: pointer;"
+                                         onclick="window.open('/results/${currentResult}/input_depth_visualization.png', '_blank')"
+                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjE1MCIgeT0iMTAwIiBzdHlsZT0iZmlsbDojOTk5O2ZvbnQtZmFtaWx5OkFyaWFsIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='">
+                                </div>
+                                <div class="info-card">
+                                    <h4>Cropping Box</h4>
+                                    <img src="/results/${currentResult}/cropping_box_visualization.png" 
+                                         style="width: 100%; height: auto; border-radius: 8px; cursor: pointer;"
+                                         onclick="window.open('/results/${currentResult}/cropping_box_visualization.png', '_blank')"
+                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjE1MCIgeT0iMTAwIiBzdHlsZT0iZmlsbDojOTk5O2ZvbnQtZmFtaWx5OkFyaWFsIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='">
+                                </div>
+                            </div>
+                            <div class="info-card" style="margin-top: 15px;">
+                                <h4>📝 Grasp Instruction</h4>
+                                <div id="grasp-instruction" style="padding: 10px; background: #f8f9fa; border-radius: 4px; font-style: italic;">
+                                    Loading instruction...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="info-grid">
                         <div class="info-card">
                             <h4>🧠 OpenAI Analysis</h4>
@@ -476,6 +512,22 @@
                 `;
 
                 document.getElementById('content').innerHTML = content;
+                
+                // Load and display instruction text
+                fetch(`/results/${timestamp}/input_instruction.txt`)
+                    .then(response => response.text())
+                    .then(text => {
+                        const instructionEl = document.getElementById('grasp-instruction');
+                        if (instructionEl) {
+                            instructionEl.textContent = text || 'No instruction available';
+                        }
+                    })
+                    .catch(error => {
+                        const instructionEl = document.getElementById('grasp-instruction');
+                        if (instructionEl) {
+                            instructionEl.textContent = 'Instruction not available';
+                        }
+                    });
                 
                 // Show steps selector if available
                 if (availableSteps && availableSteps.length > 0) {

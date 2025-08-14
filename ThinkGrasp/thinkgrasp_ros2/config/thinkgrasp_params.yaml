@@ -1,0 +1,35 @@
+thinkgrasp_service:
+  ros__parameters:
+    api_host: "localhost"
+    api_port: 5010
+    temp_dir: "/tmp/thinkgrasp"
+    publish_markers: true
+    marker_lifetime: 10.0
+
+image_capture:
+  ros__parameters:
+    rgb_topic: "/camera/color/image_raw"
+    depth_topic: "/camera/aligned_depth_to_color/image_raw"
+    capture_dir: "/tmp/thinkgrasp/captures"
+    auto_capture_rate: 0.0  # Hz, 0 for manual only
+
+grasp_visualizer:
+  ros__parameters:
+    update_rate: 30.0
+
+# Camera configuration for different setups
+camera_configs:
+  realsense_d435:
+    rgb_topic: "/camera/color/image_raw"
+    depth_topic: "/camera/aligned_depth_to_color/image_raw"
+    pointcloud_topic: "/camera/depth/color/points"
+    
+  realsense_d435i:
+    rgb_topic: "/camera/color/image_raw"
+    depth_topic: "/camera/aligned_depth_to_color/image_raw"
+    pointcloud_topic: "/camera/depth/color/points"
+    
+  kinect_v2:
+    rgb_topic: "/kinect2/hd/image_color"
+    depth_topic: "/kinect2/hd/image_depth_rect"
+    pointcloud_topic: "/kinect2/hd/points"
