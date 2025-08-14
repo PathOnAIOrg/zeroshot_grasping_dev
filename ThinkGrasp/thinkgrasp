@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""
+ThinkGrasp Unified CLI
+A single command that works regardless of ROS2 setup
+"""
+
+import sys
+import os
+import argparse
+import subprocess
+from pathlib import Path
+
+# Get the directory where this script is located
+SCRIPT_DIR = Path(__file__).parent.absolute()
+
+def run_grasp_detection(rgb_path, depth_path, instruction, host='localhost', port=5010):
+    """Run grasp detection using the best available method"""
+    
+    # First, check if the simple client exists
+    simple_client = SCRIPT_DIR / 'simple_grasp_client.py'
+    
+    if simple_client.exists():
+        # Use the simple client (most reliable)
+        cmd = [
+            sys.executable,
+            str(simple_client),
+            rgb_path,
+            depth_path,
+            instruction,
+            '--host', host,
+            '--port', str(port)
+        ]
+        
+        result = subprocess.run(cmd)
+        return result.returncode
+    else:
+        print("Error: Could not find simple_grasp_client.py")
+        print(f"Expected at: {simple_client}")
+        return 1
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='ThinkGrasp - Unified grasp detection CLI',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s rgb.png depth.png "grasp the red cube"
+  %(prog)s --host 192.168.1.100 rgb.png depth.png "pick up the bottle"
+  %(prog)s --server  # Start the API server
+  
+Make sure the API server is running:
+  %(prog)s --server
+Or in another terminal:
+  python realarm310.py
+        """
+    )
+    
+    # Add server mode
+    parser.add_argument('--server', action='store_true', 
+                       help='Start the ThinkGrasp API server')
+    
+    # Grasp detection arguments
+    parser.add_argument('rgb_image', nargs='?', help='Path to RGB image')
+    parser.add_argument('depth_image', nargs='?', help='Path to depth image')
+    parser.add_argument('instruction', nargs='?', help='Grasp instruction text')
+    
+    # Optional arguments
+    parser.add_argument('--host', default='localhost', 
+                       help='API server host (default: localhost)')
+    parser.add_argument('--port', type=int, default=5010, 
+                       help='API server port (default: 5010)')
+    
+    args = parser.parse_args()
+    
+    # Server mode
+    if args.server:
+        server_script = SCRIPT_DIR / 'realarm310.py'
+        if server_script.exists():
+            print("🚀 Starting ThinkGrasp API server...")
+            print("Press Ctrl+C to stop")
+            subprocess.run([sys.executable, str(server_script)])
+        else:
+            print(f"Error: Could not find realarm310.py at {server_script}")
+            return 1
+        return 0
+    
+    # Check if we have all required arguments for client mode
+    if not args.rgb_image or not args.depth_image or not args.instruction:
+        parser.print_help()
+        return 1
+    
+    # Run grasp detection
+    return run_grasp_detection(
+        args.rgb_image,
+        args.depth_image,
+        args.instruction,
+        args.host,
+        args.port
+    )
+
+if __name__ == '__main__':
+    sys.exit(main())
