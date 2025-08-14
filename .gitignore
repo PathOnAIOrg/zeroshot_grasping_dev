@@ -83,5 +83,17 @@ ROS2/FoundationPose2/sam2.1_b.pt
 /handeye/build
 /handeye/ros2_digital_twin/log
 /GraspingDemo/web_control/__pycache__
+<<<<<<< Updated upstream
 /ThinkGrasp/outputs
 /GraspingDemo/so101_grasp/api/__pycache__
+=======
+/Graspnet_ros/scripts/graspnet-baseline/pointnet2/build
+/Graspnet_ros/scripts/graspnet-baseline/pointnet2/build
+/Graspnet_ros/scripts/__pycache__
+/GraspingDemo/so101_grasp/api/__pycache__
+/ThinkGrasp/outputs
+>>>>>>> Stashed changes
+/handeye/handeye_calibration/__pycache__
+/handeye/handeye_calibration/__pycache__
+/Graspnet_ros/scripts/graspnet-baseline/install
+/handeye/handeye_calibration/__pycache__
