@@ -1,0 +1,18 @@
+# Python dependencies for lerobot_perception package
+
+# Core computer vision and image processing
+opencv-python>=4.5.0
+numpy<2.0.0
+
+# 3D point cloud processing
+open3d>=0.15.0
+
+# ROS2 Python bridge for OpenCV
+cv-bridge>=3.0.0
+
+# Additional utilities
+scipy>=1.7.0
+scikit-learn>=1.0.0
+
+# Note: ROS2 packages (rclpy, sensor_msgs, geometry_msgs, etc.) 
+# are provided by the ROS2 system and should not be installed via pip

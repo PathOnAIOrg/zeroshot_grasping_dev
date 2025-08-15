@@ -59,4 +59,119 @@
         </sensor>
     </gazebo>
 
+    <!-- Test Objects for Object Detection -->
+    <gazebo>
+        <model name="red_box">
+            <static>true</static>
+            <pose>0.3 0.0 0.05 0 0 0</pose>
+            <link name="red_box_link">
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>0.1 0.1 0.1</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>0.1 0.1 0.1</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>1 0 0 1</ambient>
+                        <diffuse>1 0 0 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+        </model>
+    </gazebo>
+
+    <gazebo>
+        <model name="green_sphere">
+            <static>true</static>
+            <pose>0.0 0.3 0.05 0 0 0</pose>
+            <link name="green_sphere_link">
+                <collision name="collision">
+                    <geometry>
+                        <sphere>
+                            <radius>0.05</radius>
+                        </sphere>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <sphere>
+                            <radius>0.05</radius>
+                        </sphere>
+                    </geometry>
+                    <material>
+                        <ambient>0 1 0 1</ambient>
+                        <diffuse>0 1 0 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+        </model>
+    </gazebo>
+
+    <gazebo>
+        <model name="blue_cylinder">
+            <static>true</static>
+            <pose>0.06 -0.3 0.05 0 0 0</pose>
+            <link name="blue_cylinder_link">
+                <collision name="collision">
+                    <geometry>
+                        <cylinder>
+                            <radius>0.05</radius>
+                            <length>0.1</length>
+                        </cylinder>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <cylinder>
+                            <radius>0.05</radius>
+                            <length>0.1</length>
+                        </cylinder>
+                    </geometry>
+                    <material>
+                        <ambient>0 0 1 1</ambient>
+                        <diffuse>0 0 1 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+        </model>
+    </gazebo>
+
+    <gazebo>
+        <model name="purple_cube">
+            <static>true</static>
+            <pose>-0.3 0 0.04 0 0 0</pose>
+            <link name="purple_cube_link">
+                <collision name="collision">
+                    <geometry>
+                        <box>
+                            <size>0.08 0.08 0.08</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <box>
+                            <size>0.08 0.08 0.08</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>1 0 1 1</ambient>
+                        <diffuse>1 0 1 1</diffuse>
+                        <specular>0.1 0.1 0.1 1</specular>
+                    </material>
+                </visual>
+            </link>
+        </model>
+    </gazebo>
+
 </robot>
