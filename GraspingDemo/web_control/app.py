@@ -16,6 +16,7 @@ import sys
 import numpy as np
 import base64
 import io
+import logging
 
 # Try to import cv2 for image handling
 try:
@@ -83,15 +84,35 @@ from coordinate_transform import CoordinateTransform
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
-# Import and register motion planning API if available
-try:
-    from motion_planning_api import motion_api
-    app.register_blueprint(motion_api)
-    print("✅ Motion planning API registered")
-    HAS_MOTION_PLANNER = True
-except ImportError as e:
-    print(f"⚠️ Motion planning API not available: {e}")
-    HAS_MOTION_PLANNER = False
+# Configure logging to suppress request logs for frequent endpoints
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)  # Only show errors, not regular requests
+
+# If you want to selectively log certain endpoints, you can use a custom filter
+class RequestFilter(logging.Filter):
+    def filter(self, record):
+        # Filter out frequent status and streaming endpoints
+        if hasattr(record, 'getMessage'):
+            message = record.getMessage()
+            # List of endpoints to suppress logging for
+            suppress_endpoints = [
+                '/api/status',
+                '/api/robot/joint_states',
+                '/api/camera/rgb',
+                '/api/camera/depth',
+                '/api/camera/pointcloud'
+            ]
+            for endpoint in suppress_endpoints:
+                if endpoint in message:
+                    return False
+        return True
+
+# Apply the filter to werkzeug logger
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.addFilter(RequestFilter())
+
+# Motion planning API removed (simplified system)
+HAS_MOTION_PLANNER = False
 
 # Global robot client and kinematics
 robot = None
@@ -186,6 +207,27 @@ def disconnect_robot():
 def index():
     """Main page - classic UI"""
     return render_template('index.html')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve a simple favicon to avoid 404 errors"""
+    import io
+    import base64
+    from flask import send_file
+    
+    # Robot icon as favicon (base64 encoded PNG, 32x32)
+    favicon_base64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAJFSURBVFiFxZe9jtNAEMc/r+04jhMnF3EREqJBQkI0NDRQQ0NHxwNQ8QI8AS0VDRUPQMUDUFFRIKWgoEFCQkI6JM5HnNiO7bU3FLuzXjuXO+4QI61kvTM7/5nZnZ0d8N13lFIopRARRATXdRERAFzXRUSw1iIiAKRpirUWYwzWWowxWGsxxmCMwVqLMQZrLdZalFIURUGe50RRhIig63qZnmVZBX6SJKRpSpZlFEVBURTkeU6WZeR5TpZlFVqe52RZRpqmpGlKkiQkScLg7u5u+uHDhxGASqmS5VEUATCfz0mSpFTkeR5BEBCGIb7v43keYRji+z6u6yIiRFFEEATlO4Du9XplVsdxSJKELMsq4BtskWVZOZ7neaXK8zwnCAJc16Xb7VbStCiKaDQaZUYcx0EphVIKx3FQSlWA5jiOtDqxcxxHRKQ1UUqJUkocxxGlVDmmta78aa3r2nHWAr7ZdWx37eYHqOs6tm3bqOV5XqmgtY7W2lp0SqkqWOvAnNj9r5BqiCpgNVJyXRegtppPTk4AWCwWtGJd1xkMBgBsbW2xs7MDwPHxMZeXl7X7m80mW1tbrFYrZrNZvRhjODo6wmqtaTabKKXY3d1ld3cXgMPDQ7LsD5ZzQCml3r171394aqytVqsNJGzfuKfT6crUB4MBvu+ztbWFtZbdbMb5+fm6JHw8PiGJk9+W+uJLnHVQjhhjODg4IMsyXNclDMN/Pl4uut0uvV6P/f39G82BwcHBAbPZjOl0yvPnzzeFmKIovskvIYQQQvwEP/XpMXQFCrIAAAAASUVORK5CYII="
+    
+    # Decode base64 to bytes
+    favicon_bytes = base64.b64decode(favicon_base64)
+    
+    # Return as PNG image
+    return send_file(
+        io.BytesIO(favicon_bytes),
+        mimetype='image/png'
+    )
+
 
 @app.route('/modern')
 def modern():
@@ -2344,126 +2386,6 @@ def move_robot_joints():
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/robot/test_movement', methods=['POST'])
-def test_robot_movement():
-    """Test robot movement with small motion"""
-    global robot, motors_enabled
-    
-    if not robot:
-        return jsonify({'success': False, 'message': 'Robot not connected'})
-    
-    try:
-        # Step 1: Enable all motors with detailed feedback
-        print("=" * 50)
-        print("TEST MOVEMENT SEQUENCE STARTING")
-        print("=" * 50)
-        
-        print("Step 1: Enabling motors...")
-        enable_results = []
-        for i in range(6):
-            servo_id = i + 1
-            success = robot.enable_torque(servo_id, True)
-            enable_results.append(success)
-            print(f"  Servo {servo_id}: {'✅ Enabled' if success else '❌ Failed'}")
-            time.sleep(0.05)
-        
-        if not all(enable_results):
-            failed_servos = [i+1 for i, success in enumerate(enable_results) if not success]
-            return jsonify({
-                'success': False, 
-                'message': f'Failed to enable servos: {failed_servos}',
-                'details': {
-                    'enable_results': enable_results,
-                    'failed_servos': failed_servos
-                }
-            })
-        
-        motors_enabled = True
-        print("  All motors enabled successfully")
-        
-        # Step 2: Wait for motors to stabilize
-        print("Step 2: Waiting for motors to stabilize...")
-        time.sleep(0.5)
-        
-        # Step 3: Read current position with validation
-        print("Step 3: Reading current position...")
-        try:
-            current = robot.read_joints(validate=False)
-            print(f"  Position (rad): {[f'{p:.3f}' for p in current]}")
-            print(f"  Position (deg): {[f'{p*57.3:.1f}' for p in current]}")
-            
-            # Check if position seems valid
-            zero_count = sum(1 for p in current if abs(p) < 0.001)
-            if zero_count >= 4:
-                print("  ⚠️  Warning: Many joints read as zero, position may be invalid")
-                
-        except Exception as e:
-            print(f"  ❌ Failed to read position: {e}")
-            return jsonify({
-                'success': False,
-                'message': f'Failed to read current position: {str(e)}'
-            })
-        
-        # Step 4: Calculate test movement
-        print("Step 4: Calculating test movement...")
-        test_target = current.copy()
-        test_target[1] += 0.15  # Move shoulder joint by 0.15 radians (~8.6 degrees)
-        
-        print(f"  Current: {[f'{p:.3f}' for p in current]}")
-        print(f"  Target:  {[f'{p:.3f}' for p in test_target]}")
-        print(f"  Delta:   {[f'{t-c:.3f}' for c, t in zip(current, test_target)]}")
-        
-        # Step 5: Execute movement
-        print("Step 5: Executing movement...")
-        print("  Moving forward (30 steps, 1.5 seconds)...")
-        
-        # Move forward
-        robot.interpolate_waypoint(current, test_target, steps=30, timestep=0.05)
-        
-        # Step 6: Verify movement
-        print("Step 6: Verifying movement...")
-        time.sleep(0.5)
-        final = robot.read_joints(validate=False)
-        print(f"  Final:   {[f'{p:.3f}' for p in final]}")
-        
-        actual_delta = [f-c for f, c in zip(final, current)]
-        print(f"  Actual delta: {[f'{d:.3f}' for d in actual_delta]}")
-        
-        # Check if movement occurred
-        movement_detected = abs(actual_delta[1]) > 0.05
-        print(f"  Movement detected: {'✅ Yes' if movement_detected else '❌ No'}")
-        
-        # Step 7: Return to original position
-        print("Step 7: Returning to original position...")
-        robot.interpolate_waypoint(final, current, steps=30, timestep=0.05)
-        
-        print("=" * 50)
-        print("TEST COMPLETE")
-        print("=" * 50)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Test movement completed' if movement_detected else 'Test completed but no movement detected',
-            'movement_detected': movement_detected,
-            'initial': [float(p) for p in current],
-            'target': [float(p) for p in test_target],
-            'final': [float(p) for p in final],
-            'actual_delta': [float(d) for d in actual_delta],
-            'motors_enabled': motors_enabled
-        })
-        
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"❌ Test failed with error: {e}")
-        print(error_details)
-        return jsonify({
-            'success': False, 
-            'message': f'Test failed: {str(e)}',
-            'error_details': error_details
-        })
-
-
 @app.route('/api/robot/reliability', methods=['GET'])
 def get_reliability_stats():
     """Get data reliability statistics"""
@@ -2911,6 +2833,686 @@ def detect_grasp_pose():
             'success': False,
             'message': f'Error detecting grasp pose: {str(e)}'
         })
+
+
+@app.route('/api/grasp/visualize', methods=['POST'])
+def visualize_grasp():
+    """Generate Plotly visualization for grasp pose and trajectory"""
+    global realsense_camera, active_camera
+    try:
+        import plotly.graph_objects as go
+        from pointcloud_viewer import vis_pcd_plotly, generate_plotly_html, load_point_cloud_from_capture
+        
+        data = request.get_json() or {}
+        grasp_pose = data.get('grasp_pose')
+        show_trajectory = data.get('show_trajectory', False)
+        capture_name = data.get('capture_name', 'latest')
+        
+        # Additional visualization options
+        show_camera = data.get('show_camera', True)
+        show_robot = data.get('show_robot', True)
+        robot_joint_angles = data.get('robot_joint_angles')
+        robot_position = data.get('robot_position', [0, 0, 0])
+        robot_rotation = data.get('robot_rotation', [0, 0, 0])
+        camera_on_hand = data.get('camera_on_hand', False)  # Eye-in-hand vs Eye-to-hand
+        
+        if not grasp_pose:
+            return jsonify({'success': False, 'message': 'No grasp pose provided'})
+        
+        # Load point cloud if capture specified
+        pointclouds = []
+        
+        # Option to use test/demo point cloud if needed
+        use_demo_pointcloud = data.get('use_demo_pointcloud', False)
+        
+        if use_demo_pointcloud:
+            # Generate a demo point cloud for testing
+            print("Using demo point cloud for testing...")
+            demo_points = []
+            demo_colors = []
+            # Create a simple cube point cloud
+            for x in np.linspace(-50, 50, 20):
+                for y in np.linspace(-50, 50, 20):
+                    for z in np.linspace(10, 60, 10):
+                        demo_points.append([x, y, z])
+                        # Color based on height
+                        demo_colors.append([z/60, 0.5, 1-z/60])
+            
+            pointclouds.append({
+                'vertices': np.array(demo_points),
+                'colors': np.array(demo_colors),
+                'name': 'Demo Point Cloud'
+            })
+            print(f"Created demo point cloud with {len(demo_points)} points")
+        elif capture_name and capture_name != 'none':
+            try:
+                # Handle "latest" capture name by finding the most recent capture
+                if capture_name == 'latest':
+                    captures_base = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures"
+                    if not captures_base.exists():
+                        captures_base = Path('captures')
+                    
+                    if captures_base.exists():
+                        # Find the most recent capture directory
+                        capture_dirs = [d for d in captures_base.iterdir() if d.is_dir()]
+                        if capture_dirs:
+                            # Sort by modification time and get the most recent
+                            capture_dir = max(capture_dirs, key=lambda d: d.stat().st_mtime)
+                            print(f"Using latest capture: {capture_dir.name}")
+                        else:
+                            print("No capture directories found")
+                            capture_dir = captures_base / 'latest'  # Fallback
+                    else:
+                        print("Captures directory does not exist")
+                        capture_dir = Path('captures') / 'latest'
+                else:
+                    capture_dir = Path.home() / "Documents/Github/opensource_dev/GraspingDemo/captures" / capture_name
+                    if not capture_dir.exists():
+                        capture_dir = Path('captures') / capture_name
+                
+                if capture_dir.exists():
+                    from pointcloud_viewer import load_point_cloud_from_capture
+                    print(f"Loading point cloud from: {capture_dir}")
+                    pcd_data, metadata = load_point_cloud_from_capture(str(capture_dir))
+                    if pcd_data:
+                        vertices = pcd_data['vertices'] * 100  # Convert to cm
+                        colors = pcd_data['colors']
+                        print(f"Loaded point cloud with {len(vertices)} points")
+                        
+                        # Use same filtering method as live stream
+                        # Only filter out extremely far points (noise)
+                        distances = np.linalg.norm(vertices, axis=1)
+                        valid_mask = distances < 500  # Keep points within 5 meters
+                        vertices = vertices[valid_mask]
+                        colors = colors[valid_mask]
+                        
+                        # Remove statistical outliers if there are enough points
+                        if len(vertices) > 100:
+                            from pointcloud_viewer import remove_statistical_outliers
+                            vertices, colors = remove_statistical_outliers(vertices, colors, n_neighbors=10, std_ratio=1.5)
+                        
+                        # Further downsample if needed (voxel size in cm)
+                        if len(vertices) > 20000:
+                            from pointcloud_viewer import downsample_pointcloud
+                            vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=1.0)  # 1cm voxel size
+                        
+                        print(f"After processing: {len(vertices)} points")
+                        print(f"Point cloud range - X: [{vertices[:, 0].min():.2f}, {vertices[:, 0].max():.2f}] cm")
+                        print(f"Point cloud range - Y: [{vertices[:, 1].min():.2f}, {vertices[:, 1].max():.2f}] cm")
+                        print(f"Point cloud range - Z: [{vertices[:, 2].min():.2f}, {vertices[:, 2].max():.2f}] cm")
+                        
+                        pointclouds.append({
+                            'vertices': vertices,
+                            'colors': colors,
+                            'name': f'Capture: {capture_name}'
+                        })
+                    else:
+                        print(f"No point cloud data returned for {capture_name}")
+                else:
+                    print(f"Capture directory does not exist: {capture_dir}")
+                    print("Attempting to generate point cloud from current camera data...")
+                    
+                    # Try to get current camera data to generate point cloud
+                    if active_camera == 'realsense' and realsense_camera:
+                        try:
+                            # Get current depth and RGB frames
+                            depth_frame = realsense_camera.get_depth_data()
+                            rgb_frame = realsense_camera.get_rgb_data()
+                            
+                            if depth_frame is not None:
+                                from pointcloud_viewer import generate_pointcloud_from_depth
+                                
+                                # Get camera intrinsics
+                                camera_intrinsics = {
+                                    'fx': 615.0,
+                                    'fy': 615.0, 
+                                    'ppx': 320.0,
+                                    'ppy': 240.0,
+                                    'depth_scale': 0.001
+                                }
+                                
+                                if hasattr(realsense_camera, 'intrinsics'):
+                                    intr = realsense_camera.intrinsics
+                                    camera_intrinsics.update({
+                                        'fx': intr.fx,
+                                        'fy': intr.fy,
+                                        'ppx': intr.ppx,
+                                        'ppy': intr.ppy
+                                    })
+                                
+                                # Generate point cloud from current camera data
+                                pcd_data = generate_pointcloud_from_depth(
+                                    depth_frame, 
+                                    {'camera_intrinsics': camera_intrinsics},
+                                    rgb_frame
+                                )
+                                
+                                if pcd_data:
+                                    vertices = pcd_data['vertices'] * 100  # Convert to cm
+                                    colors = pcd_data['colors']
+                                    print(f"Generated {len(vertices)} points from live camera")
+                                    
+                                    # Apply same filtering as live stream
+                                    distances = np.linalg.norm(vertices, axis=1)
+                                    valid_mask = distances < 500  # Keep points within 5 meters
+                                    vertices = vertices[valid_mask]
+                                    colors = colors[valid_mask]
+                                    
+                                    # Remove statistical outliers
+                                    if len(vertices) > 100:
+                                        from pointcloud_viewer import remove_statistical_outliers
+                                        vertices, colors = remove_statistical_outliers(vertices, colors, n_neighbors=10, std_ratio=1.5)
+                                    
+                                    # Downsample if needed
+                                    if len(vertices) > 20000:
+                                        from pointcloud_viewer import downsample_pointcloud
+                                        vertices, colors = downsample_pointcloud(vertices, colors, voxel_size=1.0)
+                                    
+                                    print(f"After processing: {len(vertices)} points from live camera")
+                                    
+                                    pointclouds.append({
+                                        'vertices': vertices,
+                                        'colors': colors,
+                                        'name': 'Live Camera Data'
+                                    })
+                            else:
+                                print("No depth data available from camera")
+                        except Exception as e:
+                            print(f"Failed to generate point cloud from camera: {e}")
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        print("RealSense camera not available for live point cloud generation")
+            except Exception as e:
+                print(f"Could not load point cloud: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Extract grasp pose components
+        xyz = grasp_pose.get('xyz', [0, 0, 0])
+        rot = np.array(grasp_pose.get('rot', [[1,0,0],[0,1,0],[0,0,1]]))
+        dep = grasp_pose.get('dep', 0.05)
+        
+        # Convert position from mm to cm for visualization
+        pos_cm = [x/10 for x in xyz]
+        
+        # Transform grasp pose based on camera mounting configuration
+        if camera_on_hand and robot_position:
+            # Eye-in-hand: Camera moves with robot
+            # Grasp pose is relative to camera, which is on the robot
+            # Need to transform grasp pose to world frame using robot pose
+            
+            robot_pos_cm = [robot_position[0] * 100, robot_position[1] * 100, robot_position[2] * 100]
+            
+            # If robot rotation is provided, apply rotation transformation
+            if robot_rotation:
+                # Convert rotation from degrees to radians
+                roll, pitch, yaw = [np.radians(angle) for angle in robot_rotation]
+                
+                # Create rotation matrix from Euler angles
+                from scipy.spatial.transform import Rotation as R
+                robot_rot = R.from_euler('xyz', [roll, pitch, yaw])
+                
+                # Transform grasp position relative to robot
+                grasp_pos_relative = np.array(pos_cm)
+                grasp_pos_rotated = robot_rot.apply(grasp_pos_relative)
+                pos_cm = grasp_pos_rotated.tolist()
+                
+                # Also rotate the grasp orientation
+                rot = robot_rot.as_matrix() @ rot
+            
+            # Add robot position offset
+            pos_cm[0] += robot_pos_cm[0]
+            pos_cm[1] += robot_pos_cm[1]
+            pos_cm[2] += robot_pos_cm[2]
+            
+            print(f"Eye-in-hand mode: Grasp transformed relative to robot")
+        else:
+            # Eye-to-hand: Camera is stationary
+            # Grasp pose is already in world coordinates
+            # No transformation needed
+            print(f"Eye-to-hand mode: Grasp in world coordinates")
+        
+        print(f"Grasp position (after transform): {pos_cm} cm")
+        
+        # Decide whether to use vis_pcd_plotly for complete visualization
+        if show_camera or show_robot:
+            # Use vis_pcd_plotly for complete scene visualization
+            from pointcloud_viewer import vis_pcd_plotly
+            
+            # Get camera info if available
+            camera_info = None
+            if show_camera:
+                # Use default camera info for visualization
+                camera_info = {
+                    'fx': 615.0,
+                    'fy': 615.0,
+                    'cx': 320.0,
+                    'cy': 240.0,
+                    'width': 640,
+                    'height': 480
+                }
+                try:
+                    # Try to get actual intrinsics if RealSense is connected
+                    if active_camera == 'realsense' and realsense_camera:
+                        if hasattr(realsense_camera, 'intrinsics'):
+                            intr = realsense_camera.intrinsics
+                            camera_info.update({
+                                'fx': intr.fx,
+                                'fy': intr.fy,
+                                'cx': intr.ppx,
+                                'cy': intr.ppy,
+                                'width': intr.width,
+                                'height': intr.height
+                            })
+                except Exception as e:
+                    print(f"Could not get camera intrinsics: {e}")
+            
+            # Convert robot joint angles to dict format if needed
+            if robot_joint_angles and isinstance(robot_joint_angles, list):
+                joint_dict = {}
+                for i, angle in enumerate(robot_joint_angles[:6]):
+                    joint_dict[str(i+1)] = angle
+                robot_joint_angles = joint_dict
+            
+            # Create figure with full visualization including point cloud
+            print(f"Creating vis_pcd_plotly with {len(pointclouds)} point clouds")
+            print(f"show_camera={show_camera}, show_robot={show_robot}")
+            if pointclouds:
+                print(f"First pointcloud has {len(pointclouds[0]['vertices'])} vertices")
+            else:
+                print("WARNING: No pointclouds to visualize!")
+            
+            fig = vis_pcd_plotly(
+                pointclouds=pointclouds if pointclouds else [],
+                size_ls=[2] if pointclouds else [],  # Increased marker size from 1 to 2
+                title=f"Grasp Visualization - {capture_name}",
+                show_camera=show_camera,
+                camera_info=camera_info,
+                show_robot=show_robot,
+                robot_joint_angles=robot_joint_angles,
+                robot_position=robot_position if robot_position else None,
+                robot_rotation=robot_rotation if robot_rotation else None,
+                show_grid=True  # Show ground grid
+            )
+        else:
+            # Simple visualization without camera/robot
+            print(f"Using simple visualization, {len(pointclouds)} point clouds available")
+            fig = go.Figure()
+            
+            # Add ground grid
+            from pointcloud_viewer import create_ground_grid_traces
+            grid_traces = create_ground_grid_traces(grid_size=20, grid_spacing=10, z_level=0)
+            for trace in grid_traces:
+                fig.add_trace(trace)
+            
+            # Add point cloud if available
+            if pointclouds:
+                pcd = pointclouds[0]
+                vertices = pcd['vertices']
+                colors = pcd['colors']
+                
+                # Convert colors to RGB strings
+                if colors.max() <= 1.0:
+                    colors = (colors * 255).astype(int)
+                color_strings = ['rgb({},{},{})'.format(r, g, b) for r, g, b in colors]
+                
+                fig.add_trace(go.Scatter3d(
+                    x=vertices[:, 0],
+                    y=vertices[:, 1],
+                    z=vertices[:, 2],
+                    mode='markers',
+                    marker=dict(size=2, color=color_strings),  # Increased marker size from 1 to 2
+                    name='Point Cloud'
+                ))
+            
+            # Set proper scene parameters for simple visualization
+            fig.update_layout(
+                scene=dict(
+                    xaxis=dict(title='X (cm)', gridcolor='lightgray', showbackground=True),
+                    yaxis=dict(title='Y (cm)', gridcolor='lightgray', showbackground=True),
+                    zaxis=dict(title='Z (cm)', gridcolor='lightgray', showbackground=True),
+                    aspectmode='cube',  # Ensure uniform scaling
+                    camera=dict(
+                        eye=dict(x=1.5, y=1.5, z=1.0),
+                        center=dict(x=0, y=0, z=0)
+                    )
+                )
+            )
+        
+        # Add grasp coordinate frame
+        axis_length = dep * 100  # Convert to cm
+        axis_colors = ['red', 'green', 'blue']
+        axis_names = ['X', 'Y', 'Z']
+        
+        for i, (color, name) in enumerate(zip(axis_colors, axis_names)):
+            axis_dir = rot[:, i] * axis_length
+            fig.add_trace(go.Scatter3d(
+                x=[pos_cm[0], pos_cm[0] + axis_dir[0]],
+                y=[pos_cm[1], pos_cm[1] + axis_dir[1]],
+                z=[pos_cm[2], pos_cm[2] + axis_dir[2]],
+                mode='lines+markers',
+                line=dict(color=color, width=5),
+                marker=dict(size=[3, 6], color=color),
+                name=f'Grasp {name}-axis',
+                hovertemplate=f'Grasp {name}-axis<br>Direction: {axis_dir}'
+            ))
+        
+        # Add gripper visualization
+        gripper_width = dep * 100  # Convert to cm
+        finger_length = gripper_width * 0.8
+        finger_thickness = 1  # 1cm thickness
+        
+        # Create gripper fingers in local frame then transform
+        for side in [-1, 1]:  # Left and right fingers
+            # Finger base and tip in local frame
+            finger_base = np.array([side * gripper_width/2, 0, 0])
+            finger_tip = np.array([side * gripper_width/2, finger_length, 0])
+            
+            # Transform to world frame
+            finger_base_world = rot @ finger_base + pos_cm
+            finger_tip_world = rot @ finger_tip + pos_cm
+            
+            fig.add_trace(go.Scatter3d(
+                x=[finger_base_world[0], finger_tip_world[0]],
+                y=[finger_base_world[1], finger_tip_world[1]],
+                z=[finger_base_world[2], finger_tip_world[2]],
+                mode='lines',
+                line=dict(color='yellow', width=8),
+                name=f'Gripper {"left" if side < 0 else "right"} finger',
+                showlegend=(side > 0)  # Only show one in legend
+            ))
+        
+        # Add gripper palm connection
+        left_base = rot @ np.array([-gripper_width/2, 0, 0]) + pos_cm
+        right_base = rot @ np.array([gripper_width/2, 0, 0]) + pos_cm
+        
+        fig.add_trace(go.Scatter3d(
+            x=[left_base[0], right_base[0]],
+            y=[left_base[1], right_base[1]],
+            z=[left_base[2], right_base[2]],
+            mode='lines',
+            line=dict(color='orange', width=6),
+            name='Gripper palm',
+            showlegend=False
+        ))
+        
+        # Add robot end-effector current position marker
+        if robot_position:
+            robot_pos_cm = [robot_position[0] * 100, robot_position[1] * 100, robot_position[2] * 100]
+            tcp_offset = 20  # 20cm from robot base to gripper
+            tcp_pos = [robot_pos_cm[0], robot_pos_cm[1], robot_pos_cm[2] + tcp_offset]
+            
+            # Add marker for current robot position
+            fig.add_trace(go.Scatter3d(
+                x=[tcp_pos[0]],
+                y=[tcp_pos[1]],
+                z=[tcp_pos[2]],
+                mode='markers+text',
+                marker=dict(size=10, color='purple', symbol='square'),
+                text=['Robot TCP'],
+                textposition='top center',
+                name='Robot Current Position',
+                hovertemplate='Robot TCP<br>X: %{x:.1f} cm<br>Y: %{y:.1f} cm<br>Z: %{z:.1f} cm'
+            ))
+        
+        # Add trajectory if requested
+        if show_trajectory:
+            # Current robot position - use actual robot position if provided
+            if robot_position:
+                # robot_position is in meters, convert to cm
+                start_pos = [robot_position[0] * 100, robot_position[1] * 100, robot_position[2] * 100]
+                # Add a reasonable TCP offset (tool center point)
+                tcp_offset = 20  # 20cm from robot base to gripper
+                start_pos[2] += tcp_offset
+            else:
+                start_pos = [30, 0, 20]  # Default start position in cm
+            
+            # Pre-grasp position (approach from above)
+            pre_grasp_offset = 10  # 10cm above grasp point
+            pre_grasp_pos = [pos_cm[0], pos_cm[1], pos_cm[2] + pre_grasp_offset]
+            
+            # Generate trajectory waypoints
+            num_points = 20
+            trajectory_points = []
+            
+            # Approach trajectory (from start to pre-grasp)
+            for i in range(num_points//2):
+                t = i / (num_points//2 - 1) if num_points > 2 else 0
+                point = [
+                    start_pos[0] + t * (pre_grasp_pos[0] - start_pos[0]),
+                    start_pos[1] + t * (pre_grasp_pos[1] - start_pos[1]),
+                    start_pos[2] + t * (pre_grasp_pos[2] - start_pos[2])
+                ]
+                trajectory_points.append(point)
+            
+            # Grasp trajectory (from pre-grasp to grasp)
+            for i in range(num_points//2):
+                t = i / (num_points//2 - 1) if num_points > 2 else 0
+                point = [
+                    pre_grasp_pos[0] + t * (pos_cm[0] - pre_grasp_pos[0]),
+                    pre_grasp_pos[1] + t * (pos_cm[1] - pre_grasp_pos[1]),
+                    pre_grasp_pos[2] + t * (pos_cm[2] - pre_grasp_pos[2])
+                ]
+                trajectory_points.append(point)
+            
+            # Add trajectory line
+            traj_array = np.array(trajectory_points)
+            fig.add_trace(go.Scatter3d(
+                x=traj_array[:, 0],
+                y=traj_array[:, 1],
+                z=traj_array[:, 2],
+                mode='lines+markers',
+                line=dict(color='cyan', width=4),
+                marker=dict(
+                    size=4,
+                    color=np.linspace(0, 1, len(trajectory_points)),
+                    colorscale='Viridis',
+                    showscale=False
+                ),
+                name='Grasp Trajectory',
+                hovertemplate='Waypoint %{pointNumber}<br>Position: (%{x:.1f}, %{y:.1f}, %{z:.1f}) cm'
+            ))
+            
+            # Add arrow at the end
+            if len(trajectory_points) > 1:
+                last_point = trajectory_points[-1]
+                second_last = trajectory_points[-2]
+                direction = np.array(last_point) - np.array(second_last)
+                direction = direction / np.linalg.norm(direction) * 3  # 3cm arrow
+                
+                fig.add_trace(go.Cone(
+                    x=[last_point[0]],
+                    y=[last_point[1]],
+                    z=[last_point[2]],
+                    u=[direction[0]],
+                    v=[direction[1]],
+                    w=[direction[2]],
+                    sizemode='absolute',
+                    sizeref=2,
+                    colorscale=[[0, 'cyan'], [1, 'cyan']],
+                    showscale=False,
+                    name='Approach Direction'
+                ))
+        
+        # Update layout - only update title to preserve existing scene settings from vis_pcd_plotly
+        # The vis_pcd_plotly function already sets proper scene parameters including aspectmode='cube'
+        # which ensures uniform scaling for all axes
+        fig.update_layout(
+            title=f"Grasp Pose Visualization - {capture_name}",
+            showlegend=True,
+            width=900,
+            height=700
+        )
+        
+        
+        # Generate HTML
+        html_content = generate_plotly_html(fig)
+        
+        return html_content, 200, {'Content-Type': 'text/html'}
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error generating visualization: {str(e)}'
+        })
+
+
+@app.route('/thinkgrasp/results')
+def thinkgrasp_results_viewer():
+    """Serve the ThinkGrasp results viewer HTML"""
+    import os
+    thinkgrasp_viewer_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'results_viewer.html'
+    )
+    
+    if os.path.exists(thinkgrasp_viewer_path):
+        with open(thinkgrasp_viewer_path, 'r') as f:
+            return f.read()
+    else:
+        return "ThinkGrasp results viewer not found", 404
+
+
+@app.route('/list_results')
+def list_thinkgrasp_results():
+    """List available ThinkGrasp results"""
+    import os
+    import glob
+    
+    thinkgrasp_outputs_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs'
+    )
+    
+    # Find all result directories (format: YYYYMMDD_HHMMSS_NNN)
+    result_pattern = os.path.join(thinkgrasp_outputs_dir, '[0-9]*_[0-9]*_[0-9]*')
+    result_dirs = glob.glob(result_pattern)
+    
+    # Extract timestamps from directory names
+    timestamps = []
+    for dir_path in result_dirs:
+        dirname = os.path.basename(dir_path)
+        # Validate it's a proper timestamp format (YYYYMMDD_HHMMSS_NNN)
+        parts = dirname.split('_')
+        if len(parts) == 3 and len(parts[0]) == 8 and len(parts[1]) == 6 and len(parts[2]) == 3:
+            timestamps.append(dirname)
+    
+    # Sort by timestamp (newest first)
+    timestamps.sort(reverse=True)
+    
+    return jsonify({'timestamps': timestamps})
+
+
+@app.route('/results/<timestamp>/<filename>')
+def serve_thinkgrasp_result_file(timestamp, filename):
+    """Serve a specific file from ThinkGrasp results"""
+    import os
+    from flask import send_file, abort
+    
+    thinkgrasp_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp
+    )
+    
+    file_path = os.path.join(thinkgrasp_dir, filename)
+    
+    if os.path.exists(file_path):
+        # Handle JSON files specially to ensure proper content type
+        if filename.endswith('.json'):
+            return send_file(file_path, mimetype='application/json')
+        elif filename.endswith('.txt'):
+            return send_file(file_path, mimetype='text/plain')
+        else:
+            return send_file(file_path)
+    else:
+        abort(404)
+
+
+@app.route('/steps/<timestamp>')
+def get_thinkgrasp_steps(timestamp):
+    """Get available steps for a ThinkGrasp result"""
+    import os
+    import glob
+    
+    thinkgrasp_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp
+    )
+    
+    steps = []
+    # Look for step folders (format: XX_step_name)
+    step_pattern = os.path.join(thinkgrasp_dir, '[0-9][0-9]_*')
+    step_dirs = glob.glob(step_pattern)
+    
+    for step_dir in step_dirs:
+        dirname = os.path.basename(step_dir)
+        # Try to load metadata for the step
+        metadata_path = os.path.join(step_dir, 'metadata.json')
+        num_grasps = 0
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r') as f:
+                    metadata = json.load(f)
+                    num_grasps = len(metadata.get('grasps', []))
+            except:
+                pass
+        
+        steps.append({
+            'folder': dirname,
+            'step_name': dirname,
+            'num_grasps': num_grasps
+        })
+    
+    return jsonify({'steps': sorted(steps, key=lambda x: x['folder'])})
+
+
+@app.route('/step_files/<timestamp>/<step_folder>/<filename>')
+def serve_thinkgrasp_step_file(timestamp, step_folder, filename):
+    """Serve a file from a ThinkGrasp step folder"""
+    import os
+    from flask import send_file, abort
+    
+    file_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp, step_folder, filename
+    )
+    
+    if os.path.exists(file_path):
+        if filename.endswith('.json'):
+            return send_file(file_path, mimetype='application/json')
+        else:
+            return send_file(file_path)
+    else:
+        abort(404)
+
+
+@app.route('/convert_ply/<timestamp>/<filename>')
+def convert_ply_to_json(timestamp, filename):
+    """Convert PLY file to JSON format for Three.js"""
+    import os
+    
+    ply_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'ThinkGrasp', 'outputs', timestamp, filename
+    )
+    
+    if not os.path.exists(ply_path):
+        return jsonify({'error': 'PLY file not found'}), 404
+    
+    try:
+        import open3d as o3d
+        pcd = o3d.io.read_point_cloud(ply_path)
+        points = np.asarray(pcd.points).tolist()
+        colors = np.asarray(pcd.colors).tolist() if pcd.has_colors() else []
+        
+        return jsonify({
+            'points': points,
+            'colors': colors,
+            'count': len(points)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/grasp/execute', methods=['POST'])
@@ -3734,100 +4336,6 @@ def stop_calibration():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-
-@app.route('/api/calibration/test_checkerboard', methods=['GET'])
-def test_checkerboard_detection():
-    """Test checkerboard pattern detection with current camera frame"""
-    
-    if not cv2_available:
-        return jsonify({'success': False, 'error': 'OpenCV not available'})
-    
-    # Patterns to test (from test_checkerboard_detection.py)
-    patterns_to_try = [
-        (7, 4), (4, 7),  # Common pattern
-        (9, 6), (6, 9),  # Standard OpenCV calibration pattern
-        (8, 6), (6, 8),  # Another common pattern
-        (7, 5), (5, 7),  
-        (7, 6), (6, 7),  
-        (6, 4), (4, 6),  
-        (5, 4), (4, 5),  
-        (8, 5), (5, 8),  
-        (10, 7), (7, 10),  # Larger patterns
-        (11, 8), (8, 11),
-        (12, 9), (9, 12),
-        (13, 9), (9, 13),
-    ]
-    
-    try:
-        # Get shared RealSense pipeline
-        pipeline = get_shared_realsense()
-        if pipeline is None:
-            return jsonify({'success': False, 'error': 'Camera not available. Please connect RealSense camera.'})
-        
-        # Get current frame
-        import pyrealsense2 as rs
-        frames = pipeline.wait_for_frames(5000)  # 5 second timeout
-        color_frame = frames.get_color_frame()
-        
-        if not color_frame:
-            return jsonify({'success': False, 'error': 'No frame available from camera'})
-        
-        # Convert to numpy array
-        frame = np.asanyarray(color_frame.get_data())
-        if frame is None or frame.size == 0:
-            return jsonify({'success': False, 'error': 'Invalid frame data'})
-            
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        # Test each pattern
-        detected_patterns = []
-        for pattern in patterns_to_try:
-            ret, corners = cv2.findChessboardCorners(gray, pattern, None)
-            if ret:
-                detected_patterns.append({
-                    'pattern': f"{pattern[0]}x{pattern[1]}",
-                    'corners': pattern[0] * pattern[1],
-                    'size': pattern
-                })
-        
-        # Return the frame as base64 for display
-        _, buffer = cv2.imencode('.jpg', frame)
-        frame_b64 = base64.b64encode(buffer).decode('utf-8')
-        
-        return jsonify({
-            'success': True,
-            'detected_patterns': detected_patterns,
-            'frame': frame_b64,
-            'recommendations': get_pattern_recommendations(detected_patterns)
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-
-def get_pattern_recommendations(detected_patterns):
-    """Get recommendations based on detected patterns"""
-    if not detected_patterns:
-        return [
-            "No checkerboard pattern detected",
-            "Ensure checkerboard is fully visible",
-            "Check lighting conditions",
-            "Try different angles or distances"
-        ]
-    elif len(detected_patterns) == 1:
-        pattern = detected_patterns[0]
-        return [
-            f"Perfect! Your checkerboard is {pattern['pattern']} internal corners",
-            f"Use this in calibration settings: {pattern['pattern']}",
-            "Pattern detected successfully"
-        ]
-    else:
-        return [
-            f"Multiple patterns detected ({len(detected_patterns)} patterns)",
-            "This might indicate detection uncertainty",
-            "Try positioning checkerboard more clearly",
-            "Most likely patterns: " + ", ".join([p['pattern'] for p in detected_patterns[:3]])
-        ]
 
 
 @app.route('/api/calibration/manual/start', methods=['POST'])

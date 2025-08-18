@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SO-101 Robot & Camera Control</title>
+    <title>SO-101 Robot & Camera Control [DEPRECATED]</title>
+    
+    <!-- DEPRECATION NOTICE -->
+    <script>
+        // Redirect to main index.html after showing notice
+        window.addEventListener('load', function() {
+            if (confirm('This page is deprecated and has been merged into the main control panel.\n\nClick OK to go to the main control panel.')) {
+                window.location.href = '/';
+            }
+        });
+    </script>
     
     <!-- Three.js for point cloud visualization -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
@@ -353,6 +363,7 @@
                     <button class="tab active" onclick="switchTab('connection')">Connection</button>
                     <button class="tab" onclick="switchTab('visualization')">Visualization</button>
                     <button class="tab" onclick="switchTab('captures')">Captures</button>
+                    <button class="tab" onclick="switchTab('grasp')">Grasp</button>
                 </div>
                 
                 <!-- Connection Tab -->
@@ -416,7 +427,79 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Grasp Tab -->
+                <div id="grasp-tab" class="tab-content">
+                    <div class="section">
+                        <div class="section-title">🦾 ThinkGrasp Detection</div>
+                        
+                        <div class="control-group">
+                            <label for="grasp-text">Grasp Command:</label>
+                            <input type="text" id="grasp-text" placeholder="e.g., pick up the red cube" 
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        
+                        <div class="control-group" style="margin-top: 10px;">
+                            <label for="capture-select">Select Capture:</label>
+                            <select id="capture-select" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="latest">Latest Capture</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-group" style="margin-top: 15px;">
+                            <button class="btn btn-primary" onclick="detectGraspPose()" style="width: 100%">
+                                🎯 Detect Grasp Pose
+                            </button>
+                        </div>
+                        
+                        <div class="control-group" style="margin-top: 10px;">
+                            <label>
+                                <input type="checkbox" id="show-trajectory" checked> Show Trajectory
+                            </label>
+                        </div>
+                        
+                        <div class="control-group" style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn btn-info" onclick="visualizeGraspPose(document.getElementById('show-trajectory').checked)" 
+                                    style="flex: 1">
+                                👁️ Visualize
+                            </button>
+                            <button class="btn btn-warning" onclick="clearGraspVisualization()" style="flex: 1">
+                                🗑️ Clear
+                            </button>
+                        </div>
+                        
+                        <div class="control-group" style="margin-top: 15px;">
+                            <button class="btn btn-success" onclick="executeGraspPose()" style="width: 100%">
+                                🤖 Execute Grasp
+                            </button>
+                        </div>
+                        
+                        <div class="control-group" style="margin-top: 10px;">
+                            <button class="btn btn-primary" onclick="openThinkGraspResults()" style="width: 100%">
+                                📊 View ThinkGrasp Results
+                            </button>
+                        </div>
+                        
+                        <div id="grasp-info" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
+                            <div class="section-title">📍 Current Grasp Pose</div>
+                            <div id="grasp-details" style="font-family: monospace; font-size: 12px;"></div>
+                        </div>
+                        
+                        <!-- Plotly Visualization Container -->
+                        <div id="grasp-visualization-container" style="margin-top: 15px; width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 5px; overflow: auto;">
+                            <!-- Plotly visualization will be loaded here -->
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- ThinkGrasp Results Modal -->
+    <div id="thinkgrasp-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5);">
+        <div style="position: relative; margin: 2% auto; width: 90%; height: 90%; background-color: white; border-radius: 10px;">
+            <span onclick="closeThinkGraspResults()" style="position: absolute; right: 20px; top: 10px; font-size: 30px; cursor: pointer; z-index: 1001;">&times;</span>
+            <iframe id="thinkgrasp-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 10px;"></iframe>
         </div>
     </div>
     
@@ -503,6 +586,29 @@
             // Create points
             pointCloud = new THREE.Points(geometry, material);
             pointCloudScene.add(pointCloud);
+        }
+        
+        // Clear grasp visualization (Plotly version)
+        function clearGraspVisualization() {
+            const vizContainer = document.getElementById('grasp-visualization-container');
+            if (vizContainer) {
+                vizContainer.innerHTML = '';
+            }
+        }
+        
+        // ThinkGrasp Results Viewer functions
+        function openThinkGraspResults() {
+            const modal = document.getElementById('thinkgrasp-modal');
+            const iframe = document.getElementById('thinkgrasp-iframe');
+            iframe.src = '/thinkgrasp/results';
+            modal.style.display = 'block';
+        }
+        
+        function closeThinkGraspResults() {
+            const modal = document.getElementById('thinkgrasp-modal');
+            const iframe = document.getElementById('thinkgrasp-iframe');
+            modal.style.display = 'none';
+            iframe.src = '';
         }
         
         // Tab switching
@@ -697,8 +803,13 @@
                 const captures = await response.json();
                 
                 const listDiv = document.getElementById('captures-list');
+                const captureSelect = document.getElementById('capture-select');
+                
                 if (captures.length === 0) {
                     listDiv.innerHTML = '<p>No captures yet</p>';
+                    if (captureSelect) {
+                        captureSelect.innerHTML = '<option value="">No captures available</option>';
+                    }
                 } else {
                     listDiv.innerHTML = captures.map(cap => `
                         <div class="capture-item">
@@ -710,9 +821,138 @@
                             </span>
                         </div>
                     `).join('');
+                    
+                    // Update capture selector dropdown
+                    if (captureSelect) {
+                        captureSelect.innerHTML = captures.map(cap => 
+                            `<option value="${cap.name}">${cap.name}</option>`
+                        ).join('');
+                        
+                        // Select the most recent capture
+                        if (captures.length > 0) {
+                            captureSelect.value = captures[captures.length - 1].name;
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Failed to refresh captures:', error);
+            }
+        }
+        
+        // Grasp detection and visualization
+        let currentGraspPose = null;
+        
+        async function detectGraspPose() {
+            const graspText = document.getElementById('grasp-text')?.value || 'pick up the object';
+            const captureName = document.getElementById('capture-select')?.value || 'latest';
+            
+            try {
+                showMessage('Detecting grasp pose...', 'info');
+                
+                // Call grasp detection API
+                const response = await fetch('/api/grasp/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        capture_name: captureName,
+                        grasp_text: graspText
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentGraspPose = data.grasp_pose;
+                    showMessage('Grasp pose detected successfully!', 'success');
+                    
+                    // Show grasp info
+                    const graspInfo = document.getElementById('grasp-info');
+                    const graspDetails = document.getElementById('grasp-details');
+                    if (graspInfo && graspDetails) {
+                        graspInfo.style.display = 'block';
+                        graspDetails.innerHTML = `
+                            Position: [${currentGraspPose.xyz.map(v => v.toFixed(2)).join(', ')}] mm<br>
+                            Depth: ${currentGraspPose.dep?.toFixed(3) || 'N/A'}<br>
+                            Frame: ${currentGraspPose.coordinate_frame || 'camera'}
+                        `;
+                    }
+                    
+                    // Visualize the grasp pose
+                    const showTraj = document.getElementById('show-trajectory')?.checked ?? true;
+                    await visualizeGraspPose(showTraj);
+                } else {
+                    showMessage('Grasp detection failed: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Error detecting grasp: ' + error, 'error');
+            }
+        }
+        
+        async function visualizeGraspPose(showTrajectory = false) {
+            if (!currentGraspPose) {
+                showMessage('No grasp pose to visualize', 'warning');
+                return;
+            }
+            
+            try {
+                const captureName = document.getElementById('capture-select')?.value || 'latest';
+                
+                // Get Plotly visualization HTML from server
+                const response = await fetch('/api/grasp/visualize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        grasp_pose: currentGraspPose,
+                        show_trajectory: showTrajectory,
+                        capture_name: captureName
+                    })
+                });
+                
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    
+                    // Display in a modal or update existing visualization container
+                    const vizContainer = document.getElementById('grasp-visualization-container');
+                    if (vizContainer) {
+                        vizContainer.innerHTML = htmlContent;
+                    } else {
+                        // Create a new window or modal to show the visualization
+                        const newWindow = window.open('', 'Grasp Visualization', 'width=950,height=750');
+                        newWindow.document.write(htmlContent);
+                        newWindow.document.close();
+                    }
+                    
+                    showMessage('Grasp visualization updated', 'success');
+                } else {
+                    const error = await response.json();
+                    showMessage('Visualization failed: ' + error.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Error visualizing grasp: ' + error, 'error');
+            }
+        }
+        
+        async function executeGraspPose() {
+            if (!currentGraspPose) {
+                showMessage('No grasp pose to execute', 'warning');
+                return;
+            }
+            
+            try {
+                showMessage('Executing grasp...', 'info');
+                
+                const response = await fetch('/api/grasp/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        grasp_pose: currentGraspPose
+                    })
+                });
+                
+                const data = await response.json();
+                showMessage(data.message, data.success ? 'success' : 'error');
+            } catch (error) {
+                showMessage('Error executing grasp: ' + error, 'error');
             }
         }
         

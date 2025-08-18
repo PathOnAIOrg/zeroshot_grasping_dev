@@ -1,52 +1,49 @@
 #!/usr/bin/env python3
 """
-SO-101 Connection Test Script
+Simple Connection Test Script
 
-Tests connection to both the SO-101 robot and RealSense camera.
+Tests connection to the SO-101 robot and RealSense camera.
 """
 
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from so101_grasp.robot.calibration import RobotCalibrator
-from so101_grasp.vision.camera import CameraController
-
-
 def test_robot_connection():
     """Test SO-101 robot connection."""
     print("🤖 Testing SO-101 Robot Connection")
     print("=" * 50)
     
-    # Test common ports
-    possible_ports = [
-        "/dev/tty.usbmodem5A680107891",
-        "/dev/tty.usbmodemSN234567892",
-        "/dev/ttyACM0",
-        "/dev/ttyACM1",
-        "/dev/ttyUSB0",
-        "/dev/ttyUSB1"
-    ]
-    
-    for port in possible_ports:
-        print(f"\nTesting port: {port}")
-        calibrator = RobotCalibrator(port)
+    try:
+        from so101_grasp.robot import SO101ClientRawSimple
         
-        if calibrator.test_connection():
-            print(f"✅ Robot found on port: {port}")
-            calibrator.disconnect()
-            return port
-        else:
-            print(f"❌ No robot on port: {port}")
-    
-    print("\n❌ Robot not found on any tested port")
-    print("\nTroubleshooting:")
-    print("1. Ensure robot is powered on")
-    print("2. Check USB connection")
-    print("3. Verify correct port in code")
-    print("4. Try: python -m lerobot.find_port")
-    
-    return None
+        # Test common ports
+        possible_ports = [
+            "/dev/tty.usbmodem5A680107891",
+            "/dev/ttyACM0",
+            "/dev/ttyACM1",
+            "/dev/ttyUSB0",
+            "/dev/ttyUSB1"
+        ]
+        
+        for port in possible_ports:
+            print(f"\nTesting port: {port}")
+            try:
+                client = SO101ClientRawSimple(port=port)
+                positions = client.read_joints()
+                print(f"✅ Robot found on port: {port}")
+                print(f"   Current positions: {[f'{p:.2f}' for p in positions]}")
+                client.disconnect(disable_torque=False, close_port=True)
+                return port
+            except Exception as e:
+                print(f"❌ No robot on port: {port} ({str(e)[:50]})")
+        
+        print("\n⚠️ No robot found on any port")
+        return None
+        
+    except ImportError:
+        print("❌ Robot control modules not installed")
+        return None
 
 
 def test_camera_connection():
@@ -54,67 +51,68 @@ def test_camera_connection():
     print("\n📷 Testing RealSense Camera Connection")
     print("=" * 50)
     
-    camera = CameraController(width=640, height=480, fps=30)
-    
-    if camera.connect():
-        print("✅ Camera connected successfully")
+    try:
+        import pyrealsense2 as rs
         
-        # Test frame capture
-        print("\nTesting frame capture...")
-        color, depth, intrinsics = camera.capture_rgbd()
+        # Create a context object
+        ctx = rs.context()
         
-        if color is not None and depth is not None:
-            print(f"✅ Frame capture successful")
-            print(f"   Color image: {color.shape}")
-            print(f"   Depth image: {depth.shape}")
-        else:
-            print("❌ Frame capture failed")
+        # Get list of connected devices
+        devices = ctx.query_devices()
         
-        camera.disconnect()
+        if len(devices) == 0:
+            print("❌ No RealSense camera detected")
+            return False
+            
+        for i, device in enumerate(devices):
+            serial = device.get_info(rs.camera_info.serial_number)
+            name = device.get_info(rs.camera_info.name)
+            print(f"✅ Camera {i+1} found: {name} (Serial: {serial})")
+            
         return True
-    else:
-        print("❌ Camera connection failed")
-        print("\nTroubleshooting:")
-        print("1. Ensure RealSense camera is connected")
-        print("2. Check USB 3.0 connection")
-        print("3. Install RealSense SDK")
-        print("4. Try: realsense-viewer")
+        
+    except ImportError:
+        print("❌ pyrealsense2 not installed")
+        print("   Install with: pip install pyrealsense2")
+        return False
+    except Exception as e:
+        print(f"❌ Error accessing camera: {e}")
         return False
 
 
 def main():
-    """Main test function."""
-    print("SO-101 Grasping System - Connection Test")
-    print("=" * 60)
+    """Run all connection tests."""
+    print("\n" + "="*60)
+    print("       SO-101 System Connection Test")
+    print("="*60)
     
+    # Test robot
     robot_port = test_robot_connection()
+    
+    # Test camera
     camera_ok = test_camera_connection()
     
-    print("\n" + "=" * 60)
-    print("CONNECTION TEST SUMMARY")
-    print("=" * 60)
+    # Summary
+    print("\n" + "="*60)
+    print("📊 Test Summary:")
+    print("-" * 40)
     
     if robot_port:
         print(f"✅ Robot: Connected on {robot_port}")
     else:
         print("❌ Robot: Not connected")
-    
+        
     if camera_ok:
         print("✅ Camera: Connected")
     else:
         print("❌ Camera: Not connected")
+        
+    print("="*60)
     
-    if robot_port and camera_ok:
-        print("\n🎉 All systems ready!")
-        print(f"Update your configuration files with:")
-        print(f"   Robot port: {robot_port}")
-        print("\nNext steps:")
-        print("1. Run: python scripts/calibrate_robot.py")
-        print("2. Run: python scripts/calibrate_camera.py")
-        print("3. Run: python scripts/run_demo.py")
-    else:
-        print("\n⚠️  Some connections failed. Fix issues before proceeding.")
+    # Return success if at least one device is connected
+    return robot_port is not None or camera_ok
 
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    sys.exit(0 if success else 1)

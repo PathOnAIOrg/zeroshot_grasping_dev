@@ -4,8 +4,7 @@ Coordinate transformation utilities for camera to world/robot frame conversions
 """
 
 import numpy as np
-import json
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple
 
 class CoordinateTransform:
     """

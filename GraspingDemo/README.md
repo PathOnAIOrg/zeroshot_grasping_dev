@@ -1,265 +1,261 @@
-# SO-101 Robot Grasping System
+# GraspingDemo - SO-101 Robot Control System
 
-Intelligent grasping system for SO-101 robotic arm with computer vision, grasp prediction, and autonomous manipulation.
+A complete robotic grasping system with web interface, computer vision, and motion planning for the SO-101 6-DOF robot arm.
 
-## 🚀 Quick Start
+## Features
 
+- **Web Control Interface** - Browser-based robot control with 3D visualization
+- **Computer Vision** - RealSense depth camera integration with point cloud processing
+- **Grasp Detection** - ThinkGrasp AI-powered grasp pose prediction
+- **Motion Planning** - Collision-free trajectory planning with IK solver
+- **Hand-Eye Calibration** - Camera-robot coordinate transformation
+- **LeRobot Integration** - Learning from demonstration capabilities
 
-brew install librealsense
-
-# 1. Test system connections
-python scripts/test_connection.py
-
-# 2. Calibrate robot
-python scripts/calibrate_robot.py
-
-# 3. Run basic control example
-python examples/basic_control.py
-```
-
-## 📁 Project Structure
-
-```
-├── so101_grasp/                 # Core system package
-│   ├── robot/                   # Robot control & calibration
-│   ├── vision/                  # Camera & point cloud processing
-│   ├── planning/                # Grasp prediction & API client
-│   ├── control/                 # Trajectory execution & safety
-│   ├── visualization/           # 3D visualization
-│   └── utils/                   # Configuration & utilities
-├── scripts/                     # Executable scripts
-│   ├── test_connection.py       # Test robot & camera
-│   ├── calibrate_robot.py       # Robot calibration
-│   └── tools/                   # Utility tools
-├── config/                      # Configuration files
-├── examples/                    # Usage examples
-├── lerobot/                     # LeRobot framework
-└── third_party/                 # External dependencies
-```
-
-## 🛠️ Installation
-
-### Prerequisites
-- Python 3.8+
-- SO-101 robotic arm with Feetech servos
-- Intel RealSense depth camera (D435i recommended)
-
-### Setup
+## Quick Start
 
 ```bash
-# Clone and install
-git clone <repository-url>
-cd so101_grasping_system
+# 1. Install dependencies
 pip install -r requirements.txt
-pip install -e .
 
-# Additional packages
-pip install feetech-servo-sdk dynamixel-sdk meshcat
+# 2. Connect hardware
+# - SO-101 robot to USB port (usually /dev/ttyACM0 or /dev/ttyUSB0)
+# - Intel RealSense camera to USB 3.0 port
 
-# LeRobot framework
-cd lerobot && pip install -e . --no-deps
-pip install draccus==0.10.0 pyserial huggingface-hub termcolor
+# 3. Launch web interface
+cd web_control
+python app.py
 
-
-# Optional: ROS integration (see ROS Setup Guide below)
-sudo apt install python3-rosdep  # if using ROS
+# 4. Open browser to http://localhost:5000
 ```
 
-## 🤖 ROS Setup (Optional)
+## Project Structure
 
-Some advanced features may require ROS. Follow these steps if you encounter ROS-related issues:
-
-### 1. Check if ROS is installed
-```bash
-echo $ROS_DISTRO
 ```
-If it prints nothing, ROS is likely not sourced.
-
-### 2. Install ROS 2 Jazzy (Ubuntu 24.04)
-For Ubuntu 24.04, first add the ROS 2 repository:
-```bash
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-sudo apt update
-```
-
-Then install ROS 2 Jazzy:
-```bash
-sudo apt install ros-jazzy-desktop
+GraspingDemo/
+├── web_control/              # Web interface and APIs
+│   ├── app.py               # Flask server with all endpoints
+│   ├── templates/           # HTML interfaces
+│   ├── static/              # CSS, JS, 3D models
+│   └── *.py                 # Camera, visualization, planning modules
+├── so101_grasp/             # Core robot control library
+│   ├── robot/               # Kinematics, motion planning, client
+│   ├── vision/              # Camera and point cloud processing
+│   ├── api/                 # ThinkGrasp integration
+│   └── utils/               # Configuration and transforms
+├── examples/                # Usage examples
+├── scripts/                 # Utility scripts
+├── lerobot/                 # LeRobot teleoperation
+└── captures/                # Saved point clouds and trajectories
 ```
 
-### 3. Install rosdep
-For Ubuntu (assuming ROS is installed via apt):
-```bash
-sudo apt update
-sudo apt install python3-rosdep
-```
-For other systems, or if using pip:
-```bash
-pip3 install rosdep
-```
+## Installation
 
-### 4. Initialize rosdep (only once)
-After installing:
-```bash
-sudo rosdep init
-rosdep update
-```
+### Requirements
+- Python 3.8+
+- Ubuntu 20.04/22.04/24.04 or macOS
+- Intel RealSense D435/D435i/D415 camera
+- SO-101 robot with Feetech servos
 
-### 5. Ensure your shell sources ROS setup
-Add the following to your shell configuration:
-```bash
-# For bash (~/.bashrc)
-source /opt/ros/<your_ros_distro>/setup.bash
+### Install Steps
 
-# For zsh (~/.zshrc)  
-source /opt/ros/<your_ros_distro>/setup.zsh
-```
-Replace `<your_ros_distro>` with `noetic`, `foxy`, `humble`, etc. Then reload:
 ```bash
-source ~/.bashrc  # or ~/.zshrc
+# Clone repository
+git clone <repository>
+cd GraspingDemo
+
+# Install Python packages
+pip install flask numpy opencv-python pyrealsense2 plotly open3d
+pip install feetech-servo-sdk dynamixel-sdk
+pip install torch torchvision  # For AI features
+
+
+
+# Set permissions for robot port
+sudo chmod a+rw /dev/ttyACM0  # Linux
+# On macOS: /dev/tty.usbmodem*
 ```
 
-### 6. Verify installation
+## Web Interface Usage
+
+### Starting the Server
 ```bash
-which rosdep
-rosdep --version
+cd web_control
+python app.py
+# Server runs on http://localhost:5000
 ```
 
-📖 **For complete ROS setup guide, see [README_ROS_SETUP.md](README_ROS_SETUP.md)**
+### Available Interfaces
 
-## 🔧 Configuration
+1. **Main Control** (`http://localhost:5000`)
+   - Connect/disconnect robot
+   - Enable/disable motors
+   - Home position control
+   - Trajectory recording/replay
 
-Configuration files in `config/`:
-- `robot_config.yaml` - Robot parameters and limits
-- `camera_config.yaml` - Camera settings and filters  
-- `grasp_config.yaml` - Grasp planning parameters
+2. **Modern Interface** (`http://localhost:5000/modern`)
+   - Cartesian control (X,Y,Z position)
+   - Gripper rotation
+   - Inverse kinematics
+   - 3D robot visualization
 
+3. **Unified Interface** (`http://localhost:5000/unified`)
+   - Camera view with point cloud
+   - Grasp detection and execution
+   - Combined robot and vision control
 
-## 📚 Usage Guide
-### 1. Robot Calibration
+4. **Camera Interface** (`http://localhost:5000/camera`)
+   - RGB/Depth streaming
+   - Point cloud capture
+   - Hand-eye calibration
 
-Calibrate robot joint positions:
+## API Endpoints
+
+### Robot Control
+- `POST /api/connect` - Connect to robot
+- `POST /api/disconnect` - Disconnect robot
+- `GET /api/status` - Get robot status
+- `POST /api/enable_torque` - Enable motors
+- `POST /api/home` - Go to home position
+- `POST /api/move_to_position` - Move joints
+- `POST /api/cartesian_move` - Move to XYZ position
+- `POST /api/gripper/<open|close>` - Control gripper
+
+### Camera Control
+- `POST /api/camera/connect` - Connect camera
+- `GET /api/camera/rgb` - Get RGB stream
+- `GET /api/camera/depth` - Get depth stream
+- `GET /api/camera/pointcloud` - Get point cloud
+- `POST /api/camera/capture` - Save capture
+
+### Grasp Detection
+- `POST /api/grasp/detect` - Detect grasp poses
+- `POST /api/grasp/execute` - Execute grasp
+- `POST /api/grasp/visualize` - Visualize grasps
+
+### Trajectory Management
+- `POST /api/record/start` - Start recording
+- `POST /api/record/keyframe` - Add keyframe
+- `POST /api/record/stop` - Stop and save
+- `GET /api/trajectories` - List saved trajectories
+- `POST /api/replay` - Replay trajectory
+
+## Command Line Tools
+
+### Test Connection
 ```bash
-sudo chmod a+rw /dev/ttyACM0
-python -m lerobot.calibrate \
-    --robot.type=so101_follower \
-    --robot.port=/dev/ttyACM0 
-    
-    
-    
+python scripts/test_connection.py
+```
+
+### Calibrate Robot
+```bash
 python scripts/calibrate_robot.py --port /dev/ttyACM0
 ```
 
-Options:
-- `--port`: Specify robot port
-- `--force`: Force recalibration
-- `--config-path`: Custom calibration file path
-
-### 2. System Testing
-
-Test all hardware connections:
+### Basic Control Examples
 ```bash
-python scripts/test_connection.py
-```
-
-This will:
-- Detect robot on available ports
-- Test camera connection and capture
-- Verify all systems are ready
-
-
-
-### 3. Basic Examples
-
-```bash
-# Basic robot movement
+# Test robot movement
 python examples/basic_control.py
 
-# Grasp demonstration
-python examples/grasp_example.py
+# Record and replay trajectories
+python examples/keyframe_recorder.py
 
-# Manual torque control (for troubleshooting)
+# Test kinematics
+python examples/test_kinematics.py
+```
+
+### Camera Tools
+```bash
+# Capture point cloud
+python so101_grasp/tools/capture_pointcloud.py
+
+# Test camera
+python scripts/test_realsense.py
+```
+
+## Configuration
+
+Edit configuration files in `config/`:
+- `robot_config.yaml` - Robot parameters, joint limits
+- `camera_config.yaml` - Camera settings
+- `grasp_config.yaml` - Grasp planning parameters
+
+Or use environment variables:
+```bash
+export ROBOT_PORT=/dev/ttyACM0
+export CAMERA_WIDTH=640
+export CAMERA_HEIGHT=480
+```
+
+## ThinkGrasp Integration
+
+The system uses ThinkGrasp for AI-powered grasp detection:
+
+```python
+# Automatic in web interface, or manual:
+from so101_grasp.api import grasp_predictor
+
+# Get grasp from point cloud
+result = grasp_predictor.predict(points, colors, masks)
+grasp_pose = result['grasp_pose']
+confidence = result['confidence']
+```
+
+## Troubleshooting
+
+### Robot Not Found
+```bash
+# Find robot port
+ls /dev/tty* | grep -E "(ACM|USB)"
+# or
+python -m lerobot.find_port
+```
+
+### Camera Not Detected
+```bash
+# Test with RealSense viewer
+realsense-viewer
+
+# Check USB 3.0 connection
+lsusb | grep Intel
+```
+
+### Permission Errors
+```bash
+# Linux
+sudo usermod -a -G dialout $USER
+sudo chmod a+rw /dev/ttyACM0
+
+# Logout and login again
+```
+
+### Motor Issues
+```bash
+# Release all motors
 python scripts/tools/disable_torque.py
+
+# Reset to home
+python examples/basic_control.py
 ```
 
-## 🤖 API Reference
+## Development
 
-### Robot Control
-
-```python
-from so101_grasp.robot import SO101Client
-
-# Initialize robot
-client = SO101Client(port="/dev/ttyACM0", follower=True)
-
-# Read joint positions
-positions = client.read_joints()
-
-# Move to position
-target = [0.0, -0.5, 1.0, 0.0, 0.0, 0.0]
-client.write_joints(target)
-
-# Smooth interpolation
-client.interpolate_waypoint(start_pos, end_pos, steps=50)
+### Running Tests
+```bash
+python -m pytest tests/
 ```
 
-### Vision System
+### Adding New Features
+1. Add endpoint in `web_control/app.py`
+2. Add UI in `web_control/templates/`
+3. Add robot control in `so101_grasp/robot/`
 
-```python
-from so101_grasp.vision import CameraController, PointCloudProcessor
+### Code Structure
+- **Web Layer**: Flask routes and WebSocket handlers
+- **API Layer**: RESTful endpoints for all operations  
+- **Control Layer**: Robot kinematics and motion planning
+- **Vision Layer**: Camera and point cloud processing
+- **AI Layer**: ThinkGrasp integration for grasp detection
 
-# Initialize camera
-camera = CameraController()
-camera.connect()
+## License
 
-# Capture RGB-D data
-color, depth, intrinsics = camera.capture_rgbd()
-
-# Process point cloud
-processor = PointCloudProcessor()
-points, colors = processor.rgbd_to_pointcloud(color, depth, intrinsics)
-```
-
-
-### Configuration Management
-
-```python
-from so101_grasp.utils import ConfigManager
-
-config = ConfigManager()
-robot_config = config.get_robot_config()
-config.update_robot_port("/dev/ttyACM1")
-```
-
-## 🔍 Troubleshooting
-
-### Robot Issues
-- **Not found**: Run `python -m lerobot.find_port` to check ports
-- **Too stiff**: Run `python scripts/tools/disable_torque.py`
-
-### Camera Issues  
-- **Not detected**: Check USB 3.0 connection, test with `realsense-viewer`
-- **Poor depth**: Adjust lighting and camera position
-
-### API Issues
-- **Authentication failed**: Check GENERAL_BIONIX_API_KEY environment variable
-- **Grasp prediction fails**: Ensure point cloud is 480x640 resolution, downsampled to 480x160
-
-## 🏗️ Architecture
-
-```
-Camera → Point Cloud → API Grasp Prediction → Motion Planning → Robot Execution
-   ↓           ↓               ↓                    ↓              ↓
-Config → Calibration → Transform to Robot Frame → Safety Check → Feedback
-```
-
-Key modules:
-- **Robot**: Hardware control and calibration
-- **Vision**: Camera and point cloud processing  
-- **Planning**: General Bionix API integration for grasp prediction
-- **Control**: Trajectory execution and safety checks
-
-## 📄 License
-
-Apache License 2.0 - See LICENSE file for details.
+Apache License 2.0
