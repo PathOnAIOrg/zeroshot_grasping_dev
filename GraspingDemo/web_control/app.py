@@ -111,15 +111,8 @@ class RequestFilter(logging.Filter):
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.addFilter(RequestFilter())
 
-# Import and register motion planning API if available
-try:
-    from motion_planning_api import motion_api
-    app.register_blueprint(motion_api)
-    print("✅ Motion planning API registered")
-    HAS_MOTION_PLANNER = True
-except ImportError as e:
-    print(f"⚠️ Motion planning API not available: {e}")
-    HAS_MOTION_PLANNER = False
+# Motion planning API removed (simplified system)
+HAS_MOTION_PLANNER = False
 
 # Global robot client and kinematics
 robot = None
