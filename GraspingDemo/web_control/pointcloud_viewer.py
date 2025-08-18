@@ -504,12 +504,14 @@ def generate_plotly_html(fig, div_id="pointcloud-plotly"):
         }
     )
 
-def create_camera_visualization(camera_info=None):
+def create_camera_visualization(camera_info=None, camera_position=None, camera_rotation=None):
     """
     Create camera frustum and coordinate system visualization
     
     Args:
         camera_info: Dict with camera parameters (fx, fy, cx, cy, width, height)
+        camera_position: Camera position [x, y, z] in cm
+        camera_rotation: Camera rotation matrix (3x3) or None
     
     Returns:
         List of Plotly trace objects for camera visualization
