@@ -1512,6 +1512,12 @@
                                 </label>
                             </div>
                             <div style="flex: 1;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    <input type="checkbox" id="camera-on-hand" onchange="toggleCameraMode()">
+                                    <span style="font-size: 12px;">Eye-in-Hand</span>
+                                </label>
+                            </div>
+                            <div style="flex: 1;">
                                 <button class="btn btn-primary btn-sm" onclick="updatePlotlyNow()" style="padding: 5px 10px; font-size: 12px;">
                                     🔄 Update Plotly
                                 </button>
@@ -2214,6 +2220,22 @@
             if (currentViewerType === 'plotly' && lastCaptureName) {
                 updatePlotlyPointCloud(lastCaptureName);
             }
+        }
+        
+        function toggleCameraMode() {
+            const isEyeInHand = document.getElementById('camera-on-hand').checked;
+            console.log('Camera mode changed to:', isEyeInHand ? 'Eye-in-Hand' : 'Eye-to-Hand');
+            
+            // Update grasp visualization if active
+            if (window.currentGraspPose) {
+                updatePlotlyWithGraspPose(window.currentGraspPose, window.currentGraspJointStates);
+            }
+            
+            // Show mode indicator
+            const modeText = isEyeInHand ? 
+                '🤖📷 Eye-in-Hand Mode: Camera moves with robot' : 
+                '📷 Eye-to-Hand Mode: Camera is stationary';
+            showMessage(modeText, 'info');
         }
         
         // Manual update function for Plotly
@@ -4791,6 +4813,7 @@
                         // Include visualization options
                         show_camera: document.getElementById('show-camera-viz')?.checked ?? true,
                         show_robot: document.getElementById('show-robot-viz')?.checked ?? true,
+                        camera_on_hand: document.getElementById('camera-on-hand')?.checked ?? false,
                         robot_joint_angles: jointStates || currentJoints,
                         robot_position: [robotPosX/100, robotPosY/100, robotPosZ/100], // cm to m
                         robot_rotation: [robotRotRoll, robotRotPitch, robotRotYaw]

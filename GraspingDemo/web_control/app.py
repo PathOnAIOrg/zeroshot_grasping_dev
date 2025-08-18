@@ -2981,6 +2981,7 @@ def visualize_grasp():
         robot_joint_angles = data.get('robot_joint_angles')
         robot_position = data.get('robot_position', [0, 0, 0])
         robot_rotation = data.get('robot_rotation', [0, 0, 0])
+        camera_on_hand = data.get('camera_on_hand', False)  # Eye-in-hand vs Eye-to-hand
         
         if not grasp_pose:
             return jsonify({'success': False, 'message': 'No grasp pose provided'})
@@ -3161,7 +3162,45 @@ def visualize_grasp():
         
         # Convert position from mm to cm for visualization
         pos_cm = [x/10 for x in xyz]
-        print(f"Grasp position: {pos_cm} cm")
+        
+        # Transform grasp pose based on camera mounting configuration
+        if camera_on_hand and robot_position:
+            # Eye-in-hand: Camera moves with robot
+            # Grasp pose is relative to camera, which is on the robot
+            # Need to transform grasp pose to world frame using robot pose
+            
+            robot_pos_cm = [robot_position[0] * 100, robot_position[1] * 100, robot_position[2] * 100]
+            
+            # If robot rotation is provided, apply rotation transformation
+            if robot_rotation:
+                # Convert rotation from degrees to radians
+                roll, pitch, yaw = [np.radians(angle) for angle in robot_rotation]
+                
+                # Create rotation matrix from Euler angles
+                from scipy.spatial.transform import Rotation as R
+                robot_rot = R.from_euler('xyz', [roll, pitch, yaw])
+                
+                # Transform grasp position relative to robot
+                grasp_pos_relative = np.array(pos_cm)
+                grasp_pos_rotated = robot_rot.apply(grasp_pos_relative)
+                pos_cm = grasp_pos_rotated.tolist()
+                
+                # Also rotate the grasp orientation
+                rot = robot_rot.as_matrix() @ rot
+            
+            # Add robot position offset
+            pos_cm[0] += robot_pos_cm[0]
+            pos_cm[1] += robot_pos_cm[1]
+            pos_cm[2] += robot_pos_cm[2]
+            
+            print(f"Eye-in-hand mode: Grasp transformed relative to robot")
+        else:
+            # Eye-to-hand: Camera is stationary
+            # Grasp pose is already in world coordinates
+            # No transformation needed
+            print(f"Eye-to-hand mode: Grasp in world coordinates")
+        
+        print(f"Grasp position (after transform): {pos_cm} cm")
         
         # Decide whether to use vis_pcd_plotly for complete visualization
         if show_camera or show_robot:
@@ -3325,10 +3364,36 @@ def visualize_grasp():
             showlegend=False
         ))
         
+        # Add robot end-effector current position marker
+        if robot_position:
+            robot_pos_cm = [robot_position[0] * 100, robot_position[1] * 100, robot_position[2] * 100]
+            tcp_offset = 20  # 20cm from robot base to gripper
+            tcp_pos = [robot_pos_cm[0], robot_pos_cm[1], robot_pos_cm[2] + tcp_offset]
+            
+            # Add marker for current robot position
+            fig.add_trace(go.Scatter3d(
+                x=[tcp_pos[0]],
+                y=[tcp_pos[1]],
+                z=[tcp_pos[2]],
+                mode='markers+text',
+                marker=dict(size=10, color='purple', symbol='square'),
+                text=['Robot TCP'],
+                textposition='top center',
+                name='Robot Current Position',
+                hovertemplate='Robot TCP<br>X: %{x:.1f} cm<br>Y: %{y:.1f} cm<br>Z: %{z:.1f} cm'
+            ))
+        
         # Add trajectory if requested
         if show_trajectory:
-            # Current robot position (get from robot state or use default)
-            start_pos = [30, 0, 20]  # Default start position in cm
+            # Current robot position - use actual robot position if provided
+            if robot_position:
+                # robot_position is in meters, convert to cm
+                start_pos = [robot_position[0] * 100, robot_position[1] * 100, robot_position[2] * 100]
+                # Add a reasonable TCP offset (tool center point)
+                tcp_offset = 20  # 20cm from robot base to gripper
+                start_pos[2] += tcp_offset
+            else:
+                start_pos = [30, 0, 20]  # Default start position in cm
             
             # Pre-grasp position (approach from above)
             pre_grasp_offset = 10  # 10cm above grasp point
