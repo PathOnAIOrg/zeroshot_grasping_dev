@@ -6,7 +6,6 @@ Handles forward and inverse kinematics for cartesian control
 
 import numpy as np
 from typing import List, Tuple, Optional
-import math
 
 
 class SO101Kinematics:

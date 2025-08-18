@@ -504,12 +504,14 @@ def generate_plotly_html(fig, div_id="pointcloud-plotly"):
         }
     )
 
-def create_camera_visualization(camera_info=None):
+def create_camera_visualization(camera_info=None, camera_position=None, camera_rotation=None):
     """
     Create camera frustum and coordinate system visualization
     
     Args:
         camera_info: Dict with camera parameters (fx, fy, cx, cy, width, height)
+        camera_position: Camera position [x, y, z] in cm
+        camera_rotation: Camera rotation matrix (3x3) or None
     
     Returns:
         List of Plotly trace objects for camera visualization
@@ -739,9 +741,80 @@ def create_camera_visualization(camera_info=None):
     
     return traces
 
+def create_ground_grid_traces(grid_size=20, grid_spacing=10, z_level=0):
+    """
+    Create ground grid traces for visualization
+    
+    Args:
+        grid_size: Number of grid lines in each direction
+        grid_spacing: Spacing between grid lines in cm
+        z_level: Height of the grid plane in cm
+    
+    Returns:
+        List of Plotly trace objects for the grid
+    """
+    traces = []
+    
+    # Calculate grid extent
+    max_extent = (grid_size // 2) * grid_spacing
+    
+    # Create X-direction grid lines
+    for i in range(grid_size + 1):
+        y_pos = -max_extent + i * grid_spacing
+        traces.append(go.Scatter3d(
+            x=[-max_extent, max_extent],
+            y=[y_pos, y_pos],
+            z=[z_level, z_level],
+            mode='lines',
+            line=dict(color='lightgray', width=1),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Create Y-direction grid lines
+    for i in range(grid_size + 1):
+        x_pos = -max_extent + i * grid_spacing
+        traces.append(go.Scatter3d(
+            x=[x_pos, x_pos],
+            y=[-max_extent, max_extent],
+            z=[z_level, z_level],
+            mode='lines',
+            line=dict(color='lightgray', width=1),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Add thicker lines at axes
+    # X-axis (red)
+    traces.append(go.Scatter3d(
+        x=[-max_extent, max_extent],
+        y=[0, 0],
+        z=[z_level, z_level],
+        mode='lines',
+        line=dict(color='red', width=2),
+        name='X-axis (ground)',
+        showlegend=False,
+        hoverinfo='name'
+    ))
+    
+    # Y-axis (green)
+    traces.append(go.Scatter3d(
+        x=[0, 0],
+        y=[-max_extent, max_extent],
+        z=[z_level, z_level],
+        mode='lines',
+        line=dict(color='green', width=2),
+        name='Y-axis (ground)',
+        showlegend=False,
+        hoverinfo='name'
+    ))
+    
+    return traces
+
 def vis_pcd_plotly(pointclouds, size_ls=None, title="3D Point Cloud", 
                   show_camera=True, camera_info=None,
-                  show_robot=True, robot_joint_angles=None, robot_position=None, robot_rotation=None):
+                  show_robot=True, robot_joint_angles=None, robot_position=None, robot_rotation=None,
+                  show_grid=True):
     """
     Visualize point clouds using Plotly (similar to GenDP demo)
     
@@ -763,6 +836,13 @@ def vis_pcd_plotly(pointclouds, size_ls=None, title="3D Point Cloud",
         size_ls = [1] * len(pointclouds)  # Smaller default size for cm scale
     
     traces = []
+    
+    # Add ground grid first so it appears behind other elements
+    if show_grid:
+        grid_traces = create_ground_grid_traces(grid_size=20, grid_spacing=10, z_level=0)
+        traces.extend(grid_traces)
+    
+    # Add point clouds
     for i, pcd in enumerate(pointclouds):
         vertices = pcd.get('vertices', [])
         colors = pcd.get('colors', None)

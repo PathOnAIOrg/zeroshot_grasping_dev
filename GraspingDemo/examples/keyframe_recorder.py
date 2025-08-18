@@ -12,7 +12,6 @@ import sys
 import os
 import time
 import json
-import numpy as np
 from datetime import datetime
 from pathlib import Path
 
