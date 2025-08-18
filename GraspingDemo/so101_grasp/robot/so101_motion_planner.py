@@ -13,17 +13,15 @@ Features:
 """
 
 import numpy as np
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Dict, Any
 import time
 from dataclasses import dataclass
 from enum import Enum
 
 try:
-    import roboticstoolbox as rtb
     from roboticstoolbox import DHRobot, RevoluteDH
-    from spatialmath import SE3, SO3
+    from spatialmath import SE3
     from spatialgeometry import Cuboid, Sphere, Cylinder
-    import spatialmath.base as smb
     HAVE_RTB = True
     print("✅ Robotics toolbox loaded successfully for advanced motion planning")
 except ImportError as e:

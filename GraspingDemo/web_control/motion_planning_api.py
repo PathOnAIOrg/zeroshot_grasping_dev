@@ -10,7 +10,6 @@ import numpy as np
 import sys
 import os
 import time
-from typing import List, Dict, Any, Optional
 
 # Add path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -19,9 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 try:
     from so101_grasp.robot.so101_motion_planner import (
         SO101MotionPlanner, 
-        PlannerConfig, 
-        PlannerMode,
-        ObstacleEnvironment
+        PlannerConfig
     )
     HAVE_PLANNER = True
 except ImportError as e:
