@@ -8,9 +8,7 @@ import numpy as np
 import xml.etree.ElementTree as ET
 import plotly.graph_objects as go
 from pathlib import Path
-import re
-from typing import List, Dict, Tuple, Optional
-import os
+from typing import Dict
 import struct
 
 class STLReader:

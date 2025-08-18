@@ -6,7 +6,6 @@ Handles RealSense D435/D415 camera operations including RGB, depth, and point cl
 
 import numpy as np
 import base64
-import io
 import json
 import time
 from datetime import datetime
