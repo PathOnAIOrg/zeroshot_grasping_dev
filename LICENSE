@@ -1,0 +1,39 @@
+# Zero Shot Grasping Project License
+
+## Project Ownership and Collaboration Period
+
+The "Zero Shot Grasping Project" is a joint collaborative project between **Danqing Zhang** and **Yaoyao Qian** for the period ending **August 18, 2025**.
+
+## Usage and Distribution Rights
+
+### Pre-August 18, 2025
+- The codebase and all related materials created during the collaboration period cannot be shared, published, or distributed without the explicit written permission of **both parties**.
+- All decisions regarding code sharing, publication, or third-party access require mutual consent from both Danqing Zhang and Yaoyao Qian.
+
+### Commercial Usage Grant
+Per personal contract discussions, **Yaoyao Qian** hereby grants **PathOn AI, Inc.** the rights to use and commercialize the project code for business purposes and commercial applications.
+
+### ROS2-Related Work Ownership
+All work related to **ROS2** development and implementation is exclusively owned by:
+- **Danqing Zhang**
+- **PathOn AI, Inc.**
+
+This includes, but is not limited to:
+- **graspnet_ros2**
+- **lerobot_ws**
+- **mycobot_ros2**
+- **so_arm_visualization**
+- Any other ROS2-related code, packages, configurations, and documentation
+
+### Post-August 18, 2025
+- Any code modifications, improvements, or derivative works created after **August 18, 2025** shall be exclusively owned by:
+  - **Danqing Zhang**
+  - **PathOn AI, Inc.**
+- Yaoyao Qian relinquishes ownership rights to any developments made after this date.
+
+## Effective Date
+This license agreement is effective as of the date of execution and remains binding on all parties until superseded by a new agreement.
+
+---
+
+*This license governs the usage, distribution, and ownership rights of the Zero Shot Grasping Project codebase and related intellectual property.*
