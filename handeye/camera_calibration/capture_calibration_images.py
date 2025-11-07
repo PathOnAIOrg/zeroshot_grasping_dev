@@ -3,7 +3,7 @@ import os
 import datetime
 
 # Configuration
-CAMERA_INDEX = 0  # Change this if you have multiple cameras (0 is usually the default webcam)
+CAMERA_INDEX = 8  # Change this if you have multiple cameras (0 is usually the default webcam)
 OUTPUT_FOLDER = "calibration_images"
 IMAGE_PREFIX = "calibration"
 

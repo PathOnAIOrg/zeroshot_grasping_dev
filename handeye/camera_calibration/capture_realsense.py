@@ -4,6 +4,7 @@ import datetime
 import sys
 
 # Configuration
+CAMERA_INDEX = 8  # Change this to your camera index (0, 2, 4, 6, 8, etc.)
 OUTPUT_FOLDER = "calibration_images"
 IMAGE_PREFIX = "calibration"
 
@@ -12,68 +13,30 @@ if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)
     print(f"Created folder: {OUTPUT_FOLDER}")
 
-print("Searching for camera...")
+print(f"Opening camera at index {CAMERA_INDEX}...")
 
-# Try different camera indices
-camera_found = False
-cap = None
+# Open the specified camera
+cap = cv.VideoCapture(CAMERA_INDEX)
 
-# Try multiple indices (RealSense cameras sometimes appear at higher indices)
-for camera_index in range(0, 10):
-    print(f"Trying camera index {camera_index}...", end=" ")
-    test_cap = cv.VideoCapture(camera_index)
-    
-    if test_cap.isOpened():
-        ret, frame = test_cap.read()
-        if ret and frame is not None:
-            print(f"✓ Found working camera at index {camera_index}")
-            cap = test_cap
-            camera_found = True
-            CAMERA_INDEX = camera_index
-            break
-        else:
-            print("opened but no frame")
-            test_cap.release()
-    else:
-        print("not available")
-
-if not camera_found:
-    print("\nNo standard USB camera found. Trying RealSense-specific setup...")
-    
-    # Try with different backends
-    backends = [
-        (cv.CAP_V4L2, "V4L2"),
-        (cv.CAP_V4L, "V4L"),
-        (cv.CAP_ANY, "ANY"),
-    ]
-    
-    for backend, name in backends:
-        for idx in range(0, 6):
-            print(f"Trying {name} backend with index {idx}...", end=" ")
-            test_cap = cv.VideoCapture(idx, backend)
-            if test_cap.isOpened():
-                ret, frame = test_cap.read()
-                if ret and frame is not None:
-                    print(f"✓ Found camera!")
-                    cap = test_cap
-                    camera_found = True
-                    CAMERA_INDEX = idx
-                    break
-                else:
-                    print("opened but no frame")
-                    test_cap.release()
-            else:
-                print("failed")
-        if camera_found:
-            break
-
-if not camera_found:
-    print("\n=== CAMERA NOT FOUND ===")
-    print("Could not find a working camera.")
-    print("\nFor RealSense cameras, you might need to:")
-    print("1. Install pyrealsense2: pip install pyrealsense2")
-    print("2. Use the dedicated RealSense capture script (capture_realsense_dedicated.py)")
+if not cap.isOpened():
+    print(f"\n=== CAMERA NOT FOUND ===")
+    print(f"Could not open camera at index {CAMERA_INDEX}")
+    print("\nTroubleshooting:")
+    print("1. Check available cameras with: ls /dev/video*")
+    print("2. Try different CAMERA_INDEX values (0, 2, 4, 6, 8, etc.)")
+    print("3. For RealSense cameras, use: capture_realsense_dedicated.py")
     exit(1)
+
+# Test if we can read a frame
+ret, frame = cap.read()
+if not ret or frame is None:
+    print(f"\n=== CAMERA ERROR ===")
+    print(f"Camera {CAMERA_INDEX} opened but cannot read frames")
+    print("Try a different camera index")
+    cap.release()
+    exit(1)
+
+print(f"✓ Successfully opened camera at index {CAMERA_INDEX}")
 
 # Get actual camera resolution
 width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))

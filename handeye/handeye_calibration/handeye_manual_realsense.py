@@ -26,7 +26,7 @@ if os.path.exists(grasping_demo_path):
     sys.path.insert(0, grasping_demo_path)
 
 try:
-    from so101_grasp.robot.so101_client import SO101Client
+    from so101_grasp.robot import SO101ClientRawSimple as SO101Client
 except ImportError:
     # If SO101Client is not available, we can still use the calibrator for testing
     SO101Client = None
@@ -529,7 +529,7 @@ def main():
     args = parser.parse_args()
     
     # Configuration
-    SQUARE_SIZE = 25.0  # Size in mm
+    SQUARE_SIZE = 13.0  # Size in mm (measured from printed checkerboard)
     
     # Parse pattern if provided
     checkerboard_size = None
@@ -566,11 +566,7 @@ def main():
                 
                 # Try to connect with calibration check
                 try:
-                    client = SO101Client(
-                        port=args.port,
-                        follower=True,
-                        force_calibration=False
-                    )
+                    client = SO101Client(port=args.port)
                     print("✅ Robot connected with existing calibration!")
                 except Exception as e:
                     if "calibration" in str(e).lower():
@@ -591,40 +587,51 @@ def main():
                             if result.returncode == 0:
                                 print("✅ Robot calibration completed!")
                                 # Try connecting again
-                                client = SO101Client(
-                                    port=args.port,
-                                    follower=True,
-                                    force_calibration=False
-                                )
+                                client = SO101Client(port=args.port)
                             else:
                                 raise RuntimeError("Robot calibration failed")
                         else:
-                            # Try with force_calibration=True to use default
-                            client = SO101Client(
-                                port=args.port,
-                                follower=True,
-                                force_calibration=True
-                            )
+                            # Try connecting without calibration
+                            client = SO101Client(port=args.port)
                     else:
                         raise e
                 
                 print("✅ Robot connected!")
-                
+
                 # Disable torque to allow manual movement
                 try:
-                    # Try to disable torque for manual movement
-                    if hasattr(client, 'robot') and hasattr(client.robot, 'bus'):
+                    print("\nDisabling torque on all servos...")
+                    import time
+                    torque_disabled = False
+
+                    # Try SO101ClientRawSimple method (enable_torque with enable=False)
+                    if hasattr(client, 'enable_torque'):
+                        for servo_id in range(1, 7):  # Servos 1-6
+                            client.enable_torque(servo_id, enable=False)
+                            time.sleep(0.01)
+                        print("✅ Torque disabled - robot can be moved by hand")
+                        torque_disabled = True
+                    # Try legacy lerobot methods
+                    elif hasattr(client, 'robot') and hasattr(client.robot, 'bus'):
                         client.robot.bus.disable_torque()
                         print("✅ Torque disabled - robot can be moved by hand")
+                        torque_disabled = True
                     elif hasattr(client, 'disable_torque'):
                         client.disable_torque()
                         print("✅ Torque disabled - robot can be moved by hand")
+                        torque_disabled = True
                     else:
                         print("⚠️  Could not disable torque - robot may resist movement")
-                        print("   You may need to power off motors to move freely")
+
+                    if not torque_disabled:
+                        print("\n⚠️  Manual workaround: Run in separate terminal:")
+                        print("   cd /home/pathonai/pathonai_zeroshot_grasping_dev/handeye")
+                        print("   python disable_torque.py")
                 except Exception as e:
                     print(f"⚠️  Could not disable torque: {e}")
-                    print("   Robot may resist manual movement")
+                    print("   Manual workaround: Run in separate terminal:")
+                    print("   cd /home/pathonai/pathonai_zeroshot_grasping_dev/handeye")
+                    print("   python disable_torque.py")
                 
                 print("\n⚠️  MANUAL CONTROL MODE")
                 print("The robot should now be moveable by hand")
