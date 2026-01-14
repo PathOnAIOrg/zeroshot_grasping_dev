@@ -1,26 +1,21 @@
-# opensource_dev
+# Zero-Shot Grasping Development
 
+> **⚠️ ARCHIVED PROJECT - August 18, 2025**
+>
+> This repository has been archived and is no longer maintained. It contains raw initial exploration work contributed by [PathOnAI.org](https://pathonai.org) open source contributors from July 11, 2024.
+>
+> **Important Notes:**
+> - This code contains many unverified mistakes and errors
+> - The pipeline is not fully working - this was early exploration work
+> - Many components have not been properly tested or validated
+>
+> **📢 Stay Tuned:** PathOnAI.org is launching a cleaned, fully workable version of this project in **January 2026** with verified functionality and comprehensive documentation. Follow us at [PathOnAI.org](https://pathonai.org) for updates!
 
-Based on handeye folder
-handeye: https://www.loom.com/share/31e41d660eb142b796f7d9ee47fdbe7a
+This repository contains robotic grasping and manipulation systems.
 
+## Projects
 
-Based on GraspingDemo folder & ThinkGrasp folder
+- **[GraspingDemo](GraspingDemo/README.md)** - Complete SO-101 robot control system with web interface, computer vision, and grasp detection
+- **[ThinkGrasp](ThinkGrasp/README.md)** - AI-powered grasp pose prediction system (CoRL 2024)
 
-Thinkgrasp:
-
-python realarm310.py
-
-GraspingDemo:
-
-./run_web_ui.sh
-
-grasp1: https://www.loom.com/share/3ee0907c5f69443aad677933d6fe5c82
-
-grasp2: https://www.loom.com/share/ab68494d061c4371900a20091ee867a7
-
-manipulation1: https://www.loom.com/share/98f073d6da48446982a7f75057f021ab
-
-manipulation2: https://www.loom.com/share/74cc9401edb84139bc7283ca1b34c31b
-
-replay: https://www.loom.com/share/d6c48b19ec5b417e90cadcb8e4c9bc76
+See each project's README for detailed setup and usage instructions.
