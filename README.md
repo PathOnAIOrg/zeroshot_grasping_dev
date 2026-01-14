@@ -13,8 +13,10 @@
 
 ## Main Contributors
 
-- **Yaoyao Qian** - [@H-Freax](https://github.com/H-Freax) (July 11 - August 18, 2024)
-- **Jindan Huang** - [@jindanh](https://github.com/jindanh) (July 11 - August 18, 2024)
+Contributing time: July 11 - August 18, 2025
+
+- **Yaoyao Qian** - [@H-Freax](https://github.com/H-Freax)
+- **Jindan Huang** - [@jindanh](https://github.com/jindanh)
 
 This repository contains robotic grasping and manipulation systems.
 
