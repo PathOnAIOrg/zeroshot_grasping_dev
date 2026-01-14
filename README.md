@@ -2,7 +2,7 @@
 
 > **⚠️ ARCHIVED PROJECT - August 18, 2025**
 >
-> This repository has been archived and is no longer maintained. It contains raw initial exploration work contributed by [PathOnAI.org](https://pathonai.org) open source contributors from July 11, 2024.
+> This repository has been archived and is no longer maintained. It contains raw initial exploration work contributed by [PathOnAI.org](https://pathonai.org) open source contributors from July 11, 2025.
 >
 > **Important Notes:**
 > - This code contains many unverified mistakes and errors
