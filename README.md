@@ -9,7 +9,7 @@
 > - The pipeline is not fully working - this was early exploration work
 > - Many components have not been properly tested or validated
 >
-> **📢 Stay Tuned:** PathOnAI.org is launching a cleaned, fully workable version of this project in **January 2026** with verified functionality and comprehensive documentation. Follow us at [PathOnAI.org](https://pathonai.org) for updates!
+> **📢 Stay Tuned:** PathOnAI.org is launching a cleaned, fully workable version of this project in **Q1 2026** with verified functionality and comprehensive documentation. Follow us at [PathOnAI.org](https://pathonai.org) for updates!
 
 ## Main Contributors
 
